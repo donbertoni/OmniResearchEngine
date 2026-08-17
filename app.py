@@ -116,7 +116,7 @@ HTTP_HEADERS = {
 @st.cache_data(ttl=60)
 def get_crypto_data():
     data = {
-        "btc_price": 63500.0, "btc_change": 0.0,
+        "btc_price": 63744.0, "btc_change": 0.0,
         "eth_price": 1900.0, "eth_change": 0.0,
         "sol_price": 75.0, "sol_change": 0.0,
         "btc_dom": 56.3, "btc_dom_change": -0.4,
@@ -190,7 +190,6 @@ def get_support_resistance(btc_price: float):
     Calcula dinamicamente zonas de suporte e resistência com base em Pivot Points
     e nos candles diários do BTC na Binance API.
     """
-    # Zonas de fallback percentuais
     sup_low = btc_price * 0.965
     sup_high = btc_price * 0.982
     res_low = btc_price * 1.018
@@ -205,7 +204,6 @@ def get_support_resistance(btc_price: float):
             prev_low = float(res[-2][3])
             prev_close = float(res[-2][4])
 
-            # Pivot Points
             pivot = (prev_high + prev_low + prev_close) / 3.0
             s1 = (2 * pivot) - prev_high
             r1 = (2 * pivot) - prev_low
@@ -217,14 +215,12 @@ def get_support_resistance(btc_price: float):
             min_7d = min(recent_lows)
             max_7d = max(recent_highs)
 
-            # Ajuste dinâmico de zonas
             sup_low = min(s1 if btc_price > pivot else s2, min_7d)
             sup_high = max(s1 if btc_price > pivot else s2, min_7d)
 
             res_low = min(r1 if btc_price < pivot else r2, max_7d)
             res_high = max(r1 if btc_price < pivot else r2, max_7d)
 
-            # Validação técnica
             if sup_high >= btc_price:
                 sup_high = btc_price * 0.988
             if sup_low >= sup_high:
@@ -240,13 +236,129 @@ def get_support_resistance(btc_price: float):
 
     return {
         "support_str": f"{sup_low/1000:.1f}k - {sup_high/1000:.1f}k",
-        "resistance_str": f"{res_low/1000:.1f}k - {res_high/1000:.1f}k"
+        "resistance_str": f"{res_low/1000:.1f}k - {res_high/1000:.1f}k",
+        "sup_low": sup_low,
+        "sup_high": sup_high,
+        "res_low": res_low,
+        "res_high": res_high
     }
 
 
+@st.cache_data(ttl=3600)
+def get_global_m2():
+    """
+    Busca e calcula a oferta monetária global M2 (M2 Total Supply) e variação YoY%.
+    Obtém dados do FRED (St. Louis Fed) com modelo proporcional de liquidez global.
+    """
+    m2_total_trillions = 104.8
+    m2_yoy_pct = 4.2
+
+    try:
+        url_fred = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=WM2NS"
+        res = requests.get(url_fred, headers=HTTP_HEADERS, timeout=5)
+        if res.status_code == 200:
+            lines = [line.strip() for line in res.text.strip().split("\n") if line.strip()]
+            valid_rows = []
+            for line in lines[1:]:
+                parts = line.split(",")
+                if len(parts) == 2 and parts[1] != ".":
+                    try:
+                        valid_rows.append((parts[0], float(parts[1])))
+                    except ValueError:
+                        pass
+            if len(valid_rows) >= 52:
+                latest_us_m2 = valid_rows[-1][1] / 1000.0
+                prev_year_us_m2 = valid_rows[-52][1] / 1000.0
+                us_m2_yoy = ((latest_us_m2 - prev_year_us_m2) / prev_year_us_m2) * 100.0
+                
+                m2_total_trillions = round(latest_us_m2 * 4.88, 1)
+                m2_yoy_pct = round(us_m2_yoy * 1.1, 1)
+    except Exception:
+        pass
+
+    yoy_sign = "+" if m2_yoy_pct >= 0 else ""
+    return {
+        "m2_formatted": f"${m2_total_trillions:.1f}T",
+        "yoy_formatted": f"{yoy_sign}{m2_yoy_pct:.1f}% YoY",
+        "raw_trillions": m2_total_trillions,
+        "raw_yoy": m2_yoy_pct
+    }
+
+
+def calculate_predictive_matrix(market: dict, fng: dict, sr: dict):
+    """
+    Algoritmo de Matriz Preditiva 100% focado no Bitcoin.
+    Elimina ruídos de altcoins e pondera apenas métricas diretas do BTC.
+    """
+    score = 50.0  # Base Neutra
+
+    # 1. Momentum Direto do BTC (35% peso)
+    btc_chg = market.get("btc_change", 0.0)
+    score += max(min(btc_chg * 4.0, 22.0), -22.0)
+
+    # 2. BTC Funding Rate / Derivativos (25% peso)
+    fr = market.get("funding_rate", 0.01)
+    if 0.005 <= fr <= 0.015:
+        score += 8.0
+    elif 0.0 < fr < 0.005:
+        score += 5.0
+    elif fr < 0:
+        score += 12.0  # Dominância de Shorts -> Risco/Oportunidade de Short Squeeze
+    elif fr > 0.03:
+        score -= 12.0  # Longs superalavancados -> Risco de Long Squeeze
+
+    # 3. Bitcoin Fear & Greed Index (20% peso)
+    fng_val = fng.get("value", 50)
+    if 35 <= fng_val <= 60:
+        score += 8.0
+    elif 20 <= fng_val < 35:
+        score += 5.0
+    elif fng_val < 20:
+        score += 8.0   # Medo Extremo -> Fundo tático
+    elif fng_val > 75:
+        score -= 10.0  # Euforia Extrema -> Topo local
+
+    # 4. Posição no Range Suporte/Resistência do BTC (20% peso)
+    sup_low = sr.get("sup_low", market["btc_price"] * 0.97)
+    res_high = sr.get("res_high", market["btc_price"] * 1.03)
+    range_total = res_high - sup_low
+
+    if range_total > 0:
+        relative_pos = (market["btc_price"] - sup_low) / range_total
+        if relative_pos < 0.35:
+            score += 8.0   # Testando suporte -> Viés de repique
+        elif relative_pos > 0.85:
+            score -= 6.0   # Testando resistência -> Risco de rejeição
+
+    bullish_pct = int(max(min(round(score), 88), 15))
+
+    if bullish_pct >= 60:
+        direction = f"{bullish_pct}% Bullish"
+        confidence = "↑ Alta Confiança" if bullish_pct >= 70 else "↑ Viés Altista"
+        trend_desc = "altista"
+    elif bullish_pct <= 42:
+        direction = f"{100 - bullish_pct}% Bearish"
+        confidence = "↓ Risco de Baixa" if bullish_pct <= 35 else "↓ Viés Baixista"
+        trend_desc = "baixista"
+    else:
+        direction = f"{bullish_pct}% Neutro"
+        confidence = "→ Consolidação"
+        trend_desc = "neutra/lateral"
+
+    return {
+        "bullish_pct": bullish_pct,
+        "direction": direction,
+        "confidence": confidence,
+        "trend_desc": trend_desc
+    }
+
+
+# Ingestão Geral
 market = get_crypto_data()
 fng = get_fear_and_greed()
 sr = get_support_resistance(market["btc_price"])
+m2 = get_global_m2()
+pred = calculate_predictive_matrix(market, fng, sr)
 
 
 # --- Cabeçalho OMNIRESEARCH ---
@@ -284,25 +396,25 @@ with col_left:
 
 [00:00 - HOOK DE RETENÇÃO]
 (Horário de criação do Report: {now_str})
-O Fear & Greed Index marca {fng_text} enquanto o Bitcoin sustenta a faixa dos {btc_formatted}. Porém, o verdadeiro gatilho estrutural vem do M2 Global, que atingiu nova máxima histórica em $104.8 Trilhões.
+O Bitcoin Fear & Greed Index marca {fng_text} enquanto o BTC sustenta a faixa dos {btc_formatted}. O gatilho macro de fundo permanece atrelado à expansão da liquidez global, com o M2 registrando {m2['m2_formatted']} ({m2['yoy_formatted']}).
 
 [00:35 - BITCOIN & DOMINÂNCIA]
-Com a dominância do Bitcoin em {market['btc_dom']:.1f}%, vemos a liquidez se distribuindo pelas principais Layer 1s do mercado. O Funding Rate do BTC em {market['funding_rate']:.4f}% reflete o posicionamento dos derivativos sem euforia exagerada.
+Com a dominância do Bitcoin em {market['btc_dom']:.1f}%, a estrutura do mercado permanece centralizada na ação de preço do ativo principal. O Funding Rate do BTC em {market['funding_rate']:.4f}% reflete o posicionamento dos futuros sem excesso de alavancagem.
 
 [01:10 - ALTCOINS LÍDERES: ETHEREUM E SOLANA]
-O Ethereum negocia a {eth_formatted} impulsionado por fluxos institucionais nos ETFs spot, enquanto Solana é cotada a {sol_formatted} suportada pelo volume nas DEXs da rede.
+No radar das Layer 1s, o Ethereum negocia a {eth_formatted} e a Solana é cotada a {sol_formatted}, acompanhando o fluxo de liquidez ditado pelo BTC.
 
-[01:45 - ANÁLISE TÉCNICA E MATRIZ PREDITIVA]
-A zona de suporte imediata do BTC reside em {sr['support_str']}, com resistência crítica mapeada em {sr['resistance_str']}. Nossa matriz preditiva aponta 65% de probabilidade altista para as próximas 48 horas."""
+[01:45 - ANÁLISE TÉCNICA E MATRIZ PREDITIVA DO BTC]
+A zona de suporte imediata do Bitcoin reside em {sr['support_str']}, com resistência crítica em {sr['resistance_str']}. Nossa matriz preditiva focada exclusivamente no BTC aponta probabilidade {pred['trend_desc']} de {pred['direction']} para as próximas 48 horas."""
 
         st.text_area("", value=script_content, height=380)
 
         st.markdown("### 🎯 Níveis Chave & Matriz Preditiva")
-        m1, m2, m3, m4 = st.columns(4)
+        m1, m2_col, m3, m4 = st.columns(4)
         m1.metric("Zona de Suporte", sr["support_str"], "↑ Forte Defesa")
-        m2.metric("Zona de Resistência", sr["resistance_str"], "↑ Alvo Chave")
-        m3.metric("Matriz Preditiva 48h", "65% Bullish", "↑ Alta Confiança")
-        m4.metric("M2 Total Supply", "$104.8T", "+4.2% YoY")
+        m2_col.metric("Zona de Resistência", sr["resistance_str"], "↑ Alvo Chave")
+        m3.metric("Matriz Preditiva 48h", pred["direction"], pred["confidence"])
+        m4.metric("M2 Total Supply", m2["m2_formatted"], m2["yoy_formatted"])
 
 
 with col_right:
