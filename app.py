@@ -116,9 +116,9 @@ HTTP_HEADERS = {
 @st.cache_data(ttl=60)
 def get_crypto_data():
     data = {
-        "btc_price": 94500.0, "btc_change": 0.0,
-        "eth_price": 3420.50, "eth_change": 0.0,
-        "sol_price": 188.40, "sol_change": 0.0,
+        "btc_price": 63500.0, "btc_change": 0.0,
+        "eth_price": 1900.0, "eth_change": 0.0,
+        "sol_price": 75.0, "sol_change": 0.0,
         "btc_dom": 56.3, "btc_dom_change": -0.4,
         "funding_rate": 0.0100, "funding_rate_delta": 0.0015
     }
@@ -184,8 +184,69 @@ def get_fear_and_greed():
         return {"value": 31, "sentiment": "Fear", "change": -3}
 
 
+@st.cache_data(ttl=300)
+def get_support_resistance(btc_price: float):
+    """
+    Calcula dinamicamente zonas de suporte e resistência com base em Pivot Points
+    e nos candles diários do BTC na Binance API.
+    """
+    # Zonas de fallback percentuais
+    sup_low = btc_price * 0.965
+    sup_high = btc_price * 0.982
+    res_low = btc_price * 1.018
+    res_high = btc_price * 1.035
+
+    try:
+        url = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=14"
+        res = requests.get(url, headers=HTTP_HEADERS, timeout=6).json()
+
+        if isinstance(res, list) and len(res) >= 2:
+            prev_high = float(res[-2][2])
+            prev_low = float(res[-2][3])
+            prev_close = float(res[-2][4])
+
+            # Pivot Points
+            pivot = (prev_high + prev_low + prev_close) / 3.0
+            s1 = (2 * pivot) - prev_high
+            r1 = (2 * pivot) - prev_low
+            s2 = pivot - (prev_high - prev_low)
+            r2 = pivot + (prev_high - prev_low)
+
+            recent_lows = [float(k[3]) for k in res[-7:]]
+            recent_highs = [float(k[2]) for k in res[-7:]]
+            min_7d = min(recent_lows)
+            max_7d = max(recent_highs)
+
+            # Ajuste dinâmico de zonas
+            sup_low = min(s1 if btc_price > pivot else s2, min_7d)
+            sup_high = max(s1 if btc_price > pivot else s2, min_7d)
+
+            res_low = min(r1 if btc_price < pivot else r2, max_7d)
+            res_high = max(r1 if btc_price < pivot else r2, max_7d)
+
+            # Validação técnica
+            if sup_high >= btc_price:
+                sup_high = btc_price * 0.988
+            if sup_low >= sup_high:
+                sup_low = sup_high * 0.975
+
+            if res_low <= btc_price:
+                res_low = btc_price * 1.012
+            if res_high <= res_low:
+                res_high = res_low * 1.025
+
+    except Exception:
+        pass
+
+    return {
+        "support_str": f"{sup_low/1000:.1f}k - {sup_high/1000:.1f}k",
+        "resistance_str": f"{res_low/1000:.1f}k - {res_high/1000:.1f}k"
+    }
+
+
 market = get_crypto_data()
 fng = get_fear_and_greed()
+sr = get_support_resistance(market["btc_price"])
 
 
 # --- Cabeçalho OMNIRESEARCH ---
@@ -232,14 +293,14 @@ Com a dominância do Bitcoin em {market['btc_dom']:.1f}%, vemos a liquidez se di
 O Ethereum negocia a {eth_formatted} impulsionado por fluxos institucionais nos ETFs spot, enquanto Solana é cotada a {sol_formatted} suportada pelo volume nas DEXs da rede.
 
 [01:45 - ANÁLISE TÉCNICA E MATRIZ PREDITIVA]
-A zona de suporte imediata do BTC reside em $93.8k, com resistência crítica mapeada em $97.2k. Nossa matriz preditiva aponta 65% de probabilidade altista para as próximas 48 horas."""
+A zona de suporte imediata do BTC reside em {sr['support_str']}, com resistência crítica mapeada em {sr['resistance_str']}. Nossa matriz preditiva aponta 65% de probabilidade altista para as próximas 48 horas."""
 
         st.text_area("", value=script_content, height=380)
 
         st.markdown("### 🎯 Níveis Chave & Matriz Preditiva")
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Zona de Suporte", "93.8k - 94.2k", "↑ Forte Defesa")
-        m2.metric("Zona de Resistência", "97.2k - 98.5k", "↑ Alvo Chave")
+        m1.metric("Zona de Suporte", sr["support_str"], "↑ Forte Defesa")
+        m2.metric("Zona de Resistência", sr["resistance_str"], "↑ Alvo Chave")
         m3.metric("Matriz Preditiva 48h", "65% Bullish", "↑ Alta Confiança")
         m4.metric("M2 Total Supply", "$104.8T", "+4.2% YoY")
 
