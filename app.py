@@ -60,7 +60,6 @@ data_atual = agora_brt.strftime("%d/%m/%Y às %H:%M:%S BRT")
 # Função resiliente para buscar dados do CoinGecko (Fonte 100% unificada)
 @st.cache_data(ttl=20)
 def get_coingecko_data():
-    # Valores base alinhados em tempo real caso haja bloqueio/rate limit
     data = {
         "btc_price": "$64.303,80", "btc_change": "+2,24%", "btc_is_pos": True,
         "btc_raw_price": 64303.80,
@@ -71,7 +70,6 @@ def get_coingecko_data():
     }
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
-    # Busca de Preços (BTC, ETH, SOL)
     try:
         url_prices = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true"
         resp_prices = requests.get(url_prices, headers=headers, timeout=3).json()
@@ -101,7 +99,6 @@ def get_coingecko_data():
     except Exception:
         pass
 
-    # Busca de Dados Globais (Dominância BTC e Market Cap)
     try:
         url_global = "https://api.coingecko.com/api/v3/global"
         resp_global = requests.get(url_global, headers=headers, timeout=3).json()
@@ -147,7 +144,16 @@ formato = st.sidebar.radio(
     help="Escolha o tipo de entregável"
 )
 
-st.sidebar.info("💡 O modo Auto-Pilot está disponível exclusivamente para entregáveis B2C (YouTube).")
+# Lógica Condicional do Auto-Pilot na Sidebar
+if formato == "B2C (YouTube)":
+    autopilot = st.sidebar.toggle("🤖 Ativar Modo Auto-Pilot", value=True)
+    if autopilot:
+        st.sidebar.success("⚡ Auto-Pilot ATIVO: Roteiro gerado de forma autônoma.")
+    else:
+        st.sidebar.warning("🛠️ Modo HITL: Edição manual habilitada.")
+else:
+    autopilot = False
+    st.sidebar.info("💡 O modo Auto-Pilot está disponível exclusivamente para entregáveis B2C (YouTube).")
 
 # Header Principal
 st.title("⚡ OMNIRESEARCH Engine")
@@ -159,17 +165,37 @@ st.info(f"🕒 **Dados consolidados das {data_atual}**")
 # Layout Principal em Duas Colunas
 col_left, col_right = st.columns([1.6, 1])
 
-# LÓGICA DINÂMICA BASEADA NO MÓDULO SELECIONADO
+# LÓGICA DINÂMICA BASEADA NO MÓDULO E FORMATO SELECIONADOS
 if modulo == "TradFi (Macro)":
-    # Módulo TradFi
     sp500_tendencia, sp500_score, sp500_valor_nivel = "Pressão Vendedora", "38 pts", "7.680 pts"
     ibov_tendencia, ibov_score, ibov_valor_nivel = "Consolidação 7D", "52 pts", "165.200 pts"
 
     with col_left:
-        st.subheader("📰 Relatório B2B (TradFi & Macroeconomia)")
-        st.caption("Relatório Macro/TradFi (B2B):")
-        
-        relatorio_texto = f"""=== RELATÓRIO INSTITUCIONAL TRADFI & MACROECONOMIA (B2B) ===
+        if formato == "B2C (YouTube)":
+            st.subheader("🎬 Roteiro B2C YouTube (TradFi & Macro)")
+            st.caption("Roteiro de Vídeo (YouTube B2C):")
+            
+            roteiro_tradfi = f"""[HOOK 0-15s]
+O mercado global está em ponto crítico hoje ({data_atual}). S&P 500 recuando e o Ibovespa operando em consolidação. Vamos direto aos dados do relatório institucional.
+
+[BLOCO 1 - PANORAMA GLOBAL]
+- S&P 500 em 7.758 pts (-0.53%).
+- Ibovespa segurando a região dos 166.833 pts.
+- Dólar cotado a R$ 5,20.
+
+[BLOCO 2 - COMMODITIES E LIQUIDEZ]
+- Ouro registrando forte alta a $4.474,90/oz (+0.85%).
+- Petróleo Brent operando a $90,69 (+2.45%).
+
+[CTA & ENCERRAMENTO]
+Deixe seu like e inscreva-se para análises diárias da OMNIRESEARCH!"""
+
+            st.text_area("", value=roteiro_tradfi, height=310, disabled=False)
+        else:
+            st.subheader("📰 Relatório B2B (TradFi & Macroeconomia)")
+            st.caption("Relatório Macro/TradFi (B2B):")
+            
+            relatorio_texto = f"""=== RELATÓRIO INSTITUCIONAL TRADFI & MACROECONOMIA (B2B) ===
 Data/Hora: {data_atual}
 
 1. PANORAMA MACRO E BENCHMARKS
@@ -186,7 +212,7 @@ Data/Hora: {data_atual}
 - S&P 500 (EUA): Tendência 7D ({sp500_tendencia} - {sp500_score}) | Próximo Suporte: {sp500_valor_nivel}
 - Ibovespa (Brasil): Tendência 7D ({ibov_tendencia} - {ibov_score}) | Suporte Atual: {ibov_valor_nivel}"""
 
-        st.text_area("", value=relatorio_texto, height=310, disabled=False)
+            st.text_area("", value=relatorio_texto, height=310, disabled=False)
         
         c1, c2, c3, c4 = st.columns(4)
         with c1:
@@ -258,11 +284,9 @@ else:
     # Módulo Crypto (Exclusivo CoinGecko + Previsão 48h & Suporte/Resistência)
     crypto_data = get_coingecko_data()
 
-    # Cálculo dos Níveis Críticos de Suporte e Resistência com base nos preços CoinGecko
     btc_sup, btc_res = calcular_suporte_resistencia(crypto_data["btc_raw_price"], 0.035)
     eth_sup, eth_res = calcular_suporte_resistencia(crypto_data["eth_raw_price"], 0.040)
 
-    # Parâmetros da Previsão de 48h
     btc_prev_48h = "Alta Moderada" if crypto_data["btc_is_pos"] else "Pressão Vendedora"
     btc_target_48h = btc_res
     eth_prev_48h = "Consolidação / Alta" if crypto_data["eth_is_pos"] else "Teste de Suporte"
@@ -274,10 +298,31 @@ else:
     mcap_status_css = "status-green" if crypto_data["mcap_is_pos"] else "status-red"
 
     with col_left:
-        st.subheader("📰 Relatório B2B (Crypto & Web3)")
-        st.caption("Relatório Crypto/Web3 (B2B):")
-        
-        relatorio_crypto = f"""=== RELATÓRIO INSTITUCIONAL CRYPTO & WEB3 (B2B) ===
+        if formato == "B2C (YouTube)":
+            st.subheader("🎬 Roteiro B2C YouTube (Crypto & Web3)")
+            st.caption("Roteiro de Vídeo (YouTube B2C):")
+            
+            roteiro_crypto = f"""[HOOK 0-15s]
+O Bitcoin está sendo negociado a {crypto_data['btc_price']} nesta tarde ({data_atual})! Vamos analisar os alvos de 48 horas e os níveis de suporte essenciais para ETH e SOL.
+
+[BLOCO 1 - PREVISÃO 48H E ALVOS]
+- BTC: Previsão de {btc_prev_48h} com alvo em {btc_target_48h} e suporte em {btc_sup}.
+- ETH: Cotado a {crypto_data['eth_price']} com resistência em {eth_res} e suporte em {eth_sup}.
+
+[BLOCO 2 - METRICAS CRÍTICAS DE MERCADO]
+- Solana (SOL): {crypto_data['sol_price']} ({crypto_data['sol_change']}).
+- Dominância do Bitcoin: {crypto_data['btc_dom']}.
+- Capitalização de Mercado Total: {crypto_data['mcap']}.
+
+[CTA & ENCERRAMENTO]
+Inscreva-se no canal para manter suas decisões cripto fundamentadas em dados reais!"""
+
+            st.text_area("", value=roteiro_crypto, height=310, disabled=False)
+        else:
+            st.subheader("📰 Relatório B2B (Crypto & Web3)")
+            st.caption("Relatório Crypto/Web3 (B2B):")
+            
+            relatorio_crypto = f"""=== RELATÓRIO INSTITUCIONAL CRYPTO & WEB3 (B2B) ===
 Data/Hora: {data_atual}
 
 1. CRIPTO PANORAMA E BENCHMARKS
@@ -295,7 +340,7 @@ Data/Hora: {data_atual}
 - Bitcoin (BTC): Previsão 48h ({btc_prev_48h}) | Alvo: {btc_target_48h} | Suporte: {btc_sup}
 - Ethereum (ETH): Previsão 48h ({eth_prev_48h}) | Alvo: {eth_target_48h} | Suporte: {eth_sup}"""
 
-        st.text_area("", value=relatorio_crypto, height=310, disabled=False)
+            st.text_area("", value=relatorio_crypto, height=310, disabled=False)
         
         c1, c2, c3, c4 = st.columns(4)
         with c1:
