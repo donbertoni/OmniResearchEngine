@@ -11,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS Dark Mode Total & Cards Padronizados ---
+# --- CSS Dark Mode Total & Cards Responsive Fix com Cores Dinâmicas ---
 st.markdown("""
     <style>
     html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"], 
@@ -47,34 +47,52 @@ st.markdown("""
     .metric-delta-up { font-size: 0.8rem; color: #10b981 !important; }
     .metric-delta-down { font-size: 0.8rem; color: #ef4444 !important; }
 
-    /* Cards Inferiores Padronizados com Altura Fixa */
+    /* Cards Inferiores com Altura Flexível e Cores Dinâmicas */
     .bottom-card {
         background-color: #111827 !important;
         border: 1px solid #1f2937 !important;
         border-radius: 8px;
-        padding: 14px 16px;
-        height: 105px;
+        padding: 12px 14px;
+        min-height: 110px;
+        height: auto;
         display: flex;
         flex-direction: column;
         justify-content: center;
     }
     .bottom-card-title {
-        font-size: 0.8rem;
+        font-size: 0.78rem;
         color: #9ca3af !important;
         margin-bottom: 6px;
         font-weight: 500;
+        line-height: 1.2;
     }
     .bottom-card-value {
-        font-size: 1.25rem;
+        font-size: 1.2rem;
         font-weight: 700;
         color: #ffffff !important;
         white-space: nowrap;
+        line-height: 1.3;
     }
-    .bottom-card-sub {
+    .bottom-card-sub-up {
         font-size: 0.78rem;
         color: #10b981 !important;
         margin-top: 4px;
         font-weight: 500;
+        line-height: 1.2;
+    }
+    .bottom-card-sub-down {
+        font-size: 0.78rem;
+        color: #ef4444 !important;
+        margin-top: 4px;
+        font-weight: 500;
+        line-height: 1.2;
+    }
+    .bottom-card-sub-neutral {
+        font-size: 0.78rem;
+        color: #38bdf8 !important;
+        margin-top: 4px;
+        font-weight: 500;
+        line-height: 1.2;
     }
     .status-badge {
         background-color: #1e293b;
@@ -247,28 +265,32 @@ def calculate_predictive_matrix(market: dict, fng: dict, sr: dict):
 
     bullish_pct = int(max(min(round(score), 88), 15))
 
-    if bullish_pct >= 60:
-        direction = f"{bullish_pct}% Bullish"
-        confidence = "↑ Viés Altista" if bullish_pct < 70 else "↑ Alta Confiança"
+    if bullish_pct >= 55:
+        direction = "Viés de Alta"
+        confidence = f"↑ {bullish_pct}% Apetite Risco"
         trend_desc = "altista"
-    elif bullish_pct <= 42:
-        direction = f"{100 - bullish_pct}% Bearish"
-        confidence = "↓ Viés Baixista" if bullish_pct > 35 else "↓ Risco de Baixa"
+        sub_cls = "bottom-card-sub-up"
+    elif bullish_pct <= 44:
+        direction = "Viés de Baixa"
+        confidence = f"↓ {100 - bullish_pct}% Pressão Vendedora"
         trend_desc = "baixista"
+        sub_cls = "bottom-card-sub-down"
     else:
-        direction = f"{bullish_pct}% Neutro"
-        confidence = "→ Consolidação"
+        direction = "Consolidação"
+        confidence = f"→ Sem Viés Claro ({bullish_pct} pts)"
         trend_desc = "neutra/lateral"
+        sub_cls = "bottom-card-sub-neutral"
 
     return {
         "bullish_pct": bullish_pct,
         "direction": direction,
         "confidence": confidence,
-        "trend_desc": trend_desc
+        "trend_desc": trend_desc,
+        "sub_cls": sub_cls
     }
 
 
-# --- ANÁLISE PREDITIVA E TENDÊNCIAS TRADFI (PROPOSTA 1 DESACOPLADA) ---
+# --- ANÁLISE PREDITIVA E TENDÊNCIAS TRADFI COM CLASSES DE COR ---
 def calculate_tradfi_analytics(tradfi_data: dict):
     sp_chg = tradfi_data.get("sp500_change", 0.0)
     ibov_chg = tradfi_data.get("ibov_change", 0.0)
@@ -278,59 +300,75 @@ def calculate_tradfi_analytics(tradfi_data: dict):
     if sp_chg > 0.4:
         sp_trend_title = "Alta Estrutural"
         sp_trend_sub = "↑ Acima Média 20D"
+        sp_trend_cls = "bottom-card-sub-up"
     elif sp_chg < -0.4:
         sp_trend_title = "Pressão Vendedora"
         sp_trend_sub = "↓ Teste de Suporte"
+        sp_trend_cls = "bottom-card-sub-down"
     else:
         sp_trend_title = "Consolidação 7D"
         sp_trend_sub = "→ Acumulação Lateral"
+        sp_trend_cls = "bottom-card-sub-neutral"
 
     # 2. Tendência Semanal Ibovespa
     if ibov_chg > 0.3 and usd_chg <= 0:
         ibov_trend_title = "Alta Estrutural"
         ibov_trend_sub = "↑ Entrada de Fluxo"
+        ibov_trend_cls = "bottom-card-sub-up"
     elif ibov_chg < -0.3 or usd_chg > 0.4:
         ibov_trend_title = "Correção / Risco"
         ibov_trend_sub = "↓ Pressão Fiscal/Câmbio"
+        ibov_trend_cls = "bottom-card-sub-down"
     else:
         ibov_trend_title = "Consolidação 7D"
         ibov_trend_sub = "→ Defesa de Nível"
+        ibov_trend_cls = "bottom-card-sub-neutral"
 
     # 3. Preditiva 48h EUA (S&P 500)
     sp_score = 50.0 + (sp_chg * 8.0)
     sp_pct = int(max(min(round(sp_score), 85), 15))
     if sp_pct >= 55:
-        sp_pred_dir = f"{sp_pct}% Bullish"
-        sp_pred_sub = "↑ Viés Altista EUA"
-    elif sp_pct <= 45:
-        sp_pred_dir = f"{100 - sp_pct}% Bearish"
-        sp_pred_sub = "↓ Viés Baixista EUA"
+        sp_pred_dir = "Viés de Alta"
+        sp_pred_sub = f"↑ {sp_pct}% Probabilidade"
+        sp_pred_cls = "bottom-card-sub-up"
+    elif sp_pct <= 44:
+        sp_pred_dir = "Viés de Baixa"
+        sp_pred_sub = f"↓ {100 - sp_pct}% Probabilidade"
+        sp_pred_cls = "bottom-card-sub-down"
     else:
-        sp_pred_dir = f"{sp_pct}% Neutro"
-        sp_pred_sub = "→ Consolidação EUA"
+        sp_pred_dir = "Consolidação"
+        sp_pred_sub = f"→ Sem Viés Claro ({sp_pct} pts)"
+        sp_pred_cls = "bottom-card-sub-neutral"
 
     # 4. Preditiva 48h BR (Ibovespa)
     br_score = 50.0 + (ibov_chg * 7.0) - (usd_chg * 5.0)
     br_pct = int(max(min(round(br_score), 85), 15))
     if br_pct >= 55:
-        br_pred_dir = f"{br_pct}% Bullish"
-        br_pred_sub = "↑ Viés Altista BR"
-    elif br_pct <= 45:
-        br_pred_dir = f"{100 - br_pct}% Bearish"
-        br_pred_sub = "↓ Risco Doméstico"
+        br_pred_dir = "Viés de Alta"
+        br_pred_sub = f"↑ {br_pct}% Probabilidade"
+        br_pred_cls = "bottom-card-sub-up"
+    elif br_pct <= 44:
+        br_pred_dir = "Viés de Baixa"
+        br_pred_sub = f"↓ {100 - br_pct}% Probabilidade"
+        br_pred_cls = "bottom-card-sub-down"
     else:
-        br_pred_dir = f"{br_pct}% Neutro"
-        br_pred_sub = "→ Consolidação BR"
+        br_pred_dir = "Consolidação"
+        br_pred_sub = f"→ Sem Viés Claro ({br_pct} pts)"
+        br_pred_cls = "bottom-card-sub-neutral"
 
     return {
         "sp_trend_title": sp_trend_title,
         "sp_trend_sub": sp_trend_sub,
+        "sp_trend_cls": sp_trend_cls,
         "ibov_trend_title": ibov_trend_title,
         "ibov_trend_sub": ibov_trend_sub,
+        "ibov_trend_cls": ibov_trend_cls,
         "sp_pred_dir": sp_pred_dir,
         "sp_pred_sub": sp_pred_sub,
+        "sp_pred_cls": sp_pred_cls,
         "br_pred_dir": br_pred_dir,
         "br_pred_sub": br_pred_sub,
+        "br_pred_cls": br_pred_cls,
     }
 
 
@@ -356,7 +394,6 @@ with st.sidebar:
 
     st.divider()
 
-    # 1. Escolha do Módulo (Crypto vs TradFi)
     selected_module = st.radio(
         "🪙 Escolha o Módulo:",
         ["Crypto", "TradFi (Macro)"],
@@ -366,7 +403,6 @@ with st.sidebar:
 
     st.divider()
 
-    # 2. Escolha do Público/Formato (B2B vs B2C)
     selected_target = st.radio(
         f"🎯 Formato ({selected_module}):",
         ["B2B (Relatório)", "B2C (YouTube)"],
@@ -374,7 +410,6 @@ with st.sidebar:
         help="B2B gera relatórios técnicos analíticos. B2C gera roteiros dinâmicos para vídeo."
     )
 
-    # 3. Módulo Auto-Pilot (Ativo apenas dentro do modo B2C YouTube)
     autopilot_mode = False
     if "B2C" in selected_target:
         st.divider()
@@ -405,7 +440,7 @@ With Bitcoin dominance at {crypto_market['btc_dom']:.1f}% (CoinGecko Global), ma
 Ethereum trades at {fmt_usd(crypto_market['eth_price'])} (CoinGecko) and Solana at {fmt_usd(crypto_market['sol_price'])} (CoinGecko), reflecting overall market consolidation.
 
 [01:45 - TECHNICAL ANALYSIS & 48H PREDICTIVE MATRIX]
-Bitcoin key support sits at {sr['support_str']}, with resistance at {sr['resistance_str']}. Our 48-hour predictive model points to a {pred['trend_desc']} outlook at {pred['direction']} ({pred['confidence']})."""
+Bitcoin key support sits at {sr['support_str']}, with resistance at {sr['resistance_str']}. Our 48-hour predictive model points to: {pred['direction']} ({pred['confidence']})."""
         else:
             return f"""{prefix}[Crypto Focus] Roteiro Estendido LLM (~2 min 30 seg de tela):
 
@@ -419,7 +454,7 @@ Com a dominância do Bitcoin em {crypto_market['btc_dom']:.1f}% (CoinGecko Globa
 Ethereum negocia em {fmt_usd(crypto_market['eth_price'])} (CoinGecko) e Solana em {fmt_usd(crypto_market['sol_price'])} (CoinGecko), refletindo o momento de consolidação do ativo principal.
 
 [01:45 - ANÁLISE TÉCNICA E MATRIZ PREDITIVA DO BTC]
-A zona de suporte do Bitcoin situa-se em {sr['support_str']}, com resistência imediata em {sr['resistance_str']}. Nossa matriz preditiva aponta probabilidade {pred['trend_desc']} de {pred['direction']} ({pred['confidence']}) para as próximas 48 horas."""
+A zona de suporte do Bitcoin situa-se em {sr['support_str']}, com resistência imediata em {sr['resistance_str']}. Nossa matriz preditiva indica: {pred['direction']} ({pred['confidence']})."""
 
     else:  # TradFi / Macro Focus
         analytics = tradfi_data_analytics or calculate_tradfi_analytics(tradfi_market)
@@ -554,12 +589,10 @@ st.divider()
 col_left, col_right = st.columns([1.2, 0.8])
 
 with col_left:
-    # Exibe badge de status do pipeline apenas quando estiver em modo B2C (YouTube)
     if "B2C" in selected_target:
         status_text = "🤖 MODO AUTO-PILOT ATIVADO (Pipeline Automático)" if autopilot_mode else "✋ MODO HITL ATIVADO (Aprovação Manual Requerida)"
         st.markdown(f'<div class="status-badge">{status_text}</div>', unsafe_allow_html=True)
 
-    # Roteamento de telas dinâmico baseado no módulo e entregável selecionado
     if selected_module == "Crypto":
         if "B2B" in selected_target:
             st.subheader("🏢 Relatório B2B (Cripto & Institucional)")
@@ -589,9 +622,9 @@ with col_left:
         with m3:
             st.markdown(f"""
                 <div class="bottom-card">
-                    <div class="bottom-card-title">Matriz Preditiva 48h</div>
+                    <div class="bottom-card-title">Preditiva 48h BTC</div>
                     <div class="bottom-card-value">{pred['direction']}</div>
-                    <div class="bottom-card-sub">{pred['confidence']}</div>
+                    <div class="{pred['sub_cls']}">{pred['confidence']}</div>
                 </div>
             """, unsafe_allow_html=True)
         with m4:
@@ -599,7 +632,7 @@ with col_left:
                 <div class="bottom-card">
                     <div class="bottom-card-title">M2 Global (FRED)</div>
                     <div class="bottom-card-value">{m2['m2_formatted']}</div>
-                    <div class="bottom-card-sub">{m2['yoy_formatted']}</div>
+                    <div class="bottom-card-sub-up">{m2['yoy_formatted']}</div>
                 </div>
             """, unsafe_allow_html=True)
 
@@ -613,38 +646,38 @@ with col_left:
             yt_script = generate_youtube_script(lang_option, autopilot_mode, "TradFi Focus", tradfi_analytics)
             st.text_area("Roteiro de Vídeo Macro (B2C):", value=yt_script, height=350)
 
-        # Cards Inferiores Dinâmicos (TradFi / Macro - Proposta 1 Desacoplada)
+        # Cards Inferiores Dinâmicos (TradFi / Macro - Cores e Classes Dinâmicas)
         m1, m2_col, m3, m4 = st.columns(4)
         with m1:
             st.markdown(f"""
                 <div class="bottom-card">
-                    <div class="bottom-card-title">Tendência Semanal S&P 500</div>
+                    <div class="bottom-card-title">Tendência 7D (S&P 500)</div>
                     <div class="bottom-card-value">{tradfi_analytics['sp_trend_title']}</div>
-                    <div class="bottom-card-sub">{tradfi_analytics['sp_trend_sub']}</div>
+                    <div class="{tradfi_analytics['sp_trend_cls']}">{tradfi_analytics['sp_trend_sub']}</div>
                 </div>
             """, unsafe_allow_html=True)
         with m2_col:
             st.markdown(f"""
                 <div class="bottom-card">
-                    <div class="bottom-card-title">Tendência Semanal Ibov</div>
+                    <div class="bottom-card-title">Tendência 7D (Ibovespa)</div>
                     <div class="bottom-card-value">{tradfi_analytics['ibov_trend_title']}</div>
-                    <div class="bottom-card-sub">{tradfi_analytics['ibov_trend_sub']}</div>
+                    <div class="{tradfi_analytics['ibov_trend_cls']}">{tradfi_analytics['ibov_trend_sub']}</div>
                 </div>
             """, unsafe_allow_html=True)
         with m3:
             st.markdown(f"""
                 <div class="bottom-card">
-                    <div class="bottom-card-title">Preditiva 48h EUA (S&P)</div>
+                    <div class="bottom-card-title">Preditiva 48h (S&P 500)</div>
                     <div class="bottom-card-value">{tradfi_analytics['sp_pred_dir']}</div>
-                    <div class="bottom-card-sub">{tradfi_analytics['sp_pred_sub']}</div>
+                    <div class="{tradfi_analytics['sp_pred_cls']}">{tradfi_analytics['sp_pred_sub']}</div>
                 </div>
             """, unsafe_allow_html=True)
         with m4:
             st.markdown(f"""
                 <div class="bottom-card">
-                    <div class="bottom-card-title">Preditiva 48h BR (Ibov)</div>
+                    <div class="bottom-card-title">Preditiva 48h (Ibovespa)</div>
                     <div class="bottom-card-value">{tradfi_analytics['br_pred_dir']}</div>
-                    <div class="bottom-card-sub">{tradfi_analytics['br_pred_sub']}</div>
+                    <div class="{tradfi_analytics['br_pred_cls']}">{tradfi_analytics['br_pred_sub']}</div>
                 </div>
             """, unsafe_allow_html=True)
 
