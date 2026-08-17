@@ -10,13 +10,16 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- Estilização CSS Customizada (Visual Dark OMNIRESEARCH) ---
+# --- CSS Customizado para Forçar Dark Theme Completo ---
 st.markdown("""
     <style>
-    .main {
-        background-color: #0b0f19;
-        color: #ffffff;
+    /* Forçar fundo escuro no app inteiro */
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        background-color: #0b0f19 !important;
+        color: #ffffff !important;
     }
+    
+    /* Customização dos Cards do Lado Direito */
     .stCard {
         background-color: #111827;
         padding: 18px;
@@ -42,6 +45,28 @@ st.markdown("""
         font-size: 0.8rem;
         color: #ef4444;
     }
+
+    /* Caixa do Roteiro (Text Area) */
+    .stTextArea textarea {
+        background-color: #111827 !important;
+        color: #e5e7eb !important;
+        border: 1px solid #1f2937 !important;
+        font-family: monospace;
+    }
+
+    /* Customização de Badges e Seletores */
+    .stSelectbox > div > div {
+        background-color: #111827 !important;
+        color: #ffffff !important;
+        border: 1px solid #1f2937 !important;
+    }
+    
+    /* Badges de Hora e Info */
+    div[data-testid="stNotification"] {
+        background-color: #1e293b !important;
+        color: #38bdf8 !important;
+        border: 1px solid #0284c7 !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -50,18 +75,14 @@ st.markdown("""
 
 @st.cache_data(ttl=300)
 def get_crypto_data():
-    """Busca cotações ao vivo de BTC, ETH, SOL e dados de mercado via CoinGecko e Binance."""
+    """Busca cotações ao vivo via CoinGecko."""
     try:
         url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true"
         res = requests.get(url, timeout=8).json()
 
-        # Dominância do BTC via API global da CoinGecko
         global_url = "https://api.coingecko.com/api/v3/global"
         global_res = requests.get(global_url, timeout=8).json()
         btc_dom = global_res.get("data", {}).get("market_cap_percentage", {}).get("btc", 57.8)
-
-        # Funding Rate estimado do BTC
-        funding_rate = 0.0100
 
         return {
             "btc_price": res.get("bitcoin", {}).get("usd", 94500.0),
@@ -71,10 +92,9 @@ def get_crypto_data():
             "sol_price": res.get("solana", {}).get("usd", 188.4),
             "sol_change": res.get("solana", {}).get("usd_24h_change", 4.12),
             "btc_dom": btc_dom,
-            "funding_rate": funding_rate
+            "funding_rate": 0.0100
         }
     except Exception:
-        # Fallback de segurança mantendo o painel operacional em caso de erro/rate limit
         return {
             "btc_price": 94500.0, "btc_change": 1.25,
             "eth_price": 3420.50, "eth_change": 1.85,
@@ -85,7 +105,7 @@ def get_crypto_data():
 
 @st.cache_data(ttl=1800)
 def get_fear_and_greed():
-    """Busca o Fear & Greed Index em tempo real via Alternative.me."""
+    """Busca o Fear & Greed Index ao vivo via Alternative.me."""
     try:
         url = "https://api.alternative.me/fng/?limit=2"
         res = requests.get(url, timeout=8).json()
@@ -104,7 +124,7 @@ def get_fear_and_greed():
         return {"value": 68, "sentiment": "Greed", "change": 3}
 
 
-# --- Carregamento dos Dados ---
+# --- Carregamento de Dados ---
 market = get_crypto_data()
 fng = get_fear_and_greed()
 now_str = datetime.datetime.now().strftime("%d/%m/%Y às %H:%M BRT")
@@ -112,6 +132,7 @@ now_str = datetime.datetime.now().strftime("%d/%m/%Y às %H:%M BRT")
 
 # --- Cabeçalho OMNIRESEARCH ---
 col_head1, col_head2 = st.columns([3, 1])
+
 with col_head1:
     st.title("⚡ OMNIRESEARCH")
     st.caption("Engine de Inteligência Financeira Multiativo")
@@ -126,7 +147,7 @@ with col_head2:
 st.divider()
 
 
-# --- Layout Principal (Duas Colunas) ---
+# --- Layout Principal ---
 col_left, col_right = st.columns([1.2, 0.8])
 
 # --- Coluna da Esquerda: Painel de Aprovação de Roteiro ---
@@ -158,9 +179,9 @@ A zona de suporte imediata do BTC reside em $93.8k, com resistência crítica ma
 
         st.markdown("### 🎯 Níveis Chave & Matriz Preditiva")
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Zona de Suporte", "93.8k - 94.2k", "Forte Defesa")
-        m2.metric("Zona de Resistência", "97.2k - 98.5k", "Alvo Chave")
-        m3.metric("Matriz Preditiva 48h", "65% Bullish", "Alta Confiança")
+        m1.metric("Zona de Suporte", "93.8k - 94.2k", "↑ Forte Defesa")
+        m2.metric("Zona de Resistência", "97.2k - 98.5k", "↑ Alvo Chave")
+        m3.metric("Matriz Preditiva 48h", "65% Bullish", "↑ Alta Confiança")
         m4.metric("M2 Total Supply", "$104.8T", "+4.2% YoY")
 
 
@@ -225,4 +246,6 @@ with col_right:
             <div class="metric-title">6. BTC Funding Rate</div>
             <div class="metric-value">{market['funding_rate']:.4f}%</div>
         </div>
-    """, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)git add app.py
+git commit -m "Forçar tema escuro e restaurar layout OMNIRESEARCH"
+git push origin main
