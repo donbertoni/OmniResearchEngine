@@ -63,19 +63,6 @@ def calcular_nivel_condicional(estado):
     else:
         return "Suporte Atual", "status-blue", "→"
 
-# Definições de Tendência e Níveis Atuais
-sp500_tendencia = "Pressão Vendedora"
-sp500_score = "38 pts"
-sp500_estado = "bearish"
-sp500_rotulo, sp500_css, sp500_seta = calcular_nivel_condicional(sp500_estado)
-sp500_valor_nivel = "7.680 pts"
-
-ibov_tendencia = "Consolidação 7D"
-ibov_score = "52 pts"
-ibov_estado = "neutro"
-ibov_rotulo, ibov_css, ibov_seta = calcular_nivel_condicional(ibov_estado)
-ibov_valor_nivel = "165.200 pts"
-
 # Sidebar - Configurações OMNI
 st.sidebar.title("⚙️ Configurações OMNI")
 st.sidebar.caption("Controle de geração de roteiros e relatórios")
@@ -90,7 +77,7 @@ modulo = st.sidebar.radio(
 )
 
 formato = st.sidebar.radio(
-    "🎯 Formato (TradFi (Macro)):",
+    f"🎯 Formato ({modulo}):",
     ["B2B (Relatório)", "B2C (YouTube)"],
     index=0,
     help="Escolha o tipo de entregável"
@@ -108,12 +95,20 @@ st.info(f"🕒 **Dados consolidados das {data_atual}**")
 # Layout Principal em Duas Colunas
 col_left, col_right = st.columns([1.6, 1])
 
-with col_left:
-    st.subheader("📰 Relatório B2B (TradFi & Macroeconomia)")
-    st.caption("Relatório Macro/TradFi (B2B):")
+# LOGICA DINÂMICA BASEADA NO MÓDULO SELECIONADO
+if modulo == "TradFi (Macro)":
+    # Módulo TradFi
+    sp500_tendencia, sp500_score, sp500_estado, sp500_valor_nivel = "Pressão Vendedora", "38 pts", "bearish", "7.680 pts"
+    ibov_tendencia, ibov_score, ibov_estado, ibov_valor_nivel = "Consolidação 7D", "52 pts", "neutro", "165.200 pts"
     
-    # Texto do Relatório B2B Ajustado Dinamicamente
-    relatorio_texto = f"""=== RELATÓRIO INSTITUCIONAL TRADFI & MACROECONOMIA (B2B) ===
+    sp500_rotulo, sp500_css, sp500_seta = calcular_nivel_condicional(sp500_estado)
+    ibov_rotulo, ibov_css, ibov_seta = calcular_nivel_condicional(ibov_estado)
+
+    with col_left:
+        st.subheader("📰 Relatório B2B (TradFi & Macroeconomia)")
+        st.caption("Relatório Macro/TradFi (B2B):")
+        
+        relatorio_texto = f"""=== RELATÓRIO INSTITUCIONAL TRADFI & MACROECONOMIA (B2B) ===
 Data/Hora: {data_atual}
 
 1. PANORAMA MACRO E BENCHMARKS
@@ -130,80 +125,168 @@ Data/Hora: {data_atual}
 - S&P 500 (EUA): Tendência 7D ({sp500_tendencia} - {sp500_score}) | {sp500_rotulo}: {sp500_valor_nivel}
 - Ibovespa (Brasil): Tendência 7D ({ibov_tendencia} - {ibov_score}) | {ibov_rotulo}: {ibov_valor_nivel}"""
 
-    st.text_area("", value=relatorio_texto, height=310, disabled=False)
-    
-    # Cards de Vetores Preditivos e Níveis Condicionais
-    c1, c2, c3, c4 = st.columns(4)
-    
-    with c1:
-        st.markdown(f"""
+        st.text_area("", value=relatorio_texto, height=310, disabled=False)
+        
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.markdown(f"""
+            <div class="stCard">
+                <div class="metric-label">Tendência 7D (S&P 500)</div>
+                <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">{sp500_tendencia}</div>
+                <div class="status-red">↓ {sp500_score}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with c2:
+            st.markdown(f"""
+            <div class="stCard">
+                <div class="metric-label">{sp500_rotulo} (S&P 500)</div>
+                <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">{sp500_valor_nivel}</div>
+                <div class="{sp500_css}">{sp500_seta} Nível Crítico</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with c3:
+            st.markdown(f"""
+            <div class="stCard">
+                <div class="metric-label">Tendência 7D (Ibovespa)</div>
+                <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">{ibov_tendencia}</div>
+                <div class="status-blue">→ {ibov_score}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with c4:
+            st.markdown(f"""
+            <div class="stCard">
+                <div class="metric-label">{ibov_rotulo} (Ibovespa)</div>
+                <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">{ibov_valor_nivel}</div>
+                <div class="{ibov_css}">{ibov_seta} Nível Crítico</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    with col_right:
+        st.subheader("📊 Métricas Agregadas")
+        st.caption(f"Atualizado às {data_atual.split('às ')[1] if 'às ' in data_atual else data_atual}")
+        
+        st.markdown("""
         <div class="stCard">
-            <div class="metric-label">Tendência 7D (S&P 500)</div>
-            <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">{sp500_tendencia}</div>
-            <div class="status-red">↓ {sp500_score}</div>
+            <div class="metric-label">1. S&P 500 (Yahoo Finance)</div>
+            <div class="metric-value">7.758 pts</div>
+            <div class="status-red">-0.53% hoje</div>
+        </div>
+        <div class="stCard">
+            <div class="metric-label">2. IBOVESPA (Yahoo Finance)</div>
+            <div class="metric-value">166.833 pts</div>
+            <div class="status-red">-0.16% hoje</div>
+        </div>
+        <div class="stCard">
+            <div class="metric-label">3. USD / BRL (Yahoo Finance)</div>
+            <div class="metric-value">R$ 5,20</div>
+            <div class="status-green">+0.00% (24h)</div>
+        </div>
+        <div class="stCard">
+            <div class="metric-label">4. Ouro Spot / XAU (Yahoo Finance)</div>
+            <div class="metric-value">$4.474,90</div>
+            <div class="status-green">+0.85% hoje</div>
+        </div>
+        <div class="stCard">
+            <div class="metric-label">5. Petróleo Brent (Yahoo Finance)</div>
+            <div class="metric-value">$90,69</div>
+            <div class="status-green">+2.45% hoje</div>
         </div>
         """, unsafe_allow_html=True)
 
-    with c2:
-        st.markdown(f"""
+else:
+    # Módulo Crypto
+    btc_tendencia, btc_score, btc_estado, btc_valor_nivel = "Tendência Compradora", "78 pts", "bullish", "$66.500"
+    eth_tendencia, eth_score, eth_estado, eth_valor_nivel = "Consolidação 7D", "54 pts", "neutro", "$3.380"
+    
+    btc_rotulo, btc_css, btc_seta = calcular_nivel_condicional(btc_estado)
+    eth_rotulo, eth_css, eth_seta = calcular_nivel_condicional(eth_estado)
+
+    with col_left:
+        st.subheader("📰 Relatório B2B (Crypto & Web3)")
+        st.caption("Relatório Crypto/Web3 (B2B):")
+        
+        relatorio_crypto = f"""=== RELATÓRIO INSTITUCIONAL CRYPTO & WEB3 (B2B) ===
+Data/Hora: {data_atual}
+
+1. CRIPTO PANORAMA E BENCHMARKS
+- Bitcoin (BTC/USDT): $64.284,27 (+2.20%) (Binance)
+- Ethereum (ETH/USDT): $3.450,10 (+1.80%) (Binance)
+- Solana (SOL/USDT): $148,50 (+4.50%) (Binance)
+- Dominância do Bitcoin (BTC.D): 56.4% (+0.3%) (TradingView)
+- Market Cap Total Crypto: $2.35T (+2.10%) (CoinGecko)
+
+2. MESA DE LIQUIDEZ E ON-CHAIN
+- Financiamento BTC (Funding Rate): +0.012% (Neutro/Comprador)
+- Reservas de BTC nas Corretoras: 2.05M BTC (Outflow Contínuo)
+
+3. VETORES PREDITIVOS E NÍVEIS TÉCNICOS
+- Bitcoin (BTC): Tendência 7D ({btc_tendencia} - {btc_score}) | {btc_rotulo}: {btc_valor_nivel}
+- Ethereum (ETH): Tendência 7D ({eth_tendencia} - {eth_score}) | {eth_rotulo}: {eth_valor_nivel}"""
+
+        st.text_area("", value=relatorio_crypto, height=310, disabled=False)
+        
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.markdown(f"""
+            <div class="stCard">
+                <div class="metric-label">Tendência 7D (BTC)</div>
+                <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">{btc_tendencia}</div>
+                <div class="status-green">↑ {btc_score}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with c2:
+            st.markdown(f"""
+            <div class="stCard">
+                <div class="metric-label">{btc_rotulo} (BTC)</div>
+                <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">{btc_valor_nivel}</div>
+                <div class="{btc_css}">{btc_seta} Nível Crítico</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with c3:
+            st.markdown(f"""
+            <div class="stCard">
+                <div class="metric-label">Tendência 7D (ETH)</div>
+                <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">{eth_tendencia}</div>
+                <div class="status-blue">→ {eth_score}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with c4:
+            st.markdown(f"""
+            <div class="stCard">
+                <div class="metric-label">{eth_rotulo} (ETH)</div>
+                <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">{eth_valor_nivel}</div>
+                <div class="{eth_css}">{eth_seta} Nível Crítico</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    with col_right:
+        st.subheader("📊 Métricas Agregadas (Crypto)")
+        st.caption(f"Atualizado às {data_atual.split('às ')[1] if 'às ' in data_atual else data_atual}")
+        
+        st.markdown("""
         <div class="stCard">
-            <div class="metric-label">{sp500_rotulo} (S&P 500)</div>
-            <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">{sp500_valor_nivel}</div>
-            <div class="{sp500_css}">{sp500_seta} Nível Crítico</div>
+            <div class="metric-label">1. Bitcoin / USDT (Binance)</div>
+            <div class="metric-value">$64.284,27</div>
+            <div class="status-green">+2.20% hoje</div>
+        </div>
+        <div class="stCard">
+            <div class="metric-label">2. Ethereum / USDT (Binance)</div>
+            <div class="metric-value">$3.450,10</div>
+            <div class="status-green">+1.80% hoje</div>
+        </div>
+        <div class="stCard">
+            <div class="metric-label">3. Solana / USDT (Binance)</div>
+            <div class="metric-value">$148,50</div>
+            <div class="status-green">+4.50% hoje</div>
+        </div>
+        <div class="stCard">
+            <div class="metric-label">4. Dominância BTC (BTC.D)</div>
+            <div class="metric-value">56,4%</div>
+            <div class="status-green">+0.30% hoje</div>
+        </div>
+        <div class="stCard">
+            <div class="metric-label">5. Market Cap Total Crypto</div>
+            <div class="metric-value">$2,35 Tri</div>
+            <div class="status-green">+2.10% hoje</div>
         </div>
         """, unsafe_allow_html=True)
-
-    with c3:
-        st.markdown(f"""
-        <div class="stCard">
-            <div class="metric-label">Tendência 7D (Ibovespa)</div>
-            <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">{ibov_tendencia}</div>
-            <div class="status-blue">→ {ibov_score}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with c4:
-        st.markdown(f"""
-        <div class="stCard">
-            <div class="metric-label">{ibov_rotulo} (Ibovespa)</div>
-            <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">{ibov_valor_nivel}</div>
-            <div class="{ibov_css}">{ibov_seta} Nível Crítico</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-with col_right:
-    st.subheader("📊 Métricas Agregadas")
-    st.caption(f"Atualizado às {data_atual.split('às ')[1] if 'às ' in data_atual else data_atual}")
-    
-    # Métricas da Direita
-    st.markdown("""
-    <div class="stCard">
-        <div class="metric-label">1. S&P 500 (Yahoo Finance)</div>
-        <div class="metric-value">7.758 pts</div>
-        <div class="status-red">-0.53% hoje</div>
-    </div>
-    
-    <div class="stCard">
-        <div class="metric-label">2. IBOVESPA (Yahoo Finance)</div>
-        <div class="metric-value">166.833 pts</div>
-        <div class="status-red">-0.16% hoje</div>
-    </div>
-    
-    <div class="stCard">
-        <div class="metric-label">3. USD / BRL (Yahoo Finance)</div>
-        <div class="metric-value">R$ 5,20</div>
-        <div class="status-green">+0.00% (24h)</div>
-    </div>
-    
-    <div class="stCard">
-        <div class="metric-label">4. Ouro Spot / XAU (Yahoo Finance)</div>
-        <div class="metric-value">$4.474,90</div>
-        <div class="status-green">+0.85% hoje</div>
-    </div>
-    
-    <div class="stCard">
-        <div class="metric-label">5. Petróleo Brent (Yahoo Finance)</div>
-        <div class="metric-value">$90,69</div>
-        <div class="status-green">+2.45% hoje</div>
-    </div>
-    """, unsafe_allow_html=True)
