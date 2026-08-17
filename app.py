@@ -69,7 +69,7 @@ short_time_str = now_dt.strftime("%H:%M:%S BRT")
 HTTP_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
 
-# --- Ingestão Agregada Robusta com Cache Seguro (TTL 3 min para evitar rate-limit) ---
+# --- Ingestão Agregada Robusta com Cache Seguro (TTL 3 min) ---
 @st.cache_data(ttl=180)
 def get_crypto_data_aggregated():
     data = {
@@ -77,7 +77,6 @@ def get_crypto_data_aggregated():
         "eth_price": 1908.7, "eth_change": -0.2,
         "sol_price": 76.03, "sol_change": 1.2,
         "btc_dom": 56.5, "btc_dom_change": 0.1,
-        "funding_rate": 0.0100, "funding_rate_delta": 0.0001,
         "is_fallback": False
     }
 
@@ -146,11 +145,11 @@ m2 = get_global_m2()
 
 # --- UI e Interface ---
 st.title("⚡ OMNIRESEARCH")
-st.caption("Engine de Inteligência Financeira Macro & Crypto (Modelo Agregado Estável)")
+st.caption("Engine de Inteligência Financeira Macro & Crypto (Fontes: Alternative.me, CoinGecko, FRED St. Louis Fed)")
 st.info(f"🕒 Dados consolidados das {now_str}")
 
 if market["is_fallback"]:
-    st.warning("⚠️ Limite temporário de requisições na API. Exibindo última estimativa de mercado consolidada sem interrupções.")
+    st.warning("⚠️ Limite temporário de requisições na API primária. Exibindo última estimativa de mercado consolidada sem interrupções.")
 
 st.divider()
 
@@ -162,13 +161,13 @@ with col_left:
     script_content = f"""Roteiro Estendido LLM (~2 min 30 seg de tela):
 
 [00:00 - HOOK DE RETENÇÃO]
-O Bitcoin Fear & Greed Index marca {fng['value']} pontos ({fng['sentiment']}) enquanto o BTC consolida na faixa de {fmt_usd(market['btc_price'])}. O cenário macro segue sustentado pela liquidez global do M2 em {m2['m2_formatted']} ({m2['yoy_formatted']}).
+O Bitcoin Fear & Greed Index (Alternative.me) marca {fng['value']} pontos ({fng['sentiment']}) enquanto o BTC consolida na faixa de {fmt_usd(market['btc_price'])} (CoinGecko). O cenário macro segue sustentado pela liquidez global do M2 em {m2['m2_formatted']} ({m2['yoy_formatted']}) (FRED St. Louis Fed).
 
 [00:35 - BITCOIN & DOMINÂNCIA]
-Com a dominância do Bitcoin em {market['btc_dom']:.1f}%, o mercado mantém a atenção voltada para os níveis de suporte e resistência chave.
+Com a dominância do Bitcoin em {market['btc_dom']:.1f}% (CoinGecko Global), o mercado mantém a atenção voltada para os níveis de suporte e resistência chave.
 
 [01:10 - ALTCOINS LÍDERES]
-Ethereum negocia em {fmt_usd(market['eth_price'])} e Solana em {fmt_usd(market['sol_price'])}, refletindo o momento de consolidação do ativo principal.
+Ethereum negocia em {fmt_usd(market['eth_price'])} e Solana em {fmt_usd(market['sol_price'])} (CoinGecko), refletindo o momento de consolidação do ativo principal.
 
 [01:45 - ANÁLISE TÉCNICA]
 A zona de suporte do Bitcoin situa-se em {sr['support_str']}, com resistência imediata em {sr['resistance_str']}."""
@@ -178,7 +177,7 @@ A zona de suporte do Bitcoin situa-se em {sr['support_str']}, com resistência i
     m1, m2_col, m3 = st.columns(3)
     m1.metric("Suporte BTC", sr["support_str"])
     m2_col.metric("Resistência BTC", sr["resistance_str"])
-    m3.metric("M2 Global", m2["m2_formatted"], m2["yoy_formatted"])
+    m3.metric("M2 Global (FRED)", m2["m2_formatted"], m2["yoy_formatted"])
 
 with col_right:
     st.subheader("📊 Métricas Agregadas")
@@ -186,23 +185,28 @@ with col_right:
 
     st.markdown(f"""
         <div class="stCard">
-            <div class="metric-title">1. Fear & Greed Index</div>
+            <div class="metric-title">1. Fear & Greed Index (Alternative.me)</div>
             <div class="metric-value">{fng['value']} ({fng['sentiment']})</div>
             <div class="metric-delta-up">{fng['change']:+} pts hoje</div>
         </div>
         <div class="stCard">
-            <div class="metric-title">2. BTC / USD</div>
+            <div class="metric-title">2. BTC / USD (CoinGecko)</div>
             <div class="metric-value">{fmt_usd(market['btc_price'])}</div>
             <div class="metric-delta-up">{market['btc_change']:+.2f}% (24h)</div>
         </div>
         <div class="stCard">
-            <div class="metric-title">3. ETH / USD</div>
+            <div class="metric-title">3. ETH / USD (CoinGecko)</div>
             <div class="metric-value">{fmt_usd(market['eth_price'])}</div>
             <div class="metric-delta-down">{market['eth_change']:+.2f}% (24h)</div>
         </div>
         <div class="stCard">
-            <div class="metric-title">4. SOL / USD</div>
+            <div class="metric-title">4. SOL / USD (CoinGecko)</div>
             <div class="metric-value">{fmt_usd(market['sol_price'])}</div>
             <div class="metric-delta-up">{market['sol_change']:+.2f}% (24h)</div>
+        </div>
+        <div class="stCard">
+            <div class="metric-title">5. BTC Dominance (CoinGecko Global)</div>
+            <div class="metric-value">{market['btc_dom']:.1f}%</div>
+            <div class="metric-delta-up">Market Share Crypto</div>
         </div>
     """, unsafe_allow_html=True)
