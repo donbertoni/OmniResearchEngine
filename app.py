@@ -281,16 +281,14 @@ Data/Hora: {data_atual}
         """, unsafe_allow_html=True)
 
 else:
-    # Módulo Crypto (Exclusivo CoinGecko + Previsão 48h & Suporte/Resistência)
+    # Módulo Crypto (Foco 100% Bitcoin nos Preditivos + CoinGecko)
     crypto_data = get_coingecko_data()
 
     btc_sup, btc_res = calcular_suporte_resistencia(crypto_data["btc_raw_price"], 0.035)
-    eth_sup, eth_res = calcular_suporte_resistencia(crypto_data["eth_raw_price"], 0.040)
 
+    btc_tendencia = "Tendência Compradora" if crypto_data["btc_is_pos"] else "Pressão Vendedora"
+    btc_score = "78 pts" if crypto_data["btc_is_pos"] else "42 pts"
     btc_prev_48h = "Alta Moderada" if crypto_data["btc_is_pos"] else "Pressão Vendedora"
-    btc_target_48h = btc_res
-    eth_prev_48h = "Consolidação / Alta" if crypto_data["eth_is_pos"] else "Teste de Suporte"
-    eth_target_48h = eth_res
 
     btc_status_css = "status-green" if crypto_data["btc_is_pos"] else "status-red"
     eth_status_css = "status-green" if crypto_data["eth_is_pos"] else "status-red"
@@ -303,13 +301,15 @@ else:
             st.caption("Roteiro de Vídeo (YouTube B2C):")
             
             roteiro_crypto = f"""[HOOK 0-15s]
-O Bitcoin está sendo negociado a {crypto_data['btc_price']} nesta tarde ({data_atual})! Vamos analisar os alvos de 48 horas e os níveis de suporte essenciais para ETH e SOL.
+O Bitcoin está sendo negociado a {crypto_data['btc_price']} nesta tarde ({data_atual})! Vamos analisar a tendência de 7 dias, a previsão de 48 horas e os níveis vitais de suporte e resistência.
 
-[BLOCO 1 - PREVISÃO 48H E ALVOS]
-- BTC: Previsão de {btc_prev_48h} com alvo em {btc_target_48h} e suporte em {btc_sup}.
-- ETH: Cotado a {crypto_data['eth_price']} com resistência em {eth_res} e suporte em {eth_sup}.
+[BLOCO 1 - ANÁLISE PREDITIVA BITCOIN]
+- BTC Tendência 7D: {btc_tendencia} ({btc_score}).
+- Suporte Crítico: {btc_sup} | Próxima Resistência: {btc_res}.
+- Previsão 48h: {btc_prev_48h} com alvo em {btc_res}.
 
 [BLOCO 2 - METRICAS CRÍTICAS DE MERCADO]
+- Ethereum (ETH): {crypto_data['eth_price']} ({crypto_data['eth_change']}).
 - Solana (SOL): {crypto_data['sol_price']} ({crypto_data['sol_change']}).
 - Dominância do Bitcoin: {crypto_data['btc_dom']}.
 - Capitalização de Mercado Total: {crypto_data['mcap']}.
@@ -336,9 +336,11 @@ Data/Hora: {data_atual}
 - Financiamento BTC (Funding Rate): +0.012% (Neutro/Comprador)
 - Reservas de BTC nas Corretoras: 2.05M BTC (Outflow Contínuo)
 
-3. PREVISÃO 48H E NÍVEIS TÉCNICOS CRÍTICOS
-- Bitcoin (BTC): Previsão 48h ({btc_prev_48h}) | Alvo: {btc_target_48h} | Suporte: {btc_sup}
-- Ethereum (ETH): Previsão 48h ({eth_prev_48h}) | Alvo: {eth_target_48h} | Suporte: {eth_sup}"""
+3. VETORES PREDITIVOS E NÍVEIS TÉCNICOS (BITCOIN)
+- Tendência 7D (BTC): {btc_tendencia} ({btc_score})
+- Próxima Resistência (BTC): {btc_res} (Nível Crítico)
+- Suporte Crítico (BTC): {btc_sup} (Zona de Defesa)
+- Previsão 48h (BTC): {btc_prev_48h} | Alvo: {btc_res}"""
 
             st.text_area("", value=relatorio_crypto, height=310, disabled=False)
         
@@ -346,33 +348,33 @@ Data/Hora: {data_atual}
         with c1:
             st.markdown(f"""
             <div class="stCard">
-                <div class="metric-label">Previsão 48h (BTC)</div>
-                <div style="font-size: 15px; font-weight: bold; color: #f8fafc;">{btc_prev_48h}</div>
-                <div class="status-green">↑ Alvo {btc_target_48h}</div>
+                <div class="metric-label">Tendência 7D (BTC)</div>
+                <div style="font-size: 15px; font-weight: bold; color: #f8fafc;">{btc_tendencia}</div>
+                <div class="{btc_status_css}">↑ {btc_score}</div>
             </div>
             """, unsafe_allow_html=True)
         with c2:
             st.markdown(f"""
             <div class="stCard">
-                <div class="metric-label">Suporte / Resistência (BTC)</div>
-                <div style="font-size: 13px; font-weight: bold; color: #f8fafc;">S: {btc_sup} | R: {btc_res}</div>
-                <div class="status-green">↑ Faixa Operacional</div>
+                <div class="metric-label">Próxima Resistência (BTC)</div>
+                <div style="font-size: 15px; font-weight: bold; color: #f8fafc;">{btc_res}</div>
+                <div class="status-green">↑ Nível Crítico</div>
             </div>
             """, unsafe_allow_html=True)
         with c3:
             st.markdown(f"""
             <div class="stCard">
-                <div class="metric-label">Previsão 48h (ETH)</div>
-                <div style="font-size: 15px; font-weight: bold; color: #f8fafc;">{eth_prev_48h}</div>
-                <div class="status-blue">→ Alvo {eth_target_48h}</div>
+                <div class="metric-label">Suporte Crítico (BTC)</div>
+                <div style="font-size: 15px; font-weight: bold; color: #f8fafc;">{btc_sup}</div>
+                <div class="status-blue">↓ Zona de Defesa</div>
             </div>
             """, unsafe_allow_html=True)
         with c4:
             st.markdown(f"""
             <div class="stCard">
-                <div class="metric-label">Suporte / Resistência (ETH)</div>
-                <div style="font-size: 13px; font-weight: bold; color: #f8fafc;">S: {eth_sup} | R: {eth_res}</div>
-                <div class="status-blue">→ Faixa Operacional</div>
+                <div class="metric-label">Previsão 48h (BTC)</div>
+                <div style="font-size: 15px; font-weight: bold; color: #f8fafc;">{btc_prev_48h}</div>
+                <div class="{btc_status_css}">↑ Alvo {btc_res}</div>
             </div>
             """, unsafe_allow_html=True)
 
