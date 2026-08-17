@@ -57,7 +57,7 @@ brt_tz = timezone(timedelta(hours=-3))
 agora_brt = datetime.now(brt_tz)
 data_atual = agora_brt.strftime("%d/%m/%Y às %H:%M:%S BRT")
 
-# Função resiliente para buscar dados do CoinGecko (Fonte 100% unificada)
+# Função resiliente para buscar dados do CoinGecko e Fear & Greed Index
 @st.cache_data(ttl=20)
 def get_coingecko_data():
     data = {
@@ -66,7 +66,8 @@ def get_coingecko_data():
         "eth_price": "$1.908,34", "eth_change": "+1,72%", "eth_is_pos": True,
         "eth_raw_price": 1908.34,
         "sol_price": "$75,88", "sol_change": "+1,70%", "sol_is_pos": True,
-        "btc_dom": "59,26%", "mcap": "$2,15 Tri", "mcap_change": "+2,10%", "mcap_is_pos": True
+        "btc_dom": "59,26%",
+        "fng_val": "68 / 100", "fng_classification": "Ganância", "fng_css": "status-green"
     }
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
@@ -104,13 +105,35 @@ def get_coingecko_data():
         resp_global = requests.get(url_global, headers=headers, timeout=3).json()
 
         if "data" in resp_global:
-            mcap = resp_global["data"]["total_market_cap"]["usd"] / 1e12
-            mcap_c = resp_global["data"].get("market_cap_change_percentage_24h_usd", 2.10)
             dom_btc = resp_global["data"]["market_cap_percentage"]["btc"]
             data["btc_dom"] = f"{dom_btc:.2f}%".replace(".", ",")
-            data["mcap"] = f"${mcap:.2f} Tri".replace(".", ",")
-            data["mcap_change"] = f"{mcap_c:+.2f}%".replace(".", ",")
-            data["mcap_is_pos"] = mcap_c >= 0
+    except Exception:
+        pass
+
+    try:
+        url_fng = "https://api.alternative.me/fng/"
+        resp_fng = requests.get(url_fng, headers=headers, timeout=3).json()
+        if "data" in resp_fng and len(resp_fng["data"]) > 0:
+            val = int(resp_fng["data"][0]["value"])
+            classif = resp_fng["data"][0]["value_classification"]
+            
+            classif_map = {
+                "Extreme Fear": "Medo Extremo",
+                "Fear": "Medo",
+                "Neutral": "Neutro",
+                "Greed": "Ganância",
+                "Extreme Greed": "Ganância Extrema"
+            }
+            pt_classif = classif_map.get(classif, classif)
+            data["fng_val"] = f"{val} / 100"
+            data["fng_classification"] = pt_classif
+            
+            if val >= 55:
+                data["fng_css"] = "status-green"
+            elif val <= 45:
+                data["fng_css"] = "status-red"
+            else:
+                data["fng_css"] = "status-blue"
     except Exception:
         pass
 
@@ -281,7 +304,7 @@ Data/Hora: {data_atual}
         """, unsafe_allow_html=True)
 
 else:
-    # Módulo Crypto (Foco 100% Bitcoin nos Preditivos + CoinGecko)
+    # Módulo Crypto (Foco 100% Bitcoin nos Preditivos + CoinGecko & Fear and Greed Index)
     crypto_data = get_coingecko_data()
 
     btc_sup, btc_res = calcular_suporte_resistencia(crypto_data["btc_raw_price"], 0.035)
@@ -293,7 +316,6 @@ else:
     btc_status_css = "status-green" if crypto_data["btc_is_pos"] else "status-red"
     eth_status_css = "status-green" if crypto_data["eth_is_pos"] else "status-red"
     sol_status_css = "status-green" if crypto_data["sol_is_pos"] else "status-red"
-    mcap_status_css = "status-green" if crypto_data["mcap_is_pos"] else "status-red"
 
     with col_left:
         if formato == "B2C (YouTube)":
@@ -301,7 +323,7 @@ else:
             st.caption("Roteiro de Vídeo (YouTube B2C):")
             
             roteiro_crypto = f"""[HOOK 0-15s]
-O Bitcoin está sendo negociado a {crypto_data['btc_price']} nesta tarde ({data_atual})! Vamos analisar a tendência de 7 dias, a previsão de 48 horas e os níveis vitais de suporte e resistência.
+O Bitcoin está sendo negociado a {crypto_data['btc_price']} nesta tarde ({data_atual})! Vamos analisar a tendência de 7 dias, a previsão de 48 horas e o índice de sentimento de mercado.
 
 [BLOCO 1 - ANÁLISE PREDITIVA BITCOIN]
 - BTC Tendência 7D: {btc_tendencia} ({btc_score}).
@@ -312,7 +334,7 @@ O Bitcoin está sendo negociado a {crypto_data['btc_price']} nesta tarde ({data_
 - Ethereum (ETH): {crypto_data['eth_price']} ({crypto_data['eth_change']}).
 - Solana (SOL): {crypto_data['sol_price']} ({crypto_data['sol_change']}).
 - Dominância do Bitcoin: {crypto_data['btc_dom']}.
-- Capitalização de Mercado Total: {crypto_data['mcap']}.
+- Sentimento (Fear & Greed Index): {crypto_data['fng_val']} ({crypto_data['fng_classification']}).
 
 [CTA & ENCERRAMENTO]
 Inscreva-se no canal para manter suas decisões cripto fundamentadas em dados reais!"""
@@ -330,7 +352,7 @@ Data/Hora: {data_atual}
 - Ethereum (ETH/USDT): {crypto_data['eth_price']} ({crypto_data['eth_change']}) (CoinGecko)
 - Solana (SOL/USDT): {crypto_data['sol_price']} ({crypto_data['sol_change']}) (CoinGecko)
 - Dominância do Bitcoin (BTC.D): {crypto_data['btc_dom']} (+0,63%) (CoinGecko)
-- Market Cap Total Crypto: {crypto_data['mcap']} ({crypto_data['mcap_change']}) (CoinGecko)
+- Bitcoin Fear & Greed Index: {crypto_data['fng_val']} ({crypto_data['fng_classification']}) (Alternative.me)
 
 2. MESA DE LIQUIDEZ E ON-CHAIN
 - Financiamento BTC (Funding Rate): +0.012% (Neutro/Comprador)
@@ -404,8 +426,8 @@ Data/Hora: {data_atual}
             <div class="status-green">+0,63% hoje</div>
         </div>
         <div class="stCard">
-            <div class="metric-label">5. Market Cap Total Crypto (CoinGecko)</div>
-            <div class="metric-value">{crypto_data['mcap']}</div>
-            <div class="{mcap_status_css}">{crypto_data['mcap_change']} hoje</div>
+            <div class="metric-label">5. Bitcoin Fear & Greed Index (Alternative.me)</div>
+            <div class="metric-value">{crypto_data['fng_val']}</div>
+            <div class="{crypto_data['fng_css']}">{crypto_data['fng_classification']}</div>
         </div>
         """, unsafe_allow_html=True)
