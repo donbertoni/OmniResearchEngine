@@ -25,15 +25,6 @@ st.markdown("""
     .stCaption, small, [data-testid="stCaptionContainer"] {
         color: #9ca3af !important;
     }
-    [data-testid="stMetric"] {
-        background-color: #111827 !important;
-        border: 1px solid #1f2937 !important;
-        padding: 12px !important;
-        border-radius: 8px !important;
-    }
-    [data-testid="stMetricLabel"], [data-testid="stMetricValue"], [data-testid="stMetricDelta"] {
-        color: #ffffff !important;
-    }
     [data-baseweb="textarea"], textarea {
         background-color: #111827 !important;
         color: #e5e7eb !important;
@@ -51,6 +42,36 @@ st.markdown("""
     .metric-value { font-size: 1.4rem; font-weight: 700; color: #f3f4f6 !important; }
     .metric-delta-up { font-size: 0.8rem; color: #10b981 !important; }
     .metric-delta-down { font-size: 0.8rem; color: #ef4444 !important; }
+
+    /* Cards Inferiores Padronizados */
+    .bottom-card {
+        background-color: #111827 !important;
+        border: 1px solid #1f2937 !important;
+        border-radius: 8px;
+        padding: 14px 16px;
+        height: 105px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    .bottom-card-title {
+        font-size: 0.8rem;
+        color: #9ca3af !important;
+        margin-bottom: 6px;
+        font-weight: 500;
+    }
+    .bottom-card-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #ffffff !important;
+        white-space: nowrap;
+    }
+    .bottom-card-sub {
+        font-size: 0.78rem;
+        color: #10b981 !important;
+        margin-top: 4px;
+        font-weight: 500;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -172,11 +193,11 @@ def calculate_predictive_matrix(market: dict, fng: dict, sr: dict):
 
     if bullish_pct >= 60:
         direction = f"{bullish_pct}% Bullish"
-        confidence = "↑ Alta Confiança" if bullish_pct >= 70 else "↑ Viés Altista"
+        confidence = "↑ Viés Altista" if bullish_pct < 70 else "↑ Alta Confiança"
         trend_desc = "altista"
     elif bullish_pct <= 42:
         direction = f"{100 - bullish_pct}% Bearish"
-        confidence = "↓ Risco de Baixa" if bullish_pct <= 35 else "↓ Viés Baixista"
+        confidence = "↓ Viés Baixista" if bullish_pct > 35 else "↓ Risco de Baixa"
         trend_desc = "baixista"
     else:
         direction = f"{bullish_pct}% Neutro"
@@ -231,10 +252,40 @@ A zona de suporte do Bitcoin situa-se em {sr['support_str']}, com resistência i
     st.text_area("", value=script_content, height=360)
 
     m1, m2_col, m3, m4 = st.columns(4)
-    m1.metric("Suporte BTC", sr["support_str"])
-    m2_col.metric("Resistência BTC", sr["resistance_str"])
-    m3.metric("Matriz Preditiva 48h", pred["direction"], pred["confidence"])
-    m4.metric("M2 Global (FRED)", m2["m2_formatted"], m2["yoy_formatted"])
+
+    with m1:
+        st.markdown(f"""
+            <div class="bottom-card">
+                <div class="bottom-card-title">Suporte BTC</div>
+                <div class="bottom-card-value">{sr['support_str']}</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with m2_col:
+        st.markdown(f"""
+            <div class="bottom-card">
+                <div class="bottom-card-title">Resistência BTC</div>
+                <div class="bottom-card-value">{sr['resistance_str']}</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with m3:
+        st.markdown(f"""
+            <div class="bottom-card">
+                <div class="bottom-card-title">Matriz Preditiva 48h</div>
+                <div class="bottom-card-value">{pred['direction']}</div>
+                <div class="bottom-card-sub">{pred['confidence']}</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with m4:
+        st.markdown(f"""
+            <div class="bottom-card">
+                <div class="bottom-card-title">M2 Global (FRED)</div>
+                <div class="bottom-card-value">{m2['m2_formatted']}</div>
+                <div class="bottom-card-sub">{m2['yoy_formatted']}</div>
+            </div>
+        """, unsafe_allow_html=True)
 
 with col_right:
     st.subheader("📊 Métricas Agregadas")
