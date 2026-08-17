@@ -255,19 +255,23 @@ with st.sidebar:
 
     service_profile = st.radio(
         "🎯 Serviço Ativo:",
-        ["🏢 B2B (Cripto & Institucional)", "👥 B2C (Macro & Varejo)"],
+        [
+            "🎬 YouTube B2B (Cripto & Institucional)",
+            "🏢 Relatório B2B (Cripto & Institucional)",
+            "🎬 YouTube B2C (Macro & Varejo)",
+            "👥 Relatório B2C (Macro & Varejo)"
+        ],
         index=0,
-        help="Define o foco dos relatórios e análises geradas no painel."
+        help="Selecione exatamente qual entregável deseja visualizar e gerar no painel."
     )
 
 
 # --- GERADORES DE TEXTO ADAPTATIVOS ---
-def generate_youtube_script(lang, is_auto, service):
+def generate_youtube_script(lang, is_auto, target_type):
     prefix = "[AUTO-PILOT ACTIVE] " if is_auto else "[HITL PENDING] "
-    tag_service = "B2B Focus" if "B2B" in service else "B2C Focus"
     
     if "English" in lang:
-        return f"""{prefix}[{tag_service}] Extended LLM Script (~2 min 30 sec):
+        return f"""{prefix}[{target_type}] Extended LLM Script (~2 min 30 sec):
 
 [00:00 - RETENTION HOOK]
 The Bitcoin Fear & Greed Index (Alternative.me) stands at {fng['value']} points ({fng['sentiment']}) while BTC consolidates around {fmt_usd(market['btc_price'])} (CoinGecko). Macro liquidity remains backed by global M2 supply at {m2['m2_formatted']} ({m2['yoy_formatted']}) (FRED St. Louis Fed).
@@ -281,7 +285,7 @@ Ethereum trades at {fmt_usd(market['eth_price'])} and Solana at {fmt_usd(market[
 [01:45 - TECHNICAL ANALYSIS & 48H PREDICTIVE MATRIX]
 Bitcoin key support sits at {sr['support_str']}, with resistance at {sr['resistance_str']}. Our 48-hour predictive model points to a {pred['trend_desc']} outlook at {pred['direction']} ({pred['confidence']})."""
     else:
-        return f"""{prefix}[{tag_service}] Roteiro Estendido LLM (~2 min 30 seg de tela):
+        return f"""{prefix}[{target_type}] Roteiro Estendido LLM (~2 min 30 seg de tela):
 
 [00:00 - HOOK DE RETENÇÃO]
 O Bitcoin Fear & Greed Index (Alternative.me) marca {fng['value']} pontos ({fng['sentiment']}) enquanto o BTC consolida na faixa de {fmt_usd(market['btc_price'])} (CoinGecko). O cenário macro segue sustentado pela liquidez global do M2 em {m2['m2_formatted']} ({m2['yoy_formatted']}) (FRED St. Louis Fed).
@@ -326,7 +330,7 @@ Data/Hora: {now_str}
 - Dominância de Mercado: {market['btc_dom']:.1f}% (CoinGecko Global)
 - Sentimento de Mercado: {fng['value']}/100 ({fng['sentiment']} - Alternative.me)
 
-2. LIQUIDEZ E NÍVEIS TÉCNICOS
+2. LIQUIDITY E NÍVEIS TÉCNICOS
 - Região de Suporte Imediato: {sr['support_str']}
 - Região de Resistência Imediata: {sr['resistance_str']}
 - Vetor Preditivo 48h: {pred['direction']} ({pred['confidence']})
@@ -386,27 +390,25 @@ with col_left:
     status_text = "🤖 MODO AUTO-PILOT ATIVADO (Pipeline Automático)" if autopilot_mode else "✋ MODO HITL ATIVADO (Aprovação Manual Requerida)"
     st.markdown(f'<div class="status-badge">{status_text}</div>', unsafe_allow_html=True)
 
-    # Exibição Dinâmica das Abas com base no perfil selecionado no Sidebar
-    if "B2B" in service_profile:
-        tab_youtube, tab_report = st.tabs(["🎬 Roteiro YouTube (B2B)", "🏢 Relatório B2B (Crypto)"])
-        with tab_youtube:
-            st.subheader("Painel de Aprovação / Execução de Vídeo B2B")
-            yt_script = generate_youtube_script(lang_option, autopilot_mode, service_profile)
-            st.text_area("Roteiro para Vídeo YouTube:", value=yt_script, height=320)
-        with tab_report:
-            st.subheader("Relatório B2B - Infraestrutura & Análise Técnica")
-            b2b_text = generate_b2b_report(lang_option)
-            st.text_area("Relatório Cripto B2B:", value=b2b_text, height=320)
-    else:
-        tab_youtube, tab_report = st.tabs(["🎬 Roteiro YouTube (B2C)", "👥 Relatório B2C (Macro)"])
-        with tab_youtube:
-            st.subheader("Painel de Aprovação / Execução de Vídeo B2C")
-            yt_script = generate_youtube_script(lang_option, autopilot_mode, service_profile)
-            st.text_area("Roteiro para Vídeo YouTube:", value=yt_script, height=320)
-        with tab_report:
-            st.subheader("Relatório B2C - Macroeconomia & Varejo")
-            b2c_text = generate_b2c_report(lang_option)
-            st.text_area("Relatório Macro B2C:", value=b2c_text, height=320)
+    if "YouTube B2B" in service_profile:
+        st.subheader("🎬 Roteiro YouTube (B2B - Cripto & Institucional)")
+        yt_script = generate_youtube_script(lang_option, autopilot_mode, "B2B Focus")
+        st.text_area("Roteiro de Vídeo B2B:", value=yt_script, height=350)
+
+    elif "Relatório B2B" in service_profile:
+        st.subheader("🏢 Relatório B2B (Cripto & Institucional)")
+        b2b_text = generate_b2b_report(lang_option)
+        st.text_area("Relatório Institucional B2B:", value=b2b_text, height=350)
+
+    elif "YouTube B2C" in service_profile:
+        st.subheader("🎬 Roteiro YouTube (B2C - Macro & Varejo)")
+        yt_script = generate_youtube_script(lang_option, autopilot_mode, "B2C Focus")
+        st.text_area("Roteiro de Vídeo B2C:", value=yt_script, height=350)
+
+    elif "Relatório B2C" in service_profile:
+        st.subheader("👥 Relatório B2C (Macro & Varejo)")
+        b2c_text = generate_b2c_report(lang_option)
+        st.text_area("Relatório Macro B2C:", value=b2c_text, height=350)
 
     # Cards Inferiores com Altura Fixa (4 Colunas)
     m1, m2_col, m3, m4 = st.columns(4)
@@ -449,7 +451,6 @@ with col_right:
     st.subheader("📊 Métricas Agregadas")
     st.caption(f"Atualizado às {short_time_str}")
 
-    # Lógica Dinâmica para Destaque Positivo (Verde) / Negativo (Vermelho)
     btc_class = "metric-delta-up" if market["btc_change"] >= 0 else "metric-delta-down"
     eth_class = "metric-delta-up" if market["eth_change"] >= 0 else "metric-delta-down"
     sol_class = "metric-delta-up" if market["sol_change"] >= 0 else "metric-delta-down"
