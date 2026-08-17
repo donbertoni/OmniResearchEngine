@@ -132,7 +132,62 @@ def get_support_resistance(btc_price: float):
     res_high = btc_price * 1.035
     return {
         "support_str": f"${sup_low/1000:.1f}k - ${sup_high/1000:.1f}k",
-        "resistance_str": f"${res_low/1000:.1f}k - ${res_high/1000:.1f}k"
+        "resistance_str": f"${res_low/1000:.1f}k - ${res_high/1000:.1f}k",
+        "sup_low": sup_low,
+        "sup_high": sup_high,
+        "res_low": res_low,
+        "res_high": res_high
+    }
+
+
+def calculate_predictive_matrix(market: dict, fng: dict, sr: dict):
+    score = 50.0
+
+    btc_chg = market.get("btc_change", 0.0)
+    score += max(min(btc_chg * 4.0, 22.0), -22.0)
+
+    fng_val = fng.get("value", 50)
+    if 35 <= fng_val <= 60:
+        score += 8.0
+    elif 20 <= fng_val < 35:
+        score += 5.0
+    elif fng_val < 20:
+        score += 8.0
+    elif fng_val > 75:
+        score -= 10.0
+
+    if market["btc_price"] > 0:
+        sup_low = sr.get("sup_low", market["btc_price"] * 0.97)
+        res_high = sr.get("res_high", market["btc_price"] * 1.03)
+        range_total = res_high - sup_low
+
+        if range_total > 0:
+            relative_pos = (market["btc_price"] - sup_low) / range_total
+            if relative_pos < 0.35:
+                score += 8.0
+            elif relative_pos > 0.85:
+                score -= 6.0
+
+    bullish_pct = int(max(min(round(score), 88), 15))
+
+    if bullish_pct >= 60:
+        direction = f"{bullish_pct}% Bullish"
+        confidence = "↑ Alta Confiança" if bullish_pct >= 70 else "↑ Viés Altista"
+        trend_desc = "altista"
+    elif bullish_pct <= 42:
+        direction = f"{100 - bullish_pct}% Bearish"
+        confidence = "↓ Risco de Baixa" if bullish_pct <= 35 else "↓ Viés Baixista"
+        trend_desc = "baixista"
+    else:
+        direction = f"{bullish_pct}% Neutro"
+        confidence = "→ Consolidação"
+        trend_desc = "neutra/lateral"
+
+    return {
+        "bullish_pct": bullish_pct,
+        "direction": direction,
+        "confidence": confidence,
+        "trend_desc": trend_desc
     }
 
 
@@ -141,6 +196,7 @@ market = get_crypto_data_aggregated()
 fng = get_fear_and_greed()
 sr = get_support_resistance(market["btc_price"])
 m2 = get_global_m2()
+pred = calculate_predictive_matrix(market, fng, sr)
 
 
 # --- UI e Interface ---
@@ -169,15 +225,16 @@ Com a dominância do Bitcoin em {market['btc_dom']:.1f}% (CoinGecko Global), o m
 [01:10 - ALTCOINS LÍDERES]
 Ethereum negocia em {fmt_usd(market['eth_price'])} e Solana em {fmt_usd(market['sol_price'])} (CoinGecko), refletindo o momento de consolidação do ativo principal.
 
-[01:45 - ANÁLISE TÉCNICA]
-A zona de suporte do Bitcoin situa-se em {sr['support_str']}, com resistência imediata em {sr['resistance_str']}."""
+[01:45 - ANÁLISE TÉCNICA E MATRIZ PREDITIVA DO BTC]
+A zona de suporte do Bitcoin situa-se em {sr['support_str']}, com resistência imediata em {sr['resistance_str']}. Nossa matriz preditiva aponta probabilidade {pred['trend_desc']} de {pred['direction']} ({pred['confidence']}) para as próximas 48 horas."""
 
     st.text_area("", value=script_content, height=360)
 
-    m1, m2_col, m3 = st.columns(3)
+    m1, m2_col, m3, m4 = st.columns(4)
     m1.metric("Suporte BTC", sr["support_str"])
     m2_col.metric("Resistência BTC", sr["resistance_str"])
-    m3.metric("M2 Global (FRED)", m2["m2_formatted"], m2["yoy_formatted"])
+    m3.metric("Matriz Preditiva 48h", pred["direction"], pred["confidence"])
+    m4.metric("M2 Global (FRED)", m2["m2_formatted"], m2["yoy_formatted"])
 
 with col_right:
     st.subheader("📊 Métricas Agregadas")
