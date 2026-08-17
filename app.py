@@ -94,6 +94,7 @@ def get_coingecko_data():
         if "solana" in resp_prices:
             sol_p = resp_prices["solana"]["usd"]
             sol_c = resp_prices["solana"].get("usd_24h_change", 1.25)
+            data["sol_raw_price"] = sol_p
             data["sol_price"] = f"${sol_p:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
             data["sol_change"] = f"{sol_c:+.2f}%".replace(".", ",")
             data["sol_is_pos"] = sol_c >= 0
@@ -139,14 +140,66 @@ def get_coingecko_data():
 
     return data
 
+# Função resiliente para buscar dados MACRO via API (Yahoo Finance & AwesomeAPI)
+@st.cache_data(ttl=60)
+def get_macro_data():
+    data = {
+        "sp500_val": "7.758", "sp500_chg": "-0,53%", "sp500_is_pos": False,
+        "ibov_val": "166.833", "ibov_chg": "-0,16%", "ibov_is_pos": False,
+        "usdbrl_val": "5,20", "usdbrl_chg": "+0,00%", "usdbrl_is_pos": True,
+        "m2_val": "$104.8T (+4.2% YoY)",
+        "gold_val": "$4.474,90", "gold_chg": "+0,85%", "gold_is_pos": True,
+        "oil_val": "$90,69", "oil_chg": "+2,45%", "oil_is_pos": True
+    }
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+
+    # 1. Câmbio USD/BRL via AwesomeAPI
+    try:
+        url_fx = "https://economia.awesomeapi.com.br/last/USD-BRL"
+        resp_fx = requests.get(url_fx, headers=headers, timeout=3).json()
+        if "USDBRL" in resp_fx:
+            bid = float(resp_fx["USDBRL"]["bid"])
+            pct = float(resp_fx["USDBRL"]["pctChange"])
+            data["usdbrl_val"] = f"{bid:.2f}".replace(".", ",")
+            data["usdbrl_chg"] = f"{pct:+.2f}%".replace(".", ",")
+            data["usdbrl_is_pos"] = pct >= 0
+    except Exception:
+        pass
+
+    # 2. Benchmarks Globais & Commodities via Yahoo Finance
+    tickers = {
+        "^GSPC": ("sp500_val", "sp500_chg", "sp500_is_pos", "pts"),
+        "^BVSP": ("ibov_val", "ibov_chg", "ibov_is_pos", "pts"),
+        "GC=F": ("gold_val", "gold_chg", "gold_is_pos", "$"),
+        "BZ=F": ("oil_val", "oil_chg", "oil_is_pos", "$")
+    }
+
+    for symbol, (v_key, c_key, p_key, mode) in tickers.items():
+        try:
+            url_yf = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=1d"
+            resp_yf = requests.get(url_yf, headers=headers, timeout=3).json()
+            meta = resp_yf["chart"]["result"][0]["meta"]
+            price = meta.get("regularMarketPrice")
+            prev = meta.get("chartPreviousClose", price)
+            if price and prev:
+                chg = ((price - prev) / prev) * 100
+                if mode == "pts":
+                    data[v_key] = f"{price:,.0f}".replace(",", ".")
+                else:
+                    data[v_key] = f"${price:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                data[c_key] = f"{chg:+.2f}%".replace(".", ",")
+                data[p_key] = chg >= 0
+        except Exception:
+            pass
+
+    return data
+
 # Função para calcular Suporte e Resistência ESTRUTURAIS (Estáticos por Níveis de TF Maior)
 def calcular_suporte_resistencia_estrutural(preco_base):
-    # Grade estática de timeframes maiores em passos institucionais de US$ 2.500
     passo = 2500
     sup = (int(preco_base) // passo) * passo
     res = sup + passo
 
-    # Se estiver a menos de $400 do nível, busca a próxima zona macro de liquidez
     if res - preco_base < 400:
         res += passo
     if preco_base - sup < 400:
@@ -199,6 +252,7 @@ col_left, col_right = st.columns([1.6, 1])
 
 # LÓGICA DINÂMICA BASEADA NO MÓDULO E FORMATO SELECIONADOS
 if modulo == "TradFi (Macro)":
+    macro_data = get_macro_data()
     sp500_tendencia, sp500_score, sp500_valor_nivel = "Pressão Vendedora", "38 pts", "7.680 pts"
     ibov_tendencia, ibov_score, ibov_valor_nivel = "Consolidação 7D", "52 pts", "165.200 pts"
 
@@ -208,16 +262,16 @@ if modulo == "TradFi (Macro)":
             st.caption("Roteiro de Vídeo (YouTube B2C):")
             
             roteiro_tradfi = f"""[HOOK 0-15s]
-O mercado global está em ponto crítico hoje ({data_atual}). S&P 500 recuando e o Ibovespa operando em consolidação. Vamos direto aos dados do relatório institucional.
+O mercado global está em ponto crítico hoje ({data_atual}). S&P 500 cotado a {macro_data['sp500_val']} pts e o Ibovespa operando em {macro_data['ibov_val']} pts. Vamos direto aos dados do relatório institucional.
 
 [BLOCO 1 - PANORAMA GLOBAL]
-- S&P 500 em 7.758 pts (-0.53%).
-- Ibovespa segurando a região dos 166.833 pts.
-- Dólar cotado a R$ 5,20.
+- S&P 500 em {macro_data['sp500_val']} pts ({macro_data['sp500_chg']}).
+- Ibovespa segurando a região dos {macro_data['ibov_val']} pts.
+- Dólar cotado a R$ {macro_data['usdbrl_val']}.
 
 [BLOCO 2 - COMMODITIES E LIQUIDEZ]
-- Ouro registrando forte alta a $4.474,90/oz (+0.85%).
-- Petróleo Brent operando a $90,69 (+2.45%).
+- Ouro registrando cotação a {macro_data['gold_val']}/oz ({macro_data['gold_chg']}).
+- Petróleo Brent operando a {macro_data['oil_val']}/bbl ({macro_data['oil_chg']}).
 
 [CTA & ENCERRAMENTO]
 Deixe seu like e inscreva-se para análises diárias da OMNIRESEARCH!"""
@@ -231,14 +285,14 @@ Deixe seu like e inscreva-se para análises diárias da OMNIRESEARCH!"""
 Data/Hora: {data_atual}
 
 1. PANORAMA MACRO E BENCHMARKS
-- S&P 500: 7.758 pts (-0.53%) (Yahoo Finance)
-- Ibovespa: 166.833 pts (-0.16%) (Yahoo Finance)
-- Câmbio (USD/BRL): R$ 5,20 (+0.00%) (Yahoo Finance)
-- M2 Global (Liquidez Monetária): $104.8T (+4.2% YoY) (FRED St. Louis Fed)
+- S&P 500: {macro_data['sp500_val']} pts ({macro_data['sp500_chg']}) (Yahoo Finance)
+- Ibovespa: {macro_data['ibov_val']} pts ({macro_data['ibov_chg']}) (Yahoo Finance)
+- Câmbio (USD/BRL): R$ {macro_data['usdbrl_val']} ({macro_data['usdbrl_chg']}) (Yahoo Finance)
+- M2 Global (Liquidez Monetária): {macro_data['m2_val']} (FRED St. Louis Fed)
 
 2. MESA DE COMMODITIES
-- Ouro Spot (XAU/USD): $4.474,90/oz (+0.85%) (Yahoo Finance)
-- Petróleo Brent: $90,69/bbl (+2.45%) (Yahoo Finance)
+- Ouro Spot (XAU/USD): {macro_data['gold_val']}/oz ({macro_data['gold_chg']}) (Yahoo Finance)
+- Petróleo Brent: {macro_data['oil_val']}/bbl ({macro_data['oil_chg']}) (Yahoo Finance)
 
 3. VETORES PREDITIVOS E NÍVEIS TÉCNICOS
 - S&P 500 (EUA): Tendência 7D ({sp500_tendencia} - {sp500_score}) | Próximo Suporte: {sp500_valor_nivel}
@@ -281,10 +335,7 @@ Data/Hora: {data_atual}
             """, unsafe_allow_html=True)
 
 else:
-    # Módulo Crypto (Foco 100% Bitcoin nos Preditivos + CoinGecko & Fear and Greed Index)
     crypto_data = get_coingecko_data()
-
-    # Cálculo dos Níveis Estruturais de Suporte e Resistência
     btc_sup, btc_res = calcular_suporte_resistencia_estrutural(crypto_data["btc_raw_price"])
 
     btc_tendencia = "Tendência Compradora" if crypto_data["btc_is_pos"] else "Pressão Vendedora"
