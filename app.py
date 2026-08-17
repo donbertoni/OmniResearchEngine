@@ -104,58 +104,54 @@ def fmt_usd(val: float) -> str:
 # --- Horário de Brasília (UTC-3) ---
 brt_tz = timezone(timedelta(hours=-3))
 now_dt = datetime.datetime.now(brt_tz)
-now_str = now_dt.strftime("%d/%m/%Y às %H:%M BRT")
-short_time_str = now_dt.strftime("%H:%M BRT")
+now_str = now_dt.strftime("%d/%m/%Y às %H:%M:%S BRT")
+short_time_str = now_dt.strftime("%H:%M:%S BRT")
 
 HTTP_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 }
 
 
-# --- Ingestão de Dados ---
-@st.cache_data(ttl=60)
-def get_crypto_data():
+# --- Ingestão de Dados em Tempo Real (Binance Direct API) ---
+@st.cache_data(ttl=10)
+def get_crypto_data_realtime():
+    """
+    Consome dados diretamente do Ticker Spot 24h da Binance (Alta Frequência / Sem Rate Limit).
+    """
     data = {
-        "btc_price": 63744.0, "btc_change": 0.0,
-        "eth_price": 1900.0, "eth_change": 0.0,
-        "sol_price": 75.0, "sol_change": 0.0,
-        "btc_dom": 56.3, "btc_dom_change": -0.4,
-        "funding_rate": 0.0100, "funding_rate_delta": 0.0015
+        "btc_price": 0.0, "btc_change": 0.0,
+        "eth_price": 0.0, "eth_change": 0.0,
+        "sol_price": 0.0, "sol_change": 0.0,
+        "btc_dom": 56.5, "btc_dom_change": 0.0,
+        "funding_rate": 0.0100, "funding_rate_delta": 0.0000,
+        "error": False
     }
 
-    # 1. Preços e Variações 24h (CoinGecko)
+    symbols = '["BTCUSDT","ETHUSDT","SOLUSDT"]'
     try:
-        url_price = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true"
-        res_price = requests.get(url_price, headers=HTTP_HEADERS, timeout=6).json()
-
-        if "bitcoin" in res_price:
-            data["btc_price"] = res_price["bitcoin"]["usd"]
-            data["btc_change"] = res_price["bitcoin"].get("usd_24h_change", 0.0)
-        if "ethereum" in res_price:
-            data["eth_price"] = res_price["ethereum"]["usd"]
-            data["eth_change"] = res_price["ethereum"].get("usd_24h_change", 0.0)
-        if "solana" in res_price:
-            data["sol_price"] = res_price["solana"]["usd"]
-            data["sol_change"] = res_price["solana"].get("usd_24h_change", 0.0)
+        url = f"https://api.binance.com/api/v3/ticker/24hr?symbols={symbols}"
+        res = requests.get(url, headers=HTTP_HEADERS, timeout=4).json()
+        
+        for item in res:
+            sym = item["symbol"]
+            price = float(item["lastPrice"])
+            change = float(item["priceChangePercent"])
+            if sym == "BTCUSDT":
+                data["btc_price"] = price
+                data["btc_change"] = change
+            elif sym == "ETHUSDT":
+                data["eth_price"] = price
+                data["eth_change"] = change
+            elif sym == "SOLUSDT":
+                data["sol_price"] = price
+                data["sol_change"] = change
     except Exception:
-        pass
+        data["error"] = True
 
-    # 2. Dominância BTC
-    try:
-        url_global = "https://api.coingecko.com/api/v3/global"
-        res_global = requests.get(url_global, headers=HTTP_HEADERS, timeout=6).json()
-        btc_dom = res_global.get("data", {}).get("market_cap_percentage", {}).get("btc")
-        dom_change = res_global.get("data", {}).get("market_cap_change_percentage_24h_usd", -0.4)
-        if btc_dom:
-            data["btc_dom"] = btc_dom
-            data["btc_dom_change"] = dom_change
-    except Exception:
-        pass
-
-    # 3. Funding Rate (Binance Futures)
+    # 2. Funding Rate em Tempo Real (Binance Futures)
     try:
         url_funding = "https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&limit=2"
-        res_funding = requests.get(url_funding, headers=HTTP_HEADERS, timeout=6).json()
+        res_funding = requests.get(url_funding, headers=HTTP_HEADERS, timeout=4).json()
         if isinstance(res_funding, list) and len(res_funding) >= 2:
             current_fr = float(res_funding[-1]["fundingRate"]) * 100
             prev_fr = float(res_funding[-2]["fundingRate"]) * 100
@@ -164,14 +160,26 @@ def get_crypto_data():
     except Exception:
         pass
 
+    # 3. Dominância do BTC (CoinGecko Global com Fallback Conservador)
+    try:
+        url_global = "https://api.coingecko.com/api/v3/global"
+        res_global = requests.get(url_global, headers=HTTP_HEADERS, timeout=4).json()
+        btc_dom = res_global.get("data", {}).get("market_cap_percentage", {}).get("btc")
+        dom_change = res_global.get("data", {}).get("market_cap_change_percentage_24h_usd", 0.0)
+        if btc_dom:
+            data["btc_dom"] = btc_dom
+            data["btc_dom_change"] = dom_change
+    except Exception:
+        pass
+
     return data
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=180)
 def get_fear_and_greed():
     try:
         url = "https://api.alternative.me/fng/?limit=2"
-        res = requests.get(url, headers=HTTP_HEADERS, timeout=6).json()
+        res = requests.get(url, headers=HTTP_HEADERS, timeout=4).json()
         data = res["data"]
         current_val = int(data[0]["value"])
         prev_val = int(data[1]["value"])
@@ -181,15 +189,17 @@ def get_fear_and_greed():
             "change": current_val - prev_val
         }
     except Exception:
-        return {"value": 31, "sentiment": "Fear", "change": -3}
+        return {"value": 50, "sentiment": "Neutral", "change": 0}
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=60)
 def get_support_resistance(btc_price: float):
-    """
-    Calcula dinamicamente zonas de suporte e resistência com base em Pivot Points
-    e nos candles diários do BTC na Binance API.
-    """
+    if btc_price <= 0:
+        return {
+            "support_str": "N/A", "resistance_str": "N/A",
+            "sup_low": 0, "sup_high": 0, "res_low": 0, "res_high": 0
+        }
+
     sup_low = btc_price * 0.965
     sup_high = btc_price * 0.982
     res_low = btc_price * 1.018
@@ -197,7 +207,7 @@ def get_support_resistance(btc_price: float):
 
     try:
         url = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=14"
-        res = requests.get(url, headers=HTTP_HEADERS, timeout=6).json()
+        res = requests.get(url, headers=HTTP_HEADERS, timeout=4).json()
 
         if isinstance(res, list) and len(res) >= 2:
             prev_high = float(res[-2][2])
@@ -230,7 +240,6 @@ def get_support_resistance(btc_price: float):
                 res_low = btc_price * 1.012
             if res_high <= res_low:
                 res_high = res_low * 1.025
-
     except Exception:
         pass
 
@@ -246,17 +255,12 @@ def get_support_resistance(btc_price: float):
 
 @st.cache_data(ttl=3600)
 def get_global_m2():
-    """
-    Fonte Primária de Automação: FRED (St. Louis Fed) via Endpoint CSV Direto.
-    Obtém a série histórica semanal do M2 dos EUA (WM2NS) e aplica o multiplicador
-    de correlação da liquidez global (4.88x), calculando o M2 Total e a variação YoY%.
-    """
     m2_total_trillions = 104.8
     m2_yoy_pct = 4.2
 
     try:
         url_fred = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=WM2NS"
-        res = requests.get(url_fred, headers=HTTP_HEADERS, timeout=6)
+        res = requests.get(url_fred, headers=HTTP_HEADERS, timeout=5)
         if res.status_code == 200:
             lines = [line.strip() for line in res.text.strip().split("\n") if line.strip()]
             valid_rows = []
@@ -268,7 +272,7 @@ def get_global_m2():
                     except ValueError:
                         pass
             if len(valid_rows) >= 52:
-                latest_us_m2 = valid_rows[-1][1] / 1000.0  # Converte de Bilhões para Trilhões USD
+                latest_us_m2 = valid_rows[-1][1] / 1000.0
                 prev_year_us_m2 = valid_rows[-52][1] / 1000.0
                 us_m2_yoy = ((latest_us_m2 - prev_year_us_m2) / prev_year_us_m2) * 100.0
 
@@ -287,49 +291,42 @@ def get_global_m2():
 
 
 def calculate_predictive_matrix(market: dict, fng: dict, sr: dict):
-    """
-    Algoritmo de Matriz Preditiva 100% focado no Bitcoin.
-    Elimina ruídos de altcoins e pondera apenas métricas diretas do BTC.
-    """
-    score = 50.0  # Base Neutra
+    score = 50.0
 
-    # 1. Momentum Direto do BTC (35% peso)
     btc_chg = market.get("btc_change", 0.0)
     score += max(min(btc_chg * 4.0, 22.0), -22.0)
 
-    # 2. BTC Funding Rate / Derivativos (25% peso)
     fr = market.get("funding_rate", 0.01)
     if 0.005 <= fr <= 0.015:
         score += 8.0
     elif 0.0 < fr < 0.005:
         score += 5.0
     elif fr < 0:
-        score += 12.0  # Dominância de Shorts -> Risco/Oportunidade de Short Squeeze
+        score += 12.0
     elif fr > 0.03:
-        score -= 12.0  # Longs superalavancados -> Risco de Long Squeeze
+        score -= 12.0
 
-    # 3. Bitcoin Fear & Greed Index (20% peso)
     fng_val = fng.get("value", 50)
     if 35 <= fng_val <= 60:
         score += 8.0
     elif 20 <= fng_val < 35:
         score += 5.0
     elif fng_val < 20:
-        score += 8.0   # Medo Extremo -> Fundo tático
+        score += 8.0
     elif fng_val > 75:
-        score -= 10.0  # Euforia Extrema -> Topo local
+        score -= 10.0
 
-    # 4. Posição no Range Suporte/Resistência do BTC (20% peso)
-    sup_low = sr.get("sup_low", market["btc_price"] * 0.97)
-    res_high = sr.get("res_high", market["btc_price"] * 1.03)
-    range_total = res_high - sup_low
+    if market["btc_price"] > 0:
+        sup_low = sr.get("sup_low", market["btc_price"] * 0.97)
+        res_high = sr.get("res_high", market["btc_price"] * 1.03)
+        range_total = res_high - sup_low
 
-    if range_total > 0:
-        relative_pos = (market["btc_price"] - sup_low) / range_total
-        if relative_pos < 0.35:
-            score += 8.0   # Testando suporte -> Viés de repique
-        elif relative_pos > 0.85:
-            score -= 6.0   # Testando resistência -> Risco de rejeição
+        if range_total > 0:
+            relative_pos = (market["btc_price"] - sup_low) / range_total
+            if relative_pos < 0.35:
+                score += 8.0
+            elif relative_pos > 0.85:
+                score -= 6.0
 
     bullish_pct = int(max(min(round(score), 88), 15))
 
@@ -355,7 +352,7 @@ def calculate_predictive_matrix(market: dict, fng: dict, sr: dict):
 
 
 # Ingestão Geral
-market = get_crypto_data()
+market = get_crypto_data_realtime()
 fng = get_fear_and_greed()
 sr = get_support_resistance(market["btc_price"])
 m2 = get_global_m2()
@@ -367,14 +364,17 @@ col_head1, col_head2 = st.columns([3, 1])
 
 with col_head1:
     st.title("⚡ OMNIRESEARCH")
-    st.caption("Engine de Inteligência Financeira Multiativo")
-    st.info(f"🕒 Report Gerado em: {now_str}")
+    st.caption("Engine de Inteligência Financeira Multiativo (Dados Diretos Spot Binance)")
+    st.info(f"🕒 Atualização em Tempo Real: {now_str}")
 
 with col_head2:
     target_profile = st.selectbox("Perfil do Relatório (Target):", ["🎥 B2C: YouTube Crypto Content"])
     autopilot = st.toggle("Modo Autopilot", value=False)
     if autopilot:
         st.caption("Autopilot ON: Publicação automática sem HITL.")
+
+if market.get("error"):
+    st.error("⚠️ Atenção: Falha de comunicação com os servidores Spot da Binance. Verifique a conexão de rede.")
 
 st.divider()
 
@@ -419,15 +419,15 @@ A zona de suporte imediata do Bitcoin reside em {sr['support_str']}, com resist�
 
 
 with col_right:
-    st.subheader("📊 Ingestão de Mercado (Crypto)")
-    st.caption(f"Horário de criação do Report: {short_time_str}")
+    st.subheader("📊 Ingestão de Mercado (Spot Binance)")
+    st.caption(f"Último Ticker: {short_time_str}")
 
     # Card 1: Fear & Greed
     fng_delta_class = "metric-delta-up" if fng["change"] >= 0 else "metric-delta-down"
     fng_arrow = "↑" if fng["change"] >= 0 else "↓"
     st.markdown(f"""
         <div class="stCard">
-            <div class="metric-title">1. Fear & Greed Index</div>
+            <div class="metric-title">1. Fear & Greed Index (Diário)</div>
             <div class="metric-value">{fng['value']} ({fng['sentiment']})</div>
             <div class="{fng_delta_class}">{fng_arrow} {fng['change']:+} pts</div>
         </div>
@@ -438,14 +438,14 @@ with col_right:
     btc_arrow = "↑" if market["btc_change"] >= 0 else "↓"
     st.markdown(f"""
         <div class="stCard">
-            <div class="metric-title">2. BTC / USDT</div>
+            <div class="metric-title">2. BTC / USDT (Binance Live)</div>
             <div class="metric-value">{fmt_usd(market['btc_price'])}</div>
             <div class="{btc_delta_class}">{btc_arrow} {market['btc_change']:+.2f}%</div>
         </div>
     """, unsafe_allow_html=True)
 
     # Card 3: BTC Dominance
-    dom_delta = market.get("btc_dom_change", -0.4)
+    dom_delta = market.get("btc_dom_change", 0.0)
     dom_class = "metric-delta-up" if dom_delta >= 0 else "metric-delta-down"
     dom_arrow = "↑" if dom_delta >= 0 else "↓"
     dom_tag = "(Concentração BTC)" if dom_delta >= 0 else "(Rotação)"
@@ -462,7 +462,7 @@ with col_right:
     eth_arrow = "↑" if market["eth_change"] >= 0 else "↓"
     st.markdown(f"""
         <div class="stCard">
-            <div class="metric-title">4. ETH / USDT</div>
+            <div class="metric-title">4. ETH / USDT (Binance Live)</div>
             <div class="metric-value">{fmt_usd(market['eth_price'])}</div>
             <div class="{eth_delta_class}">{eth_arrow} {market['eth_change']:+.2f}%</div>
         </div>
@@ -473,7 +473,7 @@ with col_right:
     sol_arrow = "↑" if market["sol_change"] >= 0 else "↓"
     st.markdown(f"""
         <div class="stCard">
-            <div class="metric-title">5. SOL / USDT</div>
+            <div class="metric-title">5. SOL / USDT (Binance Live)</div>
             <div class="metric-value">{fmt_usd(market['sol_price'])}</div>
             <div class="{sol_delta_class}">{sol_arrow} {market['sol_change']:+.2f}%</div>
         </div>
