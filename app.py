@@ -72,7 +72,7 @@ idioma = st.sidebar.selectbox("🌐 Idioma do Output:", ["Português (BR)", "Eng
 modulo = st.sidebar.radio(
     "💡 Escolha o Módulo:",
     ["Crypto", "TradFi (Macro)"],
-    index=1,
+    index=0,
     help="Selecione o segmento de análise"
 )
 
@@ -196,7 +196,7 @@ Data/Hora: {data_atual}
 else:
     # Módulo Crypto
     btc_tendencia, btc_score, btc_estado, btc_valor_nivel = "Tendência Compradora", "78 pts", "bullish", "$66.500"
-    eth_tendencia, eth_score, eth_estado, eth_valor_nivel = "Consolidação 7D", "54 pts", "neutro", "$3.380"
+    eth_tendencia, eth_score, eth_estado, eth_valor_nivel = "Consolidação 7D", "54 pts", "neutro", "$2.380"
     
     btc_rotulo, btc_css, btc_seta = calcular_nivel_condicional(btc_estado)
     eth_rotulo, eth_css, eth_seta = calcular_nivel_condicional(eth_estado)
@@ -209,11 +209,11 @@ else:
 Data/Hora: {data_atual}
 
 1. CRIPTO PANORAMA E BENCHMARKS
-- Bitcoin (BTC/USDT): $64.284,27 (+2.20%) (Binance)
-- Ethereum (ETH/USDT): $3.450,10 (+1.80%) (Binance)
-- Solana (SOL/USDT): $148,50 (+4.50%) (Binance)
-- Dominância do Bitcoin (BTC.D): 56.4% (+0.3%) (TradingView)
-- Market Cap Total Crypto: $2.35T (+2.10%) (CoinGecko)
+- Bitcoin (BTC/USDT): $64.284,27 (+2.20%) (CoinGecko)
+- Ethereum (ETH/USDT): $2.450,10 (+1.80%) (CoinGecko)
+- Solana (SOL/USDT): $148,50 (+4.50%) (CoinGecko)
+- Dominância do Bitcoin (BTC.D): 56.4% (+0.3%) (CoinGecko)
+- Market Cap Total Crypto: $2.15T (+2.10%) (CoinGecko)
 
 2. MESA DE LIQUIDEZ E ON-CHAIN
 - Financiamento BTC (Funding Rate): +0.012% (Neutro/Comprador)
@@ -265,28 +265,28 @@ Data/Hora: {data_atual}
         
         st.markdown("""
         <div class="stCard">
-            <div class="metric-label">1. Bitcoin / USDT (Binance)</div>
+            <div class="metric-label">1. Bitcoin / USDT (CoinGecko)</div>
             <div class="metric-value">$64.284,27</div>
             <div class="status-green">+2.20% hoje</div>
         </div>
         <div class="stCard">
-            <div class="metric-label">2. Ethereum / USDT (Binance)</div>
-            <div class="metric-value">$3.450,10</div>
+            <div class="metric-label">2. Ethereum / USDT (CoinGecko)</div>
+            <div class="metric-value">$2.450,10</div>
             <div class="status-green">+1.80% hoje</div>
         </div>
         <div class="stCard">
-            <div class="metric-label">3. Solana / USDT (Binance)</div>
+            <div class="metric-label">3. Solana / USDT (CoinGecko)</div>
             <div class="metric-value">$148,50</div>
             <div class="status-green">+4.50% hoje</div>
         </div>
         <div class="stCard">
-            <div class="metric-label">4. Dominância BTC (BTC.D)</div>
+            <div class="metric-label">4. Dominância BTC (CoinGecko)</div>
             <div class="metric-value">56,4%</div>
             <div class="status-green">+0.30% hoje</div>
         </div>
         <div class="stCard">
-            <div class="metric-label">5. Market Cap Total Crypto</div>
-            <div class="metric-value">$2,35 Tri</div>
+            <div class="metric-label">5. Market Cap Total Crypto (CoinGecko)</div>
+            <div class="metric-value">$2,15 Tri</div>
             <div class="status-green">+2.10% hoje</div>
         </div>
         """, unsafe_allow_html=True)
