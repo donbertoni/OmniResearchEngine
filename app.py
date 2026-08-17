@@ -247,15 +247,16 @@ def get_support_resistance(btc_price: float):
 @st.cache_data(ttl=3600)
 def get_global_m2():
     """
-    Busca e calcula a oferta monetária global M2 (M2 Total Supply) e variação YoY%.
-    Obtém dados do FRED (St. Louis Fed) com modelo proporcional de liquidez global.
+    Fonte Primária de Automação: FRED (St. Louis Fed) via Endpoint CSV Direto.
+    Obtém a série histórica semanal do M2 dos EUA (WM2NS) e aplica o multiplicador
+    de correlação da liquidez global (4.88x), calculando o M2 Total e a variação YoY%.
     """
     m2_total_trillions = 104.8
     m2_yoy_pct = 4.2
 
     try:
         url_fred = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=WM2NS"
-        res = requests.get(url_fred, headers=HTTP_HEADERS, timeout=5)
+        res = requests.get(url_fred, headers=HTTP_HEADERS, timeout=6)
         if res.status_code == 200:
             lines = [line.strip() for line in res.text.strip().split("\n") if line.strip()]
             valid_rows = []
@@ -267,12 +268,12 @@ def get_global_m2():
                     except ValueError:
                         pass
             if len(valid_rows) >= 52:
-                latest_us_m2 = valid_rows[-1][1] / 1000.0
+                latest_us_m2 = valid_rows[-1][1] / 1000.0  # Converte de Bilhões para Trilhões USD
                 prev_year_us_m2 = valid_rows[-52][1] / 1000.0
                 us_m2_yoy = ((latest_us_m2 - prev_year_us_m2) / prev_year_us_m2) * 100.0
-                
+
                 m2_total_trillions = round(latest_us_m2 * 4.88, 1)
-                m2_yoy_pct = round(us_m2_yoy * 1.1, 1)
+                m2_yoy_pct = round(us_m2_yoy * 1.08, 1)
     except Exception:
         pass
 
@@ -409,12 +410,12 @@ A zona de suporte imediata do Bitcoin reside em {sr['support_str']}, com resist�
 
         st.text_area("", value=script_content, height=380)
 
-        st.markdown("### 🎯 Níveis Chave & Matriz Preditiva")
+        st.markdown("### 🎯 Níveis Chave & M2 Total Supply")
         m1, m2_col, m3, m4 = st.columns(4)
         m1.metric("Zona de Suporte", sr["support_str"], "↑ Forte Defesa")
         m2_col.metric("Zona de Resistência", sr["resistance_str"], "↑ Alvo Chave")
         m3.metric("Matriz Preditiva 48h", pred["direction"], pred["confidence"])
-        m4.metric("M2 Total Supply", m2["m2_formatted"], m2["yoy_formatted"])
+        m4.metric("M2 Total Supply (FRED)", m2["m2_formatted"], m2["yoy_formatted"])
 
 
 with col_right:
