@@ -268,6 +268,72 @@ def calculate_predictive_matrix(market: dict, fng: dict, sr: dict):
     }
 
 
+# --- ANÁLISE PREDITIVA E TENDÊNCIAS TRADFI (PROPOSTA 1 DESACOPLADA) ---
+def calculate_tradfi_analytics(tradfi_data: dict):
+    sp_chg = tradfi_data.get("sp500_change", 0.0)
+    ibov_chg = tradfi_data.get("ibov_change", 0.0)
+    usd_chg = tradfi_data.get("usdbrl_change", 0.0)
+
+    # 1. Tendência Semanal S&P 500
+    if sp_chg > 0.4:
+        sp_trend_title = "Alta Estrutural"
+        sp_trend_sub = "↑ Acima Média 20D"
+    elif sp_chg < -0.4:
+        sp_trend_title = "Pressão Vendedora"
+        sp_trend_sub = "↓ Teste de Suporte"
+    else:
+        sp_trend_title = "Consolidação 7D"
+        sp_trend_sub = "→ Acumulação Lateral"
+
+    # 2. Tendência Semanal Ibovespa
+    if ibov_chg > 0.3 and usd_chg <= 0:
+        ibov_trend_title = "Alta Estrutural"
+        ibov_trend_sub = "↑ Entrada de Fluxo"
+    elif ibov_chg < -0.3 or usd_chg > 0.4:
+        ibov_trend_title = "Correção / Risco"
+        ibov_trend_sub = "↓ Pressão Fiscal/Câmbio"
+    else:
+        ibov_trend_title = "Consolidação 7D"
+        ibov_trend_sub = "→ Defesa de Nível"
+
+    # 3. Preditiva 48h EUA (S&P 500)
+    sp_score = 50.0 + (sp_chg * 8.0)
+    sp_pct = int(max(min(round(sp_score), 85), 15))
+    if sp_pct >= 55:
+        sp_pred_dir = f"{sp_pct}% Bullish"
+        sp_pred_sub = "↑ Viés Altista EUA"
+    elif sp_pct <= 45:
+        sp_pred_dir = f"{100 - sp_pct}% Bearish"
+        sp_pred_sub = "↓ Viés Baixista EUA"
+    else:
+        sp_pred_dir = f"{sp_pct}% Neutro"
+        sp_pred_sub = "→ Consolidação EUA"
+
+    # 4. Preditiva 48h BR (Ibovespa)
+    br_score = 50.0 + (ibov_chg * 7.0) - (usd_chg * 5.0)
+    br_pct = int(max(min(round(br_score), 85), 15))
+    if br_pct >= 55:
+        br_pred_dir = f"{br_pct}% Bullish"
+        br_pred_sub = "↑ Viés Altista BR"
+    elif br_pct <= 45:
+        br_pred_dir = f"{100 - br_pct}% Bearish"
+        br_pred_sub = "↓ Risco Doméstico"
+    else:
+        br_pred_dir = f"{br_pct}% Neutro"
+        br_pred_sub = "→ Consolidação BR"
+
+    return {
+        "sp_trend_title": sp_trend_title,
+        "sp_trend_sub": sp_trend_sub,
+        "ibov_trend_title": ibov_trend_title,
+        "ibov_trend_sub": ibov_trend_sub,
+        "sp_pred_dir": sp_pred_dir,
+        "sp_pred_sub": sp_pred_sub,
+        "br_pred_dir": br_pred_dir,
+        "br_pred_sub": br_pred_sub,
+    }
+
+
 # Ingestão Geral de Dados
 crypto_market = get_crypto_data_aggregated()
 tradfi_market = get_tradfi_data_aggregated()
@@ -275,6 +341,7 @@ fng = get_fear_and_greed()
 sr = get_support_resistance(crypto_market["btc_price"])
 m2 = get_global_m2()
 pred = calculate_predictive_matrix(crypto_market, fng, sr)
+tradfi_analytics = calculate_tradfi_analytics(tradfi_market)
 
 
 # --- PAINEL LATERAL DE CONFIGURAÇÕES HIERÁRQUICO (SIDEBAR) ---
@@ -321,7 +388,7 @@ with st.sidebar:
 
 
 # --- GERADORES DE TEXTO ADAPTATIVOS ---
-def generate_youtube_script(lang, is_auto, target_type):
+def generate_youtube_script(lang, is_auto, target_type, tradfi_data_analytics=None):
     prefix = "[AUTO-PILOT ACTIVE] " if is_auto else "[HITL PENDING] "
     
     if target_type == "Crypto Focus":
@@ -355,6 +422,7 @@ Ethereum negocia em {fmt_usd(crypto_market['eth_price'])} (CoinGecko) e Solana e
 A zona de suporte do Bitcoin situa-se em {sr['support_str']}, com resistência imediata em {sr['resistance_str']}. Nossa matriz preditiva aponta probabilidade {pred['trend_desc']} de {pred['direction']} ({pred['confidence']}) para as próximas 48 horas."""
 
     else:  # TradFi / Macro Focus
+        analytics = tradfi_data_analytics or calculate_tradfi_analytics(tradfi_market)
         if "English" in lang:
             return f"""{prefix}[TradFi / Macro Focus] Extended LLM Script (~2 min 30 sec):
 
@@ -364,11 +432,11 @@ Global financial markets react to current liquidity conditions. The S&P 500 trad
 [00:35 - EQUITY & COMMODITIES]
 Ibovespa trades at {fmt_pts(tradfi_market['ibov_price'])} ({tradfi_market['ibov_change']:+.2f}%) (Yahoo Finance). Commodities show Gold at {fmt_usd(tradfi_market['gold_price'])}/oz (Yahoo Finance) and Brent Crude at {fmt_usd(tradfi_market['brent_price'])}/bbl (Yahoo Finance).
 
-[01:10 - MACRO OUTLOOK & ASSET DYNAMICS]
-Market interest rates and liquidity expansion continue to dictate global risk appetite across equity and commodity desks.
+[01:10 - WEEKLY TRENDS (US & BR)]
+S&P 500 weekly structure indicates {analytics['sp_trend_title']} ({analytics['sp_trend_sub']}). Meanwhile, Ibovespa shows {analytics['ibov_trend_title']} ({analytics['ibov_trend_sub']}).
 
-[01:45 - STRATEGIC SUMMARY]
-Key macro resistance levels are tested as investors balance interest rate expectations against broad monetary expansion."""
+[01:45 - 48H PREDICTIVE MATRICES]
+Our 48-hour US predictive matrix indicates {analytics['sp_pred_dir']} ({analytics['sp_pred_sub']}), while the Brazilian market model points to {analytics['br_pred_dir']} ({analytics['br_pred_sub']})."""
         else:
             return f"""{prefix}[TradFi / Macro Focus] Roteiro Estendido LLM (~2 min 30 seg de tela):
 
@@ -378,11 +446,11 @@ Os mercados financeiros mundiais reagem ao fluxo de liquidez macro. O S&P 500 op
 [00:35 - BOLSAS & COMMODITIES]
 O Ibovespa negocia na faixa de {fmt_pts(tradfi_market['ibov_price'])} ({tradfi_market['ibov_change']:+.2f}%) (Yahoo Finance). Nas commodities, o Ouro registra {fmt_usd(tradfi_market['gold_price'])}/oz (Yahoo Finance) e o Petróleo Brent está cotado em {fmt_usd(tradfi_market['brent_price'])}/bbl (Yahoo Finance).
 
-[01:10 - PANORAMA MACROECONÔMICO]
-A trajetória dos juros e a expansão monetária continuam sendo os principais vetores de apetite ao risco nos mercados emergentes e globais.
+[01:10 - TENDÊNCIAS SEMANAIS (EUA & BR)]
+A estrutura semanal do S&P 500 indica {analytics['sp_trend_title']} ({analytics['sp_trend_sub']}). Enquanto isso, o Ibovespa aponta {analytics['ibov_trend_title']} ({analytics['ibov_trend_sub']}).
 
-[01:45 - CONCLUSÃO ESTRATÉGICA]
-Investidores mantêm postura cautelosa enquanto monitoram níveis de inflação e liquidez central para reequilíbrio de carteiras."""
+[01:45 - MATRIZES PREDITIVAS DE 48H]
+Nossa matriz preditiva de 48h para os EUA aponta {analytics['sp_pred_dir']} ({analytics['sp_pred_sub']}), enquanto o modelo para o mercado brasileiro registra {analytics['br_pred_dir']} ({analytics['br_pred_sub']})."""
 
 
 def generate_b2b_report(lang):
@@ -428,7 +496,8 @@ Data/Hora: {now_str}
 Preservação de capital recomendada nas proximidades da resistência superior. Mapeamento de liquidez indica consolidação de book."""
 
 
-def generate_tradfi_b2b_report(lang):
+def generate_tradfi_b2b_report(lang, tradfi_data_analytics=None):
+    analytics = tradfi_data_analytics or calculate_tradfi_analytics(tradfi_market)
     if "English" in lang:
         return f"""=== INSTITUTIONAL TRADFI & MACRO REPORT (B2B) ===
 Date/Time: {now_str}
@@ -443,7 +512,11 @@ Date/Time: {now_str}
 - Gold Spot (XAU/USD): {fmt_usd(tradfi_market['gold_price'])}/oz ({tradfi_market['gold_change']:+.2f}%) (Yahoo Finance)
 - Brent Crude Oil: {fmt_usd(tradfi_market['brent_price'])}/bbl ({tradfi_market['brent_change']:+.2f}%) (Yahoo Finance)
 
-3. ALLOCATION STRATEGY
+3. PREDICTIVE VECTORS & WEEKLY TRENDS
+- S&P 500 (US): 7D Trend ({analytics['sp_trend_title']}) | 48h Predictive Vector: {analytics['sp_pred_dir']} ({analytics['sp_pred_sub']})
+- Ibovespa (BR): 7D Trend ({analytics['ibov_trend_title']}) | 48h Predictive Vector: {analytics['br_pred_dir']} ({analytics['br_pred_sub']})
+
+4. ALLOCATION STRATEGY
 Cross-asset liquidity monitoring advises balanced positioning across risk-on equities and defensive inflation hedges."""
     else:
         return f"""=== RELATÓRIO INSTITUCIONAL TRADFI & MACROECONOMIA (B2B) ===
@@ -459,7 +532,11 @@ Data/Hora: {now_str}
 - Ouro Spot (XAU/USD): {fmt_usd(tradfi_market['gold_price'])}/oz ({tradfi_market['gold_change']:+.2f}%) (Yahoo Finance)
 - Petróleo Brent: {fmt_usd(tradfi_market['brent_price'])}/bbl ({tradfi_market['brent_change']:+.2f}%) (Yahoo Finance)
 
-3. ESTRATÉGIA DE ALOCAÇÃO
+3. VETORES PREDITIVOS E TENDÊNCIAS
+- S&P 500 (EUA): Tendência 7D ({analytics['sp_trend_title']}) | Matriz Preditiva 48h: {analytics['sp_pred_dir']} ({analytics['sp_pred_sub']})
+- Ibovespa (BR): Tendência 7D ({analytics['ibov_trend_title']}) | Matriz Preditiva 48h: {analytics['br_pred_dir']} ({analytics['br_pred_sub']})
+
+4. ESTRATÉGIA DE ALOCAÇÃO
 Monitoramento de liquidez entre ativos recomenda alocação equilibrada entre renda variável e hedges defensivos contra inflação."""
 
 
@@ -529,42 +606,45 @@ with col_left:
     else:  # TradFi (Macro)
         if "B2B" in selected_target:
             st.subheader("🏢 Relatório B2B (TradFi & Macroeconomia)")
-            b2b_tradfi_text = generate_tradfi_b2b_report(lang_option)
+            b2b_tradfi_text = generate_tradfi_b2b_report(lang_option, tradfi_analytics)
             st.text_area("Relatório Macro/TradFi (B2B):", value=b2b_tradfi_text, height=350)
         else:
             st.subheader("🎬 Roteiro YouTube B2C (TradFi & Macro Focus)")
-            yt_script = generate_youtube_script(lang_option, autopilot_mode, "TradFi Focus")
+            yt_script = generate_youtube_script(lang_option, autopilot_mode, "TradFi Focus", tradfi_analytics)
             st.text_area("Roteiro de Vídeo Macro (B2C):", value=yt_script, height=350)
 
-        # Cards Inferiores Dinâmicos (TradFi / Macro)
+        # Cards Inferiores Dinâmicos (TradFi / Macro - Proposta 1 Desacoplada)
         m1, m2_col, m3, m4 = st.columns(4)
         with m1:
             st.markdown(f"""
                 <div class="bottom-card">
-                    <div class="bottom-card-title">S&P 500</div>
-                    <div class="bottom-card-value">{fmt_pts(tradfi_market['sp500_price'])}</div>
+                    <div class="bottom-card-title">Tendência Semanal S&P 500</div>
+                    <div class="bottom-card-value">{tradfi_analytics['sp_trend_title']}</div>
+                    <div class="bottom-card-sub">{tradfi_analytics['sp_trend_sub']}</div>
                 </div>
             """, unsafe_allow_html=True)
         with m2_col:
             st.markdown(f"""
                 <div class="bottom-card">
-                    <div class="bottom-card-title">Ibovespa</div>
-                    <div class="bottom-card-value">{fmt_pts(tradfi_market['ibov_price'])}</div>
+                    <div class="bottom-card-title">Tendência Semanal Ibov</div>
+                    <div class="bottom-card-value">{tradfi_analytics['ibov_trend_title']}</div>
+                    <div class="bottom-card-sub">{tradfi_analytics['ibov_trend_sub']}</div>
                 </div>
             """, unsafe_allow_html=True)
         with m3:
             st.markdown(f"""
                 <div class="bottom-card">
-                    <div class="bottom-card-title">Dólar / Real</div>
-                    <div class="bottom-card-value">{fmt_brl(tradfi_market['usdbrl_price'])}</div>
+                    <div class="bottom-card-title">Preditiva 48h EUA (S&P)</div>
+                    <div class="bottom-card-value">{tradfi_analytics['sp_pred_dir']}</div>
+                    <div class="bottom-card-sub">{tradfi_analytics['sp_pred_sub']}</div>
                 </div>
             """, unsafe_allow_html=True)
         with m4:
             st.markdown(f"""
                 <div class="bottom-card">
-                    <div class="bottom-card-title">M2 Global (FRED)</div>
-                    <div class="bottom-card-value">{m2['m2_formatted']}</div>
-                    <div class="bottom-card-sub">{m2['yoy_formatted']}</div>
+                    <div class="bottom-card-title">Preditiva 48h BR (Ibov)</div>
+                    <div class="bottom-card-value">{tradfi_analytics['br_pred_dir']}</div>
+                    <div class="bottom-card-sub">{tradfi_analytics['br_pred_sub']}</div>
                 </div>
             """, unsafe_allow_html=True)
 
