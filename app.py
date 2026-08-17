@@ -61,13 +61,13 @@ data_atual = agora_brt.strftime("%d/%m/%Y às %H:%M:%S BRT")
 @st.cache_data(ttl=20)
 def get_coingecko_data():
     data = {
-        "btc_price": "$64.303,80", "btc_change": "+2,24%", "btc_is_pos": True,
-        "btc_raw_price": 64303.80,
-        "eth_price": "$1.908,34", "eth_change": "+1,72%", "eth_is_pos": True,
-        "eth_raw_price": 1908.34,
-        "sol_price": "$75,88", "sol_change": "+1,70%", "sol_is_pos": True,
-        "btc_dom": "59,26%",
-        "fng_val": "68 / 100", "fng_classification": "Ganância", "fng_css": "status-green"
+        "btc_price": "$64.481,00", "btc_change": "+2,19%", "btc_is_pos": True,
+        "btc_raw_price": 64481.00,
+        "eth_price": "$1.909,21", "eth_change": "+1,36%", "eth_is_pos": True,
+        "eth_raw_price": 1909.21,
+        "sol_price": "$76,05", "sol_change": "+1,25%", "sol_is_pos": True,
+        "btc_dom": "56,56%",
+        "fng_val": "31 / 100", "fng_classification": "Medo", "fng_css": "status-red"
     }
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
@@ -77,7 +77,7 @@ def get_coingecko_data():
 
         if "bitcoin" in resp_prices:
             btc_p = resp_prices["bitcoin"]["usd"]
-            btc_c = resp_prices["bitcoin"].get("usd_24h_change", 2.24)
+            btc_c = resp_prices["bitcoin"].get("usd_24h_change", 2.19)
             data["btc_raw_price"] = btc_p
             data["btc_price"] = f"${btc_p:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
             data["btc_change"] = f"{btc_c:+.2f}%".replace(".", ",")
@@ -85,7 +85,7 @@ def get_coingecko_data():
 
         if "ethereum" in resp_prices:
             eth_p = resp_prices["ethereum"]["usd"]
-            eth_c = resp_prices["ethereum"].get("usd_24h_change", 1.72)
+            eth_c = resp_prices["ethereum"].get("usd_24h_change", 1.36)
             data["eth_raw_price"] = eth_p
             data["eth_price"] = f"${eth_p:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
             data["eth_change"] = f"{eth_c:+.2f}%".replace(".", ",")
@@ -93,7 +93,7 @@ def get_coingecko_data():
 
         if "solana" in resp_prices:
             sol_p = resp_prices["solana"]["usd"]
-            sol_c = resp_prices["solana"].get("usd_24h_change", 1.70)
+            sol_c = resp_prices["solana"].get("usd_24h_change", 1.25)
             data["sol_price"] = f"${sol_p:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
             data["sol_change"] = f"{sol_c:+.2f}%".replace(".", ",")
             data["sol_is_pos"] = sol_c >= 0
@@ -139,10 +139,19 @@ def get_coingecko_data():
 
     return data
 
-# Função para calcular níveis de Suporte e Resistência dinâmicos
-def calcular_suporte_resistencia(preco_base, variacao_pct=0.035):
-    sup = preco_base * (1 - variacao_pct)
-    res = preco_base * (1 + variacao_pct)
+# Função para calcular Suporte e Resistência ESTRUTURAIS (Estáticos por Níveis de TF Maior)
+def calcular_suporte_resistencia_estrutural(preco_base):
+    # Grade estática de timeframes maiores em passos institucionais de US$ 2.500
+    passo = 2500
+    sup = (int(preco_base) // passo) * passo
+    res = sup + passo
+
+    # Se estiver a menos de $400 do nível, busca a próxima zona macro de liquidez
+    if res - preco_base < 400:
+        res += passo
+    if preco_base - sup < 400:
+        sup -= passo
+
     sup_str = f"${sup:,.0f}".replace(",", ".")
     res_str = f"${res:,.0f}".replace(",", ".")
     return sup_str, res_str
@@ -271,43 +280,12 @@ Data/Hora: {data_atual}
             </div>
             """, unsafe_allow_html=True)
 
-    with col_right:
-        st.subheader("📊 Métricas Agregadas")
-        st.caption(f"Atualizado às {data_atual.split('às ')[1] if 'às ' in data_atual else data_atual}")
-        
-        st.markdown("""
-        <div class="stCard">
-            <div class="metric-label">1. S&P 500 (Yahoo Finance)</div>
-            <div class="metric-value">7.758 pts</div>
-            <div class="status-red">-0.53% hoje</div>
-        </div>
-        <div class="stCard">
-            <div class="metric-label">2. IBOVESPA (Yahoo Finance)</div>
-            <div class="metric-value">166.833 pts</div>
-            <div class="status-red">-0.16% hoje</div>
-        </div>
-        <div class="stCard">
-            <div class="metric-label">3. USD / BRL (Yahoo Finance)</div>
-            <div class="metric-value">R$ 5,20</div>
-            <div class="status-green">+0.00% (24h)</div>
-        </div>
-        <div class="stCard">
-            <div class="metric-label">4. Ouro Spot / XAU (Yahoo Finance)</div>
-            <div class="metric-value">$4.474,90</div>
-            <div class="status-green">+0.85% hoje</div>
-        </div>
-        <div class="stCard">
-            <div class="metric-label">5. Petróleo Brent (Yahoo Finance)</div>
-            <div class="metric-value">$90,69</div>
-            <div class="status-green">+2.45% hoje</div>
-        </div>
-        """, unsafe_allow_html=True)
-
 else:
     # Módulo Crypto (Foco 100% Bitcoin nos Preditivos + CoinGecko & Fear and Greed Index)
     crypto_data = get_coingecko_data()
 
-    btc_sup, btc_res = calcular_suporte_resistencia(crypto_data["btc_raw_price"], 0.035)
+    # Cálculo dos Níveis Estruturais de Suporte e Resistência
+    btc_sup, btc_res = calcular_suporte_resistencia_estrutural(crypto_data["btc_raw_price"])
 
     btc_tendencia = "Tendência Compradora" if crypto_data["btc_is_pos"] else "Pressão Vendedora"
     btc_score = "78 pts" if crypto_data["btc_is_pos"] else "42 pts"
