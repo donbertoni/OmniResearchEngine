@@ -10,43 +10,63 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- CSS Customizado para Forçar Dark Theme Completo ---
+# --- CSS com Override Completo de Tema do Streamlit ---
 st.markdown("""
     <style>
-    /* Forçar fundo escuro no app inteiro */
-    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+    /* 1. Override das Variáveis de Tema do Streamlit */
+    :root {
+        --background-color: #0b0f19 !important;
+        --secondary-background-color: #111827 !important;
+        --text-color: #ffffff !important;
+    }
+
+    /* 2. Fundo Geral da Aplicação */
+    html, body, .stApp, 
+    [data-testid="stAppViewContainer"], 
+    [data-testid="stHeader"], 
+    [data-testid="stToolbar"],
+    .main {
         background-color: #0b0f19 !important;
         color: #ffffff !important;
     }
-    
-    /* Customização dos Cards do Lado Direito */
+
+    /* 3. Textos Globais */
+    h1, h2, h3, h4, h5, h6, p, label, span, div {
+        color: #ffffff !important;
+    }
+
+    .stCaption, small {
+        color: #9ca3af !important;
+    }
+
+    /* 4. Customização dos Cards da Ingestão de Mercado */
     .stCard {
-        background-color: #111827;
+        background-color: #111827 !important;
         padding: 18px;
         border-radius: 8px;
-        border: 1px solid #1f2937;
+        border: 1px solid #1f2937 !important;
         margin-bottom: 12px;
     }
     .metric-title {
         font-size: 0.85rem;
-        color: #9ca3af;
+        color: #9ca3af !important;
         margin-bottom: 4px;
     }
     .metric-value {
         font-size: 1.4rem;
         font-weight: 700;
-        color: #f3f4f6;
+        color: #f3f4f6 !important;
     }
     .metric-delta-up {
         font-size: 0.8rem;
-        color: #10b981;
+        color: #10b981 !important;
     }
     .metric-delta-down {
         font-size: 0.8rem;
-        color: #ef4444;
+        color: #ef4444 !important;
     }
 
-    /* Caixa do Roteiro (Text Area) */
+    /* 5. Caixa de Texto do Roteiro */
     .stTextArea textarea {
         background-color: #111827 !important;
         color: #e5e7eb !important;
@@ -54,18 +74,19 @@ st.markdown("""
         font-family: monospace;
     }
 
-    /* Customização de Badges e Seletores */
-    .stSelectbox > div > div {
+    /* 6. Inputs e Componentes de Seleção */
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="popover"] {
         background-color: #111827 !important;
         color: #ffffff !important;
         border: 1px solid #1f2937 !important;
     }
-    
-    /* Badges de Hora e Info */
+
+    /* 7. Banner de Notificação / Horário */
     div[data-testid="stNotification"] {
-        background-color: #1e293b !important;
+        background-color: #111827 !important;
         color: #38bdf8 !important;
-        border: 1px solid #0284c7 !important;
+        border: 1px solid #1f2937 !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -124,7 +145,7 @@ def get_fear_and_greed():
         return {"value": 68, "sentiment": "Greed", "change": 3}
 
 
-# --- Carregamento de Dados ---
+# --- Carregamento dos Dados ---
 market = get_crypto_data()
 fng = get_fear_and_greed()
 now_str = datetime.datetime.now().strftime("%d/%m/%Y às %H:%M BRT")
@@ -246,6 +267,4 @@ with col_right:
             <div class="metric-title">6. BTC Funding Rate</div>
             <div class="metric-value">{market['funding_rate']:.4f}%</div>
         </div>
-    """, unsafe_allow_html=True)git add app.py
-git commit -m "Forçar tema escuro e restaurar layout OMNIRESEARCH"
-git push origin main
+    """, unsafe_allow_html=True)
