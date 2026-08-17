@@ -11,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- CSS Agressivo para Dark Mode Total ---
+# --- CSS Dark Mode Total ---
 st.markdown("""
     <style>
     html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"], 
@@ -95,7 +95,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# --- Captura do Horário Real de Brasília (UTC-3 Fixo) ---
+# --- Horário de Brasília (UTC-3) ---
 brt_tz = timezone(timedelta(hours=-3))
 now_dt = datetime.datetime.now(brt_tz)
 now_str = now_dt.strftime("%d/%m/%Y às %H:%M BRT")
@@ -111,7 +111,7 @@ def get_crypto_data():
         "eth_price": 3420.50, "eth_change": 0.0,
         "sol_price": 188.40, "sol_change": 0.0,
         "btc_dom": 56.3, "btc_dom_change": -0.4,
-        "funding_rate": 0.0100
+        "funding_rate": 0.0100, "funding_rate_delta": 0.0000
     }
 
     # 1. Preços e Variação 24h (CoinGecko)
@@ -143,12 +143,15 @@ def get_crypto_data():
     except Exception:
         pass
 
-    # 3. Funding Rate em Tempo Real (Binance Futures)
+    # 3. Funding Rate Atual + Histórico de Variação (Binance Futures)
     try:
-        url_funding = "https://fapi.binance.com/fapi/v1/premiumIndex?symbol=BTCUSDT"
+        url_funding = "https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&limit=2"
         res_funding = requests.get(url_funding, timeout=6).json()
-        if "lastFundingRate" in res_funding:
-            data["funding_rate"] = float(res_funding["lastFundingRate"]) * 100
+        if len(res_funding) >= 2:
+            current_fr = float(res_funding[-1]["fundingRate"]) * 100
+            prev_fr = float(res_funding[-2]["fundingRate"]) * 100
+            data["funding_rate"] = current_fr
+            data["funding_rate_delta"] = current_fr - prev_fr
     except Exception:
         pass
 
@@ -293,20 +296,15 @@ with col_right:
 
     # Card 6: BTC Funding Rate
     fr = market["funding_rate"]
-    if fr > 0.01:
-        fr_class = "metric-delta-up"
-        fr_label = "↑ Longs Alavancados"
-    elif fr < 0.00:
-        fr_class = "metric-delta-down"
-        fr_label = "↓ Shorts Dominantes"
-    else:
-        fr_class = "metric-delta-up"
-        fr_label = "• Neutro / Saúdavel"
+    fr_delta = market.get("funding_rate_delta", 0.0)
+    fr_class = "metric-delta-up" if fr_delta >= 0 else "metric-delta-down"
+    fr_arrow = "↑" if fr_delta >= 0 else "↓"
+    fr_label = "(Longs Alavancados)" if fr > 0.015 else ("(Shorts Dominantes)" if fr < 0 else "(Saudável)")
 
     st.markdown(f"""
         <div class="stCard">
             <div class="metric-title">6. BTC Funding Rate</div>
             <div class="metric-value">{fr:.4f}%</div>
-            <div class="{fr_class}">{fr_label}</div>
+            <div class="{fr_class}">{fr_arrow} {fr_delta:+.4f}% {fr_label}</div>
         </div>
     """, unsafe_allow_html=True)
