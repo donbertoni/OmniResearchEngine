@@ -253,7 +253,6 @@ with st.sidebar:
 
     st.divider()
 
-    # Seletor Principal do Perfil de Serviço (Substitui a caixa de fontes redundante)
     service_profile = st.radio(
         "🎯 Serviço Ativo:",
         ["🏢 B2B (Cripto & Institucional)", "👥 B2C (Macro & Varejo)"],
@@ -450,26 +449,32 @@ with col_right:
     st.subheader("📊 Métricas Agregadas")
     st.caption(f"Atualizado às {short_time_str}")
 
+    # Lógica Dinâmica para Destaque Positivo (Verde) / Negativo (Vermelho)
+    btc_class = "metric-delta-up" if market["btc_change"] >= 0 else "metric-delta-down"
+    eth_class = "metric-delta-up" if market["eth_change"] >= 0 else "metric-delta-down"
+    sol_class = "metric-delta-up" if market["sol_change"] >= 0 else "metric-delta-down"
+    fng_class = "metric-delta-up" if fng["change"] >= 0 else "metric-delta-down"
+
     st.markdown(f"""
         <div class="stCard">
             <div class="metric-title">1. Fear & Greed Index (Alternative.me)</div>
             <div class="metric-value">{fng['value']} ({fng['sentiment']})</div>
-            <div class="metric-delta-up">{fng['change']:+} pts hoje</div>
+            <div class="{fng_class}">{fng['change']:+} pts hoje</div>
         </div>
         <div class="stCard">
             <div class="metric-title">2. BTC / USD (CoinGecko)</div>
             <div class="metric-value">{fmt_usd(market['btc_price'])}</div>
-            <div class="metric-delta-up">{market['btc_change']:+.2f}% (24h)</div>
+            <div class="{btc_class}">{market['btc_change']:+.2f}% (24h)</div>
         </div>
         <div class="stCard">
             <div class="metric-title">3. ETH / USD (CoinGecko)</div>
             <div class="metric-value">{fmt_usd(market['eth_price'])}</div>
-            <div class="metric-delta-down">{market['eth_change']:+.2f}% (24h)</div>
+            <div class="{eth_class}">{market['eth_change']:+.2f}% (24h)</div>
         </div>
         <div class="stCard">
             <div class="metric-title">4. SOL / USD (CoinGecko)</div>
             <div class="metric-value">{fmt_usd(market['sol_price'])}</div>
-            <div class="metric-delta-up">{market['sol_change']:+.2f}% (24h)</div>
+            <div class="{sol_class}">{market['sol_change']:+.2f}% (24h)</div>
         </div>
         <div class="stCard">
             <div class="metric-title">5. BTC Dominance (CoinGecko Global)</div>
