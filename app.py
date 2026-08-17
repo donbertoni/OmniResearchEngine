@@ -1,5 +1,4 @@
 import datetime
-from zoneinfo import ZoneInfo
 import requests
 import streamlit as st
 
@@ -104,11 +103,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# --- Captura do Horário Real de Brasília (BRT) ---
-fuso_brt = ZoneInfo("America/Sao_Paulo")
-now_dt = datetime.datetime.now(fuso_brt)
-now_str = now_dt.strftime("%d/%m/%Y às %H:%M BRT")
-short_time_str = now_dt.strftime("%H:%M BRT")
+# --- Captura do Horário Real de Brasília (UTC-3 Garantido) ---
+utc_now = datetime.datetime.now(datetime.timezone.utc)
+brt_now = utc_now - datetime.timedelta(hours=3)
+now_str = brt_now.strftime("%d/%m/%Y às %H:%M BRT")
+short_time_str = brt_now.strftime("%H:%M BRT")
 
 
 # --- Funções de Ingestão de Dados Ao Vivo ---
