@@ -10,36 +10,70 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- CSS com Override Completo de Tema do Streamlit ---
+# --- CSS Agressivo para Dark Mode Total no Streamlit Cloud ---
 st.markdown("""
     <style>
-    /* 1. Override das Variáveis de Tema do Streamlit */
-    :root {
-        --background-color: #0b0f19 !important;
-        --secondary-background-color: #111827 !important;
-        --text-color: #ffffff !important;
-    }
-
-    /* 2. Fundo Geral da Aplicação */
-    html, body, .stApp, 
-    [data-testid="stAppViewContainer"], 
-    [data-testid="stHeader"], 
-    [data-testid="stToolbar"],
-    .main {
+    /* 1. Fundo do App e Containers Principais */
+    html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"], 
+    [data-testid="stMain"], .main, .block-container, [data-testid="stToolbar"] {
         background-color: #0b0f19 !important;
         color: #ffffff !important;
     }
 
-    /* 3. Textos Globais */
-    h1, h2, h3, h4, h5, h6, p, label, span, div {
+    /* 2. Textos e Títulos */
+    h1, h2, h3, h4, h5, h6, p, label, span, div, [data-testid="stMarkdownContainer"] p {
         color: #ffffff !important;
     }
 
-    .stCaption, small {
+    /* Legendas e Subtítulos */
+    .stCaption, small, [data-testid="stCaptionContainer"] {
         color: #9ca3af !important;
     }
 
-    /* 4. Customização dos Cards da Ingestão de Mercado */
+    /* 3. Blocos de Métricas Nativas (Zona de Suporte / Resistência) */
+    [data-testid="stMetric"] {
+        background-color: #111827 !important;
+        border: 1px solid #1f2937 !important;
+        padding: 12px !important;
+        border-radius: 8px !important;
+    }
+    [data-testid="stMetricLabel"], [data-testid="stMetricValue"], [data-testid="stMetricDelta"] {
+        color: #ffffff !important;
+    }
+
+    /* 4. Caixa de Alerta (Report Gerado) */
+    [data-testid="stAlert"] {
+        background-color: #111827 !important;
+        border: 1px solid #1f2937 !important;
+        color: #38bdf8 !important;
+    }
+
+    /* 5. Caixa do Roteiro (Text Area) */
+    [data-baseweb="textarea"], textarea {
+        background-color: #111827 !important;
+        color: #e5e7eb !important;
+        border: 1px solid #1f2937 !important;
+        font-family: monospace;
+    }
+
+    /* 6. Selectbox e Inputs */
+    [data-baseweb="select"] > div {
+        background-color: #111827 !important;
+        border: 1px solid #1f2937 !important;
+        color: #ffffff !important;
+    }
+
+    /* 7. Abas (PT-BR / EN-US) */
+    button[data-baseweb="tab"] {
+        background-color: transparent !important;
+        color: #9ca3af !important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        color: #ffffff !important;
+        border-bottom-color: #3b82f6 !important;
+    }
+
+    /* 8. Cards Customizados (Coluna Direita) */
     .stCard {
         background-color: #111827 !important;
         padding: 18px;
@@ -64,29 +98,6 @@ st.markdown("""
     .metric-delta-down {
         font-size: 0.8rem;
         color: #ef4444 !important;
-    }
-
-    /* 5. Caixa de Texto do Roteiro */
-    .stTextArea textarea {
-        background-color: #111827 !important;
-        color: #e5e7eb !important;
-        border: 1px solid #1f2937 !important;
-        font-family: monospace;
-    }
-
-    /* 6. Inputs e Componentes de Seleção */
-    div[data-baseweb="select"] > div,
-    div[data-baseweb="popover"] {
-        background-color: #111827 !important;
-        color: #ffffff !important;
-        border: 1px solid #1f2937 !important;
-    }
-
-    /* 7. Banner de Notificação / Horário */
-    div[data-testid="stNotification"] {
-        background-color: #111827 !important;
-        color: #38bdf8 !important;
-        border: 1px solid #1f2937 !important;
     }
     </style>
 """, unsafe_allow_html=True)
