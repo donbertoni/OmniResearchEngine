@@ -235,7 +235,7 @@ m2 = get_global_m2()
 pred = calculate_predictive_matrix(market, fng, sr)
 
 
-# --- PAINEL LATERAL DE CONFIGURAÇÕES (SIDEBAR) ---
+# --- PAINEL LATERAL DE CONFIGURAÇÕES HIERÁRQUICO (SIDEBAR) ---
 with st.sidebar:
     st.title("⚙️ Configurações OMNI")
     st.caption("Controle de geração de roteiros e relatórios")
@@ -245,25 +245,37 @@ with st.sidebar:
         ["Português (BR)", "English (US)"]
     )
 
-    autopilot_mode = st.toggle(
-        "🤖 Modo Auto-Pilot (YouTube)",
-        value=False,
-        help="Ativado: gera e dispara roteiros automaticamente sem aprovação HITL manual."
+    st.divider()
+
+    # 1. Escolha do Módulo (Crypto vs TradFi)
+    selected_module = st.radio(
+        "🪙 Escolha o Módulo:",
+        ["Crypto", "TradFi (Macro)"],
+        index=0,
+        help="Selecione se deseja trabalhar com foco em Criptoativos ou TradFi/Macroeconomia."
     )
 
     st.divider()
 
-    service_profile = st.radio(
-        "🎯 Serviço Ativo:",
-        [
-            "🎬 YouTube B2B (Cripto & Institucional)",
-            "🏢 Relatório B2B (Cripto & Institucional)",
-            "🎬 YouTube B2C (Macro & Varejo)",
-            "👥 Relatório B2C (Macro & Varejo)"
-        ],
+    # 2. Escolha do Público/Formato (B2B vs B2C)
+    selected_target = st.radio(
+        f"🎯 Formato ({selected_module}):",
+        ["B2B (Relatório)", "B2C (YouTube)"],
         index=0,
-        help="Selecione exatamente qual entregável deseja visualizar e gerar no painel."
+        help="B2B gera relatórios técnicos analíticos. B2C gera roteiros dinâmicos para vídeo."
     )
+
+    # 3. Módulo Auto-Pilot (Ativo apenas dentro do modo B2C YouTube)
+    autopilot_mode = False
+    if "B2C" in selected_target:
+        st.divider()
+        autopilot_mode = st.toggle(
+            "🤖 Modo Auto-Pilot (YouTube)",
+            value=False,
+            help="Ativado: gera e dispara roteiros automaticamente sem necessidade de aprovação HITL manual."
+        )
+    else:
+        st.caption("💡 *O modo Auto-Pilot está disponível exclusivamente para entregáveis B2C (YouTube).*")
 
 
 # --- GERADORES DE TEXTO ADAPTATIVOS ---
@@ -345,7 +357,7 @@ Preservação de capital recomendada nas proximidades da resistência superior. 
 
 def generate_b2c_report(lang):
     if "English" in lang:
-        return f"""=== MACROECONOMICS & TRADITIONAL ASSETS REPORT (B2C) ===
+        return f"""=== MACROECONOMICS & TRADITIONAL ASSETS REPORT (B2B) ===
 Date/Time: {now_str}
 
 1. MACRO LIQUIDITY OUTLOOK
@@ -359,7 +371,7 @@ Date/Time: {now_str}
 3. INVESTOR TAKEAWAY
 Global money supply expansion provides long-term support for scarce digital assets. Short-term volatility remains bound within technical support ({sr['support_str']}) and resistance ({sr['resistance_str']})."""
     else:
-        return f"""=== RELATÓRIO MACROECONOMIA & ATIVOS TRADICIONAIS (B2C) ===
+        return f"""=== RELATÓRIO MACROECONOMIA & ATIVOS TRADICIONAIS (B2B) ===
 Data/Hora: {now_str}
 
 1. PANORAMA DE LIQUIDEZ MACRO
@@ -376,7 +388,7 @@ A expansão da liquidez global (M2) continua sustentando a tese de ativos escass
 
 # --- UI PRINCIPAL ---
 st.title("⚡ OMNIRESEARCH Engine")
-st.caption("Plataforma Integrada de Inteligência Financeira: YouTube Auto/HITL, Relatórios B2B (Crypto) e B2C (Macro)")
+st.caption("Plataforma Integrada de Inteligência Financeira: YouTube Auto/HITL, Relatórios B2B (Crypto) e TradFi (Macro)")
 st.info(f"🕒 Dados consolidados das {now_str}")
 
 if market["is_fallback"]:
@@ -387,28 +399,31 @@ st.divider()
 col_left, col_right = st.columns([1.2, 0.8])
 
 with col_left:
-    status_text = "🤖 MODO AUTO-PILOT ATIVADO (Pipeline Automático)" if autopilot_mode else "✋ MODO HITL ATIVADO (Aprovação Manual Requerida)"
-    st.markdown(f'<div class="status-badge">{status_text}</div>', unsafe_allow_html=True)
+    # Exibe a badge de status do pipeline apenas quando estiver em modo B2C (YouTube)
+    if "B2C" in selected_target:
+        status_text = "🤖 MODO AUTO-PILOT ATIVADO (Pipeline Automático)" if autopilot_mode else "✋ MODO HITL ATIVADO (Aprovação Manual Requerida)"
+        st.markdown(f'<div class="status-badge">{status_text}</div>', unsafe_allow_html=True)
 
-    if "YouTube B2B" in service_profile:
-        st.subheader("🎬 Roteiro YouTube (B2B - Cripto & Institucional)")
-        yt_script = generate_youtube_script(lang_option, autopilot_mode, "B2B Focus")
-        st.text_area("Roteiro de Vídeo B2B:", value=yt_script, height=350)
+    # Roteamento de telas dinâmico baseado no módulo e entregável
+    if selected_module == "Crypto":
+        if "B2B" in selected_target:
+            st.subheader("🏢 Relatório B2B (Cripto & Institucional)")
+            b2b_text = generate_b2b_report(lang_option)
+            st.text_area("Relatório Institucional Cripto (B2B):", value=b2b_text, height=350)
+        else:
+            st.subheader("🎬 Roteiro YouTube B2C (Crypto Focus)")
+            yt_script = generate_youtube_script(lang_option, autopilot_mode, "Crypto Focus")
+            st.text_area("Roteiro de Vídeo Cripto (B2C):", value=yt_script, height=350)
 
-    elif "Relatório B2B" in service_profile:
-        st.subheader("🏢 Relatório B2B (Cripto & Institucional)")
-        b2b_text = generate_b2b_report(lang_option)
-        st.text_area("Relatório Institucional B2B:", value=b2b_text, height=350)
-
-    elif "YouTube B2C" in service_profile:
-        st.subheader("🎬 Roteiro YouTube (B2C - Macro & Varejo)")
-        yt_script = generate_youtube_script(lang_option, autopilot_mode, "B2C Focus")
-        st.text_area("Roteiro de Vídeo B2C:", value=yt_script, height=350)
-
-    elif "Relatório B2C" in service_profile:
-        st.subheader("👥 Relatório B2C (Macro & Varejo)")
-        b2c_text = generate_b2c_report(lang_option)
-        st.text_area("Relatório Macro B2C:", value=b2c_text, height=350)
+    else:  # TradFi (Macro)
+        if "B2B" in selected_target:
+            st.subheader("🏢 Relatório B2B (TradFi & Macroeconomia)")
+            b2c_text = generate_b2c_report(lang_option)
+            st.text_area("Relatório Macro/TradFi (B2B):", value=b2c_text, height=350)
+        else:
+            st.subheader("🎬 Roteiro YouTube B2C (TradFi & Macro Focus)")
+            yt_script = generate_youtube_script(lang_option, autopilot_mode, "TradFi Focus")
+            st.text_area("Roteiro de Vídeo Macro (B2C):", value=yt_script, height=350)
 
     # Cards Inferiores com Altura Fixa (4 Colunas)
     m1, m2_col, m3, m4 = st.columns(4)
