@@ -104,51 +104,72 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# --- Captura do Horário Real de Brasília (UTC-3 Fixo e Infalível) ---
+# --- Captura do Horário Real de Brasília (UTC-3 Fixo) ---
 brt_tz = timezone(timedelta(hours=-3))
 now_dt = datetime.datetime.now(brt_tz)
 now_str = now_dt.strftime("%d/%m/%Y às %H:%M BRT")
 short_time_str = now_dt.strftime("%H:%M BRT")
 
 
-# --- Funções de Ingestão de Dados Ao Vivo ---
+# --- Ingestão de Dados em Tempo Real (CoinGecko + Binance Futures) ---
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=120)
 def get_crypto_data():
-    """Busca cotações ao vivo via CoinGecko."""
+    """Busca cotações ao vivo do BTC, ETH, SOL, Dominância e Funding Rate."""
+    data = {
+        "btc_price": 94500.0, "btc_change": 0.0,
+        "eth_price": 3420.50, "eth_change": 0.0,
+        "sol_price": 188.40, "sol_change": 0.0,
+        "btc_dom": 56.3,
+        "funding_rate": 0.0100
+    }
+
+    # 1. Preços e Variação 24h via CoinGecko
     try:
-        url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true"
-        res = requests.get(url, timeout=8).json()
+        url_price = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true"
+        res_price = requests.get(url_price, timeout=6).json()
 
-        global_url = "https://api.coingecko.com/api/v3/global"
-        global_res = requests.get(global_url, timeout=8).json()
-        btc_dom = global_res.get("data", {}).get("market_cap_percentage", {}).get("btc", 57.8)
-
-        return {
-            "btc_price": res.get("bitcoin", {}).get("usd", 94500.0),
-            "btc_change": res.get("bitcoin", {}).get("usd_24h_change", 1.25),
-            "eth_price": res.get("ethereum", {}).get("usd", 3420.5),
-            "eth_change": res.get("ethereum", {}).get("usd_24h_change", 1.85),
-            "sol_price": res.get("solana", {}).get("usd", 188.4),
-            "sol_change": res.get("solana", {}).get("usd_24h_change", 4.12),
-            "btc_dom": btc_dom,
-            "funding_rate": 0.0100
-        }
+        if "bitcoin" in res_price:
+            data["btc_price"] = res_price["bitcoin"]["usd"]
+            data["btc_change"] = res_price["bitcoin"].get("usd_24h_change", 0.0)
+        if "ethereum" in res_price:
+            data["eth_price"] = res_price["ethereum"]["usd"]
+            data["eth_change"] = res_price["ethereum"].get("usd_24h_change", 0.0)
+        if "solana" in res_price:
+            data["sol_price"] = res_price["solana"]["usd"]
+            data["sol_change"] = res_price["solana"].get("usd_24h_change", 0.0)
     except Exception:
-        return {
-            "btc_price": 94500.0, "btc_change": 1.25,
-            "eth_price": 3420.50, "eth_change": 1.85,
-            "sol_price": 188.40, "sol_change": 4.12,
-            "btc_dom": 57.8, "funding_rate": 0.0100
-        }
+        pass
+
+    # 2. Dominância do Bitcoin via CoinGecko Global Endpoint
+    try:
+        url_global = "https://api.coingecko.com/api/v3/global"
+        res_global = requests.get(url_global, timeout=6).json()
+        btc_dom = res_global.get("data", {}).get("market_cap_percentage", {}).get("btc")
+        if btc_dom:
+            data["btc_dom"] = btc_dom
+    except Exception:
+        pass
+
+    # 3. Funding Rate em Tempo Real via Binance Futures API (BTCUSDT)
+    try:
+        url_funding = "https://fapi.binance.com/fapi/v1/premiumIndex?symbol=BTCUSDT"
+        res_funding = requests.get(url_funding, timeout=6).json()
+        if "lastFundingRate" in res_funding:
+            # Converte de decimal (ex: 0.0001) para percentual (ex: 0.0100%)
+            data["funding_rate"] = float(res_funding["lastFundingRate"]) * 100
+    except Exception:
+        pass
+
+    return data
 
 
-@st.cache_data(ttl=1800)
+@st.cache_data(ttl=900)
 def get_fear_and_greed():
     """Busca o Fear & Greed Index ao vivo via Alternative.me."""
     try:
         url = "https://api.alternative.me/fng/?limit=2"
-        res = requests.get(url, timeout=8).json()
+        res = requests.get(url, timeout=6).json()
         data = res["data"]
 
         current_val = int(data[0]["value"])
@@ -197,19 +218,19 @@ with col_left:
 
     with tab_pt:
         fng_text = f"{fng['value']} pontos em {fng['sentiment'].lower()}"
-        btc_text = f"${market['btc_price']:,.2f}".replace(",", ".")
+        btc_formatted = f"${market['btc_price']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
         script_content = f"""Roteiro Estendido LLM (~2 min 30 seg de tela):
 
 [00:00 - HOOK DE RETENÇÃO]
 (Horário de criação do Report: {now_str})
-O Fear & Greed Index marca {fng_text} enquanto o Bitcoin sustenta a faixa dos {btc_text}. Porém, o verdadeiro gatilho estrutural vem do M2 Global, que atingiu nova máxima histórica em $104.8 Trilhões.
+O Fear & Greed Index marca {fng_text} enquanto o Bitcoin sustenta a faixa dos {btc_formatted}. Porém, o verdadeiro gatilho estrutural vem do M2 Global, que atingiu nova máxima histórica em $104.8 Trilhões.
 
 [00:35 - BITCOIN & DOMINÂNCIA]
-Com a dominância do Bitcoin recuando para {market['btc_dom']:.1f}%, vemos os primeiros sinais claros de rotação de liquidez para as principais Layer 1s do mercado. O Funding Rate zerado em {market['funding_rate']:.4f}% mostra alavancagem saudável e sem sinais de euforia desmedida no mercado derivativo.
+Com a dominância do Bitcoin em {market['btc_dom']:.1f}%, vemos a liquidez se distribuindo pelas principais Layer 1s do mercado. O Funding Rate do BTC em {market['funding_rate']:.4f}% reflete o posicionamento dos derivativos sem euforia exagerada.
 
 [01:10 - ALTCOINS LÍDERES: ETHEREUM E SOLANA]
-O Ethereum testa ${market['eth_price']:,.2f} empurrado por novos fluxos institucionais nos ETFs spot, enquanto Solana dispara para ${market['sol_price']:,.2f} impulsada pelo volume recorde nas DEXs da rede.
+O Ethereum negocia a ${market['eth_price']:,.2f} impulsionado por fluxos institucionais nos ETFs spot, enquanto Solana é cotada a ${market['sol_price']:,.2f} suportada pelo volume nas DEXs da rede.
 
 [01:45 - ANÁLISE TÉCNICA E MATRIZ PREDITIVA]
 A zona de suporte imediata do BTC reside em $93.8k, com resistência crítica mapeada em $97.2k. Nossa matriz preditiva aponta 65% de probabilidade altista para as próximas 48 horas."""
@@ -231,22 +252,23 @@ with col_right:
 
     # Card 1: Fear & Greed
     fng_delta_class = "metric-delta-up" if fng["change"] >= 0 else "metric-delta-down"
-    fng_sign = "+" if fng["change"] >= 0 else ""
+    fng_arrow = "↑" if fng["change"] >= 0 else "↓"
     st.markdown(f"""
         <div class="stCard">
             <div class="metric-title">1. Fear & Greed Index</div>
             <div class="metric-value">{fng['value']} ({fng['sentiment']})</div>
-            <div class="{fng_delta_class}">↑ {fng_sign}{fng['change']} pts</div>
+            <div class="{fng_delta_class}">{fng_arrow} {fng['change']:+} pts</div>
         </div>
     """, unsafe_allow_html=True)
 
     # Card 2: BTC / USDT
     btc_delta_class = "metric-delta-up" if market["btc_change"] >= 0 else "metric-delta-down"
+    btc_arrow = "↑" if market["btc_change"] >= 0 else "↓"
     st.markdown(f"""
         <div class="stCard">
             <div class="metric-title">2. BTC / USDT</div>
             <div class="metric-value">${market['btc_price']:,.2f}</div>
-            <div class="{btc_delta_class}">↑ {market['btc_change']:+.2f}%</div>
+            <div class="{btc_delta_class}">{btc_arrow} {market['btc_change']:+.2f}%</div>
         </div>
     """, unsafe_allow_html=True)
 
@@ -255,34 +277,38 @@ with col_right:
         <div class="stCard">
             <div class="metric-title">3. BTC Dominance</div>
             <div class="metric-value">{market['btc_dom']:.1f}%</div>
-            <div class="metric-delta-down">↓ -0.4% (Rotação)</div>
+            <div class="metric-delta-up">• Participação de Mercado</div>
         </div>
     """, unsafe_allow_html=True)
 
     # Card 4: ETH / USDT
     eth_delta_class = "metric-delta-up" if market["eth_change"] >= 0 else "metric-delta-down"
+    eth_arrow = "↑" if market["eth_change"] >= 0 else "↓"
     st.markdown(f"""
         <div class="stCard">
             <div class="metric-title">4. ETH / USDT</div>
             <div class="metric-value">${market['eth_price']:,.2f}</div>
-            <div class="{eth_delta_class}">↑ {market['eth_change']:+.2f}%</div>
+            <div class="{eth_delta_class}">{eth_arrow} {market['eth_change']:+.2f}%</div>
         </div>
     """, unsafe_allow_html=True)
 
     # Card 5: SOL / USDT
     sol_delta_class = "metric-delta-up" if market["sol_change"] >= 0 else "metric-delta-down"
+    sol_arrow = "↑" if market["sol_change"] >= 0 else "↓"
     st.markdown(f"""
         <div class="stCard">
             <div class="metric-title">5. SOL / USDT</div>
             <div class="metric-value">${market['sol_price']:,.2f}</div>
-            <div class="{sol_delta_class}">↑ {market['sol_change']:+.2f}%</div>
+            <div class="{sol_delta_class}">{sol_arrow} {market['sol_change']:+.2f}%</div>
         </div>
     """, unsafe_allow_html=True)
 
     # Card 6: BTC Funding Rate
+    funding_class = "metric-delta-up" if market["funding_rate"] >= 0 else "metric-delta-down"
     st.markdown(f"""
         <div class="stCard">
             <div class="metric-title">6. BTC Funding Rate</div>
             <div class="metric-value">{market['funding_rate']:.4f}%</div>
+            <div class="{funding_class}">• Taxa de Perpetuos (Binance)</div>
         </div>
     """, unsafe_allow_html=True)
