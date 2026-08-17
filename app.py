@@ -11,27 +11,23 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- CSS Agressivo para Dark Mode Total no Streamlit Cloud ---
+# --- CSS Agressivo para Dark Mode Total ---
 st.markdown("""
     <style>
-    /* 1. Fundo do App e Containers Principais */
     html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"], 
     [data-testid="stMain"], .main, .block-container, [data-testid="stToolbar"] {
         background-color: #0b0f19 !important;
         color: #ffffff !important;
     }
 
-    /* 2. Textos e Títulos */
     h1, h2, h3, h4, h5, h6, p, label, span, div, [data-testid="stMarkdownContainer"] p {
         color: #ffffff !important;
     }
 
-    /* Legendas e Subtítulos */
     .stCaption, small, [data-testid="stCaptionContainer"] {
         color: #9ca3af !important;
     }
 
-    /* 3. Blocos de Métricas Nativas (Zona de Suporte / Resistência) */
     [data-testid="stMetric"] {
         background-color: #111827 !important;
         border: 1px solid #1f2937 !important;
@@ -42,14 +38,12 @@ st.markdown("""
         color: #ffffff !important;
     }
 
-    /* 4. Caixa de Alerta (Report Gerado) */
     [data-testid="stAlert"] {
         background-color: #111827 !important;
         border: 1px solid #1f2937 !important;
         color: #38bdf8 !important;
     }
 
-    /* 5. Caixa do Roteiro (Text Area) */
     [data-baseweb="textarea"], textarea {
         background-color: #111827 !important;
         color: #e5e7eb !important;
@@ -57,14 +51,12 @@ st.markdown("""
         font-family: monospace;
     }
 
-    /* 6. Selectbox e Inputs */
     [data-baseweb="select"] > div {
         background-color: #111827 !important;
         border: 1px solid #1f2937 !important;
         color: #ffffff !important;
     }
 
-    /* 7. Abas (PT-BR / EN-US) */
     button[data-baseweb="tab"] {
         background-color: transparent !important;
         color: #9ca3af !important;
@@ -74,7 +66,6 @@ st.markdown("""
         border-bottom-color: #3b82f6 !important;
     }
 
-    /* 8. Cards Customizados (Coluna Direita) */
     .stCard {
         background-color: #111827 !important;
         padding: 18px;
@@ -111,20 +102,19 @@ now_str = now_dt.strftime("%d/%m/%Y às %H:%M BRT")
 short_time_str = now_dt.strftime("%H:%M BRT")
 
 
-# --- Ingestão de Dados em Tempo Real (CoinGecko + Binance Futures) ---
+# --- Ingestão de Dados em Tempo Real ---
 
 @st.cache_data(ttl=120)
 def get_crypto_data():
-    """Busca cotações ao vivo do BTC, ETH, SOL, Dominância e Funding Rate."""
     data = {
         "btc_price": 94500.0, "btc_change": 0.0,
         "eth_price": 3420.50, "eth_change": 0.0,
         "sol_price": 188.40, "sol_change": 0.0,
-        "btc_dom": 56.3,
+        "btc_dom": 56.3, "btc_dom_change": -0.4,
         "funding_rate": 0.0100
     }
 
-    # 1. Preços e Variação 24h via CoinGecko
+    # 1. Preços e Variação 24h (CoinGecko)
     try:
         url_price = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true"
         res_price = requests.get(url_price, timeout=6).json()
@@ -141,22 +131,23 @@ def get_crypto_data():
     except Exception:
         pass
 
-    # 2. Dominância do Bitcoin via CoinGecko Global Endpoint
+    # 2. Dominância do BTC (CoinGecko Global)
     try:
         url_global = "https://api.coingecko.com/api/v3/global"
         res_global = requests.get(url_global, timeout=6).json()
         btc_dom = res_global.get("data", {}).get("market_cap_percentage", {}).get("btc")
+        dom_change = res_global.get("data", {}).get("market_cap_change_percentage_24h_usd", -0.4)
         if btc_dom:
             data["btc_dom"] = btc_dom
+            data["btc_dom_change"] = dom_change
     except Exception:
         pass
 
-    # 3. Funding Rate em Tempo Real via Binance Futures API (BTCUSDT)
+    # 3. Funding Rate em Tempo Real (Binance Futures)
     try:
         url_funding = "https://fapi.binance.com/fapi/v1/premiumIndex?symbol=BTCUSDT"
         res_funding = requests.get(url_funding, timeout=6).json()
         if "lastFundingRate" in res_funding:
-            # Converte de decimal (ex: 0.0001) para percentual (ex: 0.0100%)
             data["funding_rate"] = float(res_funding["lastFundingRate"]) * 100
     except Exception:
         pass
@@ -166,26 +157,21 @@ def get_crypto_data():
 
 @st.cache_data(ttl=900)
 def get_fear_and_greed():
-    """Busca o Fear & Greed Index ao vivo via Alternative.me."""
     try:
         url = "https://api.alternative.me/fng/?limit=2"
         res = requests.get(url, timeout=6).json()
         data = res["data"]
-
         current_val = int(data[0]["value"])
         prev_val = int(data[1]["value"])
-        diff = current_val - prev_val
-
         return {
             "value": current_val,
             "sentiment": data[0]["value_classification"],
-            "change": diff
+            "change": current_val - prev_val
         }
     except Exception:
         return {"value": 68, "sentiment": "Greed", "change": 3}
 
 
-# --- Carregamento dos Dados ---
 market = get_crypto_data()
 fng = get_fear_and_greed()
 
@@ -210,7 +196,6 @@ st.divider()
 # --- Layout Principal ---
 col_left, col_right = st.columns([1.2, 0.8])
 
-# --- Coluna da Esquerda: Painel de Aprovação de Roteiro ---
 with col_left:
     st.subheader("📄 Painel de Aprovação de Roteiro - YouTube (HITL)")
 
@@ -245,7 +230,6 @@ A zona de suporte imediata do BTC reside em $93.8k, com resistência crítica ma
         m4.metric("M2 Total Supply", "$104.8T", "+4.2% YoY")
 
 
-# --- Coluna da Direita: Ingestão de Mercado (Crypto Cards) ---
 with col_right:
     st.subheader("📊 Ingestão de Mercado (Crypto)")
     st.caption(f"Horário de criação do Report: {short_time_str}")
@@ -273,11 +257,15 @@ with col_right:
     """, unsafe_allow_html=True)
 
     # Card 3: BTC Dominance
+    dom_delta = market.get("btc_dom_change", -0.4)
+    dom_class = "metric-delta-up" if dom_delta >= 0 else "metric-delta-down"
+    dom_arrow = "↑" if dom_delta >= 0 else "↓"
+    dom_tag = "(Concentração BTC)" if dom_delta >= 0 else "(Rotação)"
     st.markdown(f"""
         <div class="stCard">
             <div class="metric-title">3. BTC Dominance</div>
             <div class="metric-value">{market['btc_dom']:.1f}%</div>
-            <div class="metric-delta-up">• Participação de Mercado</div>
+            <div class="{dom_class}">{dom_arrow} {dom_delta:+.1f}% {dom_tag}</div>
         </div>
     """, unsafe_allow_html=True)
 
@@ -304,11 +292,21 @@ with col_right:
     """, unsafe_allow_html=True)
 
     # Card 6: BTC Funding Rate
-    funding_class = "metric-delta-up" if market["funding_rate"] >= 0 else "metric-delta-down"
+    fr = market["funding_rate"]
+    if fr > 0.01:
+        fr_class = "metric-delta-up"
+        fr_label = "↑ Longs Alavancados"
+    elif fr < 0.00:
+        fr_class = "metric-delta-down"
+        fr_label = "↓ Shorts Dominantes"
+    else:
+        fr_class = "metric-delta-up"
+        fr_label = "• Neutro / Saúdavel"
+
     st.markdown(f"""
         <div class="stCard">
             <div class="metric-title">6. BTC Funding Rate</div>
-            <div class="metric-value">{market['funding_rate']:.4f}%</div>
-            <div class="{funding_class}">• Taxa de Perpetuos (Binance)</div>
+            <div class="metric-value">{fr:.4f}%</div>
+            <div class="{fr_class}">{fr_label}</div>
         </div>
     """, unsafe_allow_html=True)
