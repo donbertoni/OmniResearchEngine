@@ -8,16 +8,20 @@ st.set_page_config(
     page_title="OMNIRESEARCH Engine",
     page_icon="⚡",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
-# --- CSS Dark Mode Total ---
+# --- CSS Dark Mode Total & Cards Padronizados ---
 st.markdown("""
     <style>
     html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"], 
     [data-testid="stMain"], .main, .block-container, [data-testid="stToolbar"] {
         background-color: #0b0f19 !important;
         color: #ffffff !important;
+    }
+    [data-testid="stSidebar"] {
+        background-color: #111827 !important;
+        border-right: 1px solid #1f2937 !important;
     }
     h1, h2, h3, h4, h5, h6, p, label, span, div, [data-testid="stMarkdownContainer"] p {
         color: #ffffff !important;
@@ -43,7 +47,7 @@ st.markdown("""
     .metric-delta-up { font-size: 0.8rem; color: #10b981 !important; }
     .metric-delta-down { font-size: 0.8rem; color: #ef4444 !important; }
 
-    /* Cards Inferiores Padronizados */
+    /* Cards Inferiores Padronizados com Altura Fixa */
     .bottom-card {
         background-color: #111827 !important;
         border: 1px solid #1f2937 !important;
@@ -72,6 +76,17 @@ st.markdown("""
         margin-top: 4px;
         font-weight: 500;
     }
+    .status-badge {
+        background-color: #1e293b;
+        color: #38bdf8;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        border: 1px solid #0284c7;
+        display: inline-block;
+        margin-bottom: 10px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -90,7 +105,7 @@ short_time_str = now_dt.strftime("%H:%M:%S BRT")
 HTTP_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
 
-# --- Ingestão Agregada Robusta com Cache Seguro (TTL 3 min) ---
+# --- Ingestão Agregada Robusta com Cache Seguro ---
 @st.cache_data(ttl=180)
 def get_crypto_data_aggregated():
     data = {
@@ -220,22 +235,51 @@ m2 = get_global_m2()
 pred = calculate_predictive_matrix(market, fng, sr)
 
 
-# --- UI e Interface ---
-st.title("⚡ OMNIRESEARCH")
-st.caption("Engine de Inteligência Financeira Macro & Crypto (Fontes: Alternative.me, CoinGecko, FRED St. Louis Fed)")
-st.info(f"🕒 Dados consolidados das {now_str}")
+# --- PAINEL LATERAL DE CONFIGURAÇÕES (SIDEBAR) ---
+with st.sidebar:
+    st.title("⚙️ Configurações OMNI")
+    st.caption("Controle de geração de roteiros e relatórios")
 
-if market["is_fallback"]:
-    st.warning("⚠️ Limite temporário de requisições na API primária. Exibindo última estimativa de mercado consolidada sem interrupções.")
+    lang_option = st.selectbox(
+        "🌐 Idioma do Output:",
+        ["Português (BR)", "English (US)"]
+    )
 
-st.divider()
+    autopilot_mode = st.toggle(
+        "🤖 Modo Auto-Pilot (YouTube)",
+        value=False,
+        help="Quando ativado, gera e dispara o roteiro para renderização automática sem necessidade de aprovação HITL manual."
+    )
 
-col_left, col_right = st.columns([1.2, 0.8])
+    st.divider()
 
-with col_left:
-    st.subheader("📄 Painel de Aprovação de Roteiro - YouTube (HITL)")
-    
-    script_content = f"""Roteiro Estendido LLM (~2 min 30 seg de tela):
+    st.markdown("### 📊 Fontes Primárias Integradas")
+    st.markdown("""
+    - **Alternative.me**: Fear & Greed Index
+    - **CoinGecko API**: Spot, Change & Dominance
+    - **FRED St. Louis Fed**: M2 Liquidity Index
+    """)
+
+
+# --- GERADORES DE TEXTO ADAPTATIVOS ---
+def generate_youtube_script(lang, is_auto):
+    prefix = "[AUTO-PILOT ACTIVE] " if is_auto else "[HITL PENDING] "
+    if "English" in lang:
+        return f"""{prefix}Extended LLM Script (~2 min 30 sec):
+
+[00:00 - RETENTION HOOK]
+The Bitcoin Fear & Greed Index (Alternative.me) stands at {fng['value']} points ({fng['sentiment']}) while BTC consolidates around {fmt_usd(market['btc_price'])} (CoinGecko). Macro liquidity remains backed by global M2 supply at {m2['m2_formatted']} ({m2['yoy_formatted']}) (FRED St. Louis Fed).
+
+[00:35 - BITCOIN & DOMINANCE]
+With Bitcoin dominance at {market['btc_dom']:.1f}% (CoinGecko Global), market eyes key support and resistance zones.
+
+[01:10 - LEADING ALTCOINS]
+Ethereum trades at {fmt_usd(market['eth_price'])} and Solana at {fmt_usd(market['sol_price'])} (CoinGecko), reflecting overall market consolidation.
+
+[01:45 - TECHNICAL ANALYSIS & 48H PREDICTIVE MATRIX]
+Bitcoin key support sits at {sr['support_str']}, with resistance at {sr['resistance_str']}. Our 48-hour predictive model points to a {pred['trend_desc']} outlook at {pred['direction']} ({pred['confidence']})."""
+    else:
+        return f"""{prefix}Roteiro Estendido LLM (~2 min 30 seg de tela):
 
 [00:00 - HOOK DE RETENÇÃO]
 O Bitcoin Fear & Greed Index (Alternative.me) marca {fng['value']} pontos ({fng['sentiment']}) enquanto o BTC consolida na faixa de {fmt_usd(market['btc_price'])} (CoinGecko). O cenário macro segue sustentado pela liquidez global do M2 em {m2['m2_formatted']} ({m2['yoy_formatted']}) (FRED St. Louis Fed).
@@ -249,8 +293,119 @@ Ethereum negocia em {fmt_usd(market['eth_price'])} e Solana em {fmt_usd(market['
 [01:45 - ANÁLISE TÉCNICA E MATRIZ PREDITIVA DO BTC]
 A zona de suporte do Bitcoin situa-se em {sr['support_str']}, com resistência imediata em {sr['resistance_str']}. Nossa matriz preditiva aponta probabilidade {pred['trend_desc']} de {pred['direction']} ({pred['confidence']}) para as próximas 48 horas."""
 
-    st.text_area("", value=script_content, height=360)
 
+def generate_b2b_report(lang):
+    if "English" in lang:
+        return f"""=== INSTITUTIONAL CRYPTO REPORT (B2B) ===
+Date/Time: {now_str}
+
+1. EXECUTIVE SUMMARY
+- Primary Asset: Bitcoin (BTC) | Price: {fmt_usd(market['btc_price'])} | 24h Change: {market['btc_change']:+.2f}%
+- Market Dominance: {market['btc_dom']:.1f}% (CoinGecko Global)
+- Sentiment Benchmark: {fng['value']}/100 ({fng['sentiment']} - Alternative.me)
+
+2. LIQUIDITY & TECHNICAL ZONES
+- Immediate Support Level: {sr['support_str']}
+- Immediate Resistance Level: {sr['resistance_str']}
+- 48h Predictive Vector: {pred['direction']} ({pred['confidence']})
+
+3. INFRASTRUCTURE & ALTCOINS
+- Ethereum (ETH): {fmt_usd(market['eth_price'])} ({market['eth_change']:+.2f}%)
+- Solana (SOL): {fmt_usd(market['sol_price'])} ({market['sol_change']:+.2f}%)
+
+4. RISK MANAGEMENT RECOMMENDATION
+Capital preservation recommended near upper resistance boundaries. Order book depth shows cluster consolidation."""
+    else:
+        return f"""=== RELATÓRIO INSTITUCIONAL CRIPTO (B2B) ===
+Data/Hora: {now_str}
+
+1. SUMÁRIO EXECUTIVO
+- Ativo Principal: Bitcoin (BTC) | Preço: {fmt_usd(market['btc_price'])} | Variação 24h: {market['btc_change']:+.2f}%
+- Dominância de Mercado: {market['btc_dom']:.1f}% (CoinGecko Global)
+- Sentimento de Mercado: {fng['value']}/100 ({fng['sentiment']} - Alternative.me)
+
+2. LIQUIDEZ E NÍVEIS TÉCNICOS
+- Região de Suporte Imediato: {sr['support_str']}
+- Região de Resistência Imediata: {sr['resistance_str']}
+- Vetor Preditivo 48h: {pred['direction']} ({pred['confidence']})
+
+3. INFRAESTRUTURA E ALTCOINS LÍDERES
+- Ethereum (ETH): {fmt_usd(market['eth_price'])} ({market['eth_change']:+.2f}%)
+- Solana (SOL): {fmt_usd(market['sol_price'])} ({market['sol_change']:+.2f}%)
+
+4. RECOMENDAÇÃO DE GESTÃO DE RISCO
+Preservação de capital recomendada nas proximidades da resistência superior. Mapeamento de liquidez indica consolidação de book."""
+
+
+def generate_b2c_report(lang):
+    if "English" in lang:
+        return f"""=== MACROECONOMICS & TRADITIONAL ASSETS REPORT (B2C) ===
+Date/Time: {now_str}
+
+1. MACRO LIQUIDITY OUTLOOK
+- Global M2 Money Supply: {m2['m2_formatted']} ({m2['yoy_formatted']}) [Source: FRED St. Louis Fed]
+- Market Sentiment: {fng['value']} ({fng['sentiment']}) - Alternative.me
+
+2. ASSET ALLOCATION & CRYPTO SPILLOVER
+- Bitcoin Spot Consolidation: {fmt_usd(market['btc_price'])}
+- Trend Outlook (48h): {pred['direction']} ({pred['confidence']})
+
+3. INVESTOR TAKEAWAY
+Global money supply expansion provides long-term support for scarce digital assets. Short-term volatility remains bound within technical support ({sr['support_str']}) and resistance ({sr['resistance_str']})."""
+    else:
+        return f"""=== RELATÓRIO MACROECONOMIA & ATIVOS TRADICIONAIS (B2C) ===
+Data/Hora: {now_str}
+
+1. PANORAMA DE LIQUIDEZ MACRO
+- M2 Global (Massa Monetária): {m2['m2_formatted']} ({m2['yoy_formatted']}) [Fonte: FRED St. Louis Fed]
+- Sentimento do Mercado Retail: {fng['value']} ({fng['sentiment']}) - Alternative.me
+
+2. ALOCAÇÃO E IMPACTO NO MERCADO DIGITAL
+- Consolidação Spot do Bitcoin: {fmt_usd(market['btc_price'])}
+- Tendência Esperada (48h): {pred['direction']} ({pred['confidence']})
+
+3. VISÃO PARA O INVESTIDOR
+A expansão da liquidez global (M2) continua sustentando a tese de ativos escassos no longo prazo. Flutuações de curto prazo permanecem dentro dos intervalos de suporte ({sr['support_str']}) e resistência ({sr['resistance_str']})."""
+
+
+# --- UI PRINCIPAL ---
+st.title("⚡ OMNIRESEARCH Engine")
+st.caption("Plataforma Integrada de Inteligência Financeira: YouTube Auto/HITL, Relatórios B2B (Crypto) e B2C (Macro)")
+st.info(f"🕒 Dados consolidados das {now_str}")
+
+if market["is_fallback"]:
+    st.warning("⚠️ Limite temporário de requisições na API primária. Exibindo última estimativa de mercado consolidada sem interrupções.")
+
+st.divider()
+
+col_left, col_right = st.columns([1.2, 0.8])
+
+with col_left:
+    status_text = "🤖 MODO AUTO-PILOT ATIVADO (Pipeline Automático)" if autopilot_mode else "✋ MODO HITL ATIVADO (Aprovação Manual Requerida)"
+    st.markdown(f'<div class="status-badge">{status_text}</div>', unsafe_allow_html=True)
+
+    tab_youtube, tab_b2b, tab_b2c = st.tabs([
+        "🎬 Roteiro YouTube", 
+        "🏢 Relatório B2B (Crypto)", 
+        "👥 Relatório B2C (Macro)"
+    ])
+
+    with tab_youtube:
+        st.subheader("Painel de Aprovação / Execução de Vídeo")
+        yt_script = generate_youtube_script(lang_option, autopilot_mode)
+        st.text_area("Roteiro para Vídeo YouTube:", value=yt_script, height=320)
+
+    with tab_b2b:
+        st.subheader("Relatório B2B - Infraestrutura & Análise Técnica")
+        b2b_text = generate_b2b_report(lang_option)
+        st.text_area("Relatório Cripto B2B:", value=b2b_text, height=320)
+
+    with tab_b2c:
+        st.subheader("Relatório B2C - Macroeconomia & Varejo")
+        b2c_text = generate_b2c_report(lang_option)
+        st.text_area("Relatório Macro B2C:", value=b2c_text, height=320)
+
+    # Cards Inferiores com Altura Fixa (4 Colunas)
     m1, m2_col, m3, m4 = st.columns(4)
 
     with m1:
