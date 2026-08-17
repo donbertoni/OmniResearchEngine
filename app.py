@@ -95,29 +95,38 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+# --- Funções Auxiliares ---
+def fmt_usd(val: float) -> str:
+    """Formata valor monetário para o padrão PT-BR ($ 63.584,00)"""
+    return f"${val:,.2f}".replace(",", "v").replace(".", ",").replace("v", ".")
+
+
 # --- Horário de Brasília (UTC-3) ---
 brt_tz = timezone(timedelta(hours=-3))
 now_dt = datetime.datetime.now(brt_tz)
 now_str = now_dt.strftime("%d/%m/%Y às %H:%M BRT")
 short_time_str = now_dt.strftime("%H:%M BRT")
 
+HTTP_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+}
 
-# --- Ingestão de Dados em Tempo Real ---
 
-@st.cache_data(ttl=120)
+# --- Ingestão de Dados ---
+@st.cache_data(ttl=60)
 def get_crypto_data():
     data = {
         "btc_price": 94500.0, "btc_change": 0.0,
         "eth_price": 3420.50, "eth_change": 0.0,
         "sol_price": 188.40, "sol_change": 0.0,
         "btc_dom": 56.3, "btc_dom_change": -0.4,
-        "funding_rate": 0.0100, "funding_rate_delta": 0.0000
+        "funding_rate": 0.0100, "funding_rate_delta": 0.0015
     }
 
-    # 1. Preços e Variação 24h (CoinGecko)
+    # 1. Preços e Variações 24h (CoinGecko)
     try:
         url_price = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true"
-        res_price = requests.get(url_price, timeout=6).json()
+        res_price = requests.get(url_price, headers=HTTP_HEADERS, timeout=6).json()
 
         if "bitcoin" in res_price:
             data["btc_price"] = res_price["bitcoin"]["usd"]
@@ -131,10 +140,10 @@ def get_crypto_data():
     except Exception:
         pass
 
-    # 2. Dominância do BTC (CoinGecko Global)
+    # 2. Dominância BTC
     try:
         url_global = "https://api.coingecko.com/api/v3/global"
-        res_global = requests.get(url_global, timeout=6).json()
+        res_global = requests.get(url_global, headers=HTTP_HEADERS, timeout=6).json()
         btc_dom = res_global.get("data", {}).get("market_cap_percentage", {}).get("btc")
         dom_change = res_global.get("data", {}).get("market_cap_change_percentage_24h_usd", -0.4)
         if btc_dom:
@@ -143,11 +152,11 @@ def get_crypto_data():
     except Exception:
         pass
 
-    # 3. Funding Rate Atual + Histórico de Variação (Binance Futures)
+    # 3. Funding Rate (Binance Futures)
     try:
         url_funding = "https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&limit=2"
-        res_funding = requests.get(url_funding, timeout=6).json()
-        if len(res_funding) >= 2:
+        res_funding = requests.get(url_funding, headers=HTTP_HEADERS, timeout=6).json()
+        if isinstance(res_funding, list) and len(res_funding) >= 2:
             current_fr = float(res_funding[-1]["fundingRate"]) * 100
             prev_fr = float(res_funding[-2]["fundingRate"]) * 100
             data["funding_rate"] = current_fr
@@ -158,11 +167,11 @@ def get_crypto_data():
     return data
 
 
-@st.cache_data(ttl=900)
+@st.cache_data(ttl=300)
 def get_fear_and_greed():
     try:
         url = "https://api.alternative.me/fng/?limit=2"
-        res = requests.get(url, timeout=6).json()
+        res = requests.get(url, headers=HTTP_HEADERS, timeout=6).json()
         data = res["data"]
         current_val = int(data[0]["value"])
         prev_val = int(data[1]["value"])
@@ -172,7 +181,7 @@ def get_fear_and_greed():
             "change": current_val - prev_val
         }
     except Exception:
-        return {"value": 68, "sentiment": "Greed", "change": 3}
+        return {"value": 31, "sentiment": "Fear", "change": -3}
 
 
 market = get_crypto_data()
@@ -206,7 +215,9 @@ with col_left:
 
     with tab_pt:
         fng_text = f"{fng['value']} pontos em {fng['sentiment'].lower()}"
-        btc_formatted = f"${market['btc_price']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        btc_formatted = fmt_usd(market['btc_price'])
+        eth_formatted = fmt_usd(market['eth_price'])
+        sol_formatted = fmt_usd(market['sol_price'])
 
         script_content = f"""Roteiro Estendido LLM (~2 min 30 seg de tela):
 
@@ -218,7 +229,7 @@ O Fear & Greed Index marca {fng_text} enquanto o Bitcoin sustenta a faixa dos {b
 Com a dominância do Bitcoin em {market['btc_dom']:.1f}%, vemos a liquidez se distribuindo pelas principais Layer 1s do mercado. O Funding Rate do BTC em {market['funding_rate']:.4f}% reflete o posicionamento dos derivativos sem euforia exagerada.
 
 [01:10 - ALTCOINS LÍDERES: ETHEREUM E SOLANA]
-O Ethereum negocia a ${market['eth_price']:,.2f} impulsionado por fluxos institucionais nos ETFs spot, enquanto Solana é cotada a ${market['sol_price']:,.2f} suportada pelo volume nas DEXs da rede.
+O Ethereum negocia a {eth_formatted} impulsionado por fluxos institucionais nos ETFs spot, enquanto Solana é cotada a {sol_formatted} suportada pelo volume nas DEXs da rede.
 
 [01:45 - ANÁLISE TÉCNICA E MATRIZ PREDITIVA]
 A zona de suporte imediata do BTC reside em $93.8k, com resistência crítica mapeada em $97.2k. Nossa matriz preditiva aponta 65% de probabilidade altista para as próximas 48 horas."""
@@ -254,7 +265,7 @@ with col_right:
     st.markdown(f"""
         <div class="stCard">
             <div class="metric-title">2. BTC / USDT</div>
-            <div class="metric-value">${market['btc_price']:,.2f}</div>
+            <div class="metric-value">{fmt_usd(market['btc_price'])}</div>
             <div class="{btc_delta_class}">{btc_arrow} {market['btc_change']:+.2f}%</div>
         </div>
     """, unsafe_allow_html=True)
@@ -278,7 +289,7 @@ with col_right:
     st.markdown(f"""
         <div class="stCard">
             <div class="metric-title">4. ETH / USDT</div>
-            <div class="metric-value">${market['eth_price']:,.2f}</div>
+            <div class="metric-value">{fmt_usd(market['eth_price'])}</div>
             <div class="{eth_delta_class}">{eth_arrow} {market['eth_change']:+.2f}%</div>
         </div>
     """, unsafe_allow_html=True)
@@ -289,7 +300,7 @@ with col_right:
     st.markdown(f"""
         <div class="stCard">
             <div class="metric-title">5. SOL / USDT</div>
-            <div class="metric-value">${market['sol_price']:,.2f}</div>
+            <div class="metric-value">{fmt_usd(market['sol_price'])}</div>
             <div class="{sol_delta_class}">{sol_arrow} {market['sol_change']:+.2f}%</div>
         </div>
     """, unsafe_allow_html=True)
