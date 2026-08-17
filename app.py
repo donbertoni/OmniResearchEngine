@@ -1,4 +1,5 @@
 import datetime
+from zoneinfo import ZoneInfo
 import requests
 import streamlit as st
 
@@ -103,6 +104,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+# --- Captura do Horário Real de Brasília (BRT) ---
+fuso_brt = ZoneInfo("America/Sao_Paulo")
+now_dt = datetime.datetime.now(fuso_brt)
+now_str = now_dt.strftime("%d/%m/%Y às %H:%M BRT")
+short_time_str = now_dt.strftime("%H:%M BRT")
+
+
 # --- Funções de Ingestão de Dados Ao Vivo ---
 
 @st.cache_data(ttl=300)
@@ -159,7 +167,6 @@ def get_fear_and_greed():
 # --- Carregamento dos Dados ---
 market = get_crypto_data()
 fng = get_fear_and_greed()
-now_str = datetime.datetime.now().strftime("%d/%m/%Y às %H:%M BRT")
 
 
 # --- Cabeçalho OMNIRESEARCH ---
@@ -220,7 +227,7 @@ A zona de suporte imediata do BTC reside em $93.8k, com resistência crítica ma
 # --- Coluna da Direita: Ingestão de Mercado (Crypto Cards) ---
 with col_right:
     st.subheader("📊 Ingestão de Mercado (Crypto)")
-    st.caption(f"Horário de criação do Report: {datetime.datetime.now().strftime('%H:%M BRT')}")
+    st.caption(f"Horário de criação do Report: {short_time_str}")
 
     # Card 1: Fear & Greed
     fng_delta_class = "metric-delta-up" if fng["change"] >= 0 else "metric-delta-down"
