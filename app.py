@@ -335,7 +335,7 @@ The Bitcoin Fear & Greed Index (Alternative.me) stands at {fng['value']} points 
 With Bitcoin dominance at {crypto_market['btc_dom']:.1f}% (CoinGecko Global), market eyes key support and resistance zones.
 
 [01:10 - LEADING ALTCOINS]
-Ethereum trades at {fmt_usd(crypto_market['eth_price'])} and Solana at {fmt_usd(crypto_market['sol_price'])} (CoinGecko), reflecting overall market consolidation.
+Ethereum trades at {fmt_usd(crypto_market['eth_price'])} (CoinGecko) and Solana at {fmt_usd(crypto_market['sol_price'])} (CoinGecko), reflecting overall market consolidation.
 
 [01:45 - TECHNICAL ANALYSIS & 48H PREDICTIVE MATRIX]
 Bitcoin key support sits at {sr['support_str']}, with resistance at {sr['resistance_str']}. Our 48-hour predictive model points to a {pred['trend_desc']} outlook at {pred['direction']} ({pred['confidence']})."""
@@ -349,7 +349,7 @@ O Bitcoin Fear & Greed Index (Alternative.me) marca {fng['value']} pontos ({fng[
 Com a dominância do Bitcoin em {crypto_market['btc_dom']:.1f}% (CoinGecko Global), o mercado mantém a atenção voltada para os níveis de suporte e resistência chave.
 
 [01:10 - ALTCOINS LÍDERES]
-Ethereum negocia em {fmt_usd(crypto_market['eth_price'])} e Solana em {fmt_usd(crypto_market['sol_price'])} (CoinGecko), refletindo o momento de consolidação do ativo principal.
+Ethereum negocia em {fmt_usd(crypto_market['eth_price'])} (CoinGecko) e Solana em {fmt_usd(crypto_market['sol_price'])} (CoinGecko), refletindo o momento de consolidação do ativo principal.
 
 [01:45 - ANÁLISE TÉCNICA E MATRIZ PREDITIVA DO BTC]
 A zona de suporte do Bitcoin situa-se em {sr['support_str']}, com resistência imediata em {sr['resistance_str']}. Nossa matriz preditiva aponta probabilidade {pred['trend_desc']} de {pred['direction']} ({pred['confidence']}) para as próximas 48 horas."""
@@ -359,10 +359,10 @@ A zona de suporte do Bitcoin situa-se em {sr['support_str']}, com resistência i
             return f"""{prefix}[TradFi / Macro Focus] Extended LLM Script (~2 min 30 sec):
 
 [00:00 - RETENTION HOOK]
-Global financial markets react to current liquidity conditions. The S&P 500 trades at {fmt_pts(tradfi_market['sp500_price'])} ({tradfi_market['sp500_change']:+.2f}%) while USD/BRL stands at {fmt_brl(tradfi_market['usdbrl_price'])} ({tradfi_market['usdbrl_change']:+.2f}%). Global M2 liquidity sits at {m2['m2_formatted']} ({m2['yoy_formatted']}) [FRED St. Louis Fed].
+Global financial markets react to current liquidity conditions. The S&P 500 trades at {fmt_pts(tradfi_market['sp500_price'])} ({tradfi_market['sp500_change']:+.2f}%) (Yahoo Finance) while USD/BRL stands at {fmt_brl(tradfi_market['usdbrl_price'])} ({tradfi_market['usdbrl_change']:+.2f}%) (Yahoo Finance). Global M2 liquidity sits at {m2['m2_formatted']} ({m2['yoy_formatted']}) (FRED St. Louis Fed).
 
 [00:35 - EQUITY & COMMODITIES]
-Ibovespa trades at {fmt_pts(tradfi_market['ibov_price'])} ({tradfi_market['ibov_change']:+.2f}%). Commodities show Gold at {fmt_usd(tradfi_market['gold_price'])}/oz and Brent Crude at {fmt_usd(tradfi_market['brent_price'])}/bbl.
+Ibovespa trades at {fmt_pts(tradfi_market['ibov_price'])} ({tradfi_market['ibov_change']:+.2f}%) (Yahoo Finance). Commodities show Gold at {fmt_usd(tradfi_market['gold_price'])}/oz (Yahoo Finance) and Brent Crude at {fmt_usd(tradfi_market['brent_price'])}/bbl (Yahoo Finance).
 
 [01:10 - MACRO OUTLOOK & ASSET DYNAMICS]
 Market interest rates and liquidity expansion continue to dictate global risk appetite across equity and commodity desks.
@@ -373,10 +373,10 @@ Key macro resistance levels are tested as investors balance interest rate expect
             return f"""{prefix}[TradFi / Macro Focus] Roteiro Estendido LLM (~2 min 30 seg de tela):
 
 [00:00 - HOOK DE RETENÇÃO]
-Os mercados financeiros mundiais reagem ao fluxo de liquidez macro. O S&P 500 opera aos {fmt_pts(tradfi_market['sp500_price'])} ({tradfi_market['sp500_change']:+.2f}%) e o Dólar/Real cotado a {fmt_brl(tradfi_market['usdbrl_price'])} ({tradfi_market['usdbrl_change']:+.2f}%). A liquidez global do M2 permanece em {m2['m2_formatted']} ({m2['yoy_formatted']}) [FRED St. Louis Fed].
+Os mercados financeiros mundiais reagem ao fluxo de liquidez macro. O S&P 500 opera aos {fmt_pts(tradfi_market['sp500_price'])} ({tradfi_market['sp500_change']:+.2f}%) (Yahoo Finance) e o Dólar/Real cotado a {fmt_brl(tradfi_market['usdbrl_price'])} ({tradfi_market['usdbrl_change']:+.2f}%) (Yahoo Finance). A liquidez global do M2 permanece em {m2['m2_formatted']} ({m2['yoy_formatted']}) (FRED St. Louis Fed).
 
 [00:35 - BOLSAS & COMMODITIES]
-O Ibovespa negocia na faixa de {fmt_pts(tradfi_market['ibov_price'])} ({tradfi_market['ibov_change']:+.2f}%). Nas commodities, o Ouro registra {fmt_usd(tradfi_market['gold_price'])}/oz e o Petróleo Brent está cotado em {fmt_usd(tradfi_market['brent_price'])}/bbl.
+O Ibovespa negocia na faixa de {fmt_pts(tradfi_market['ibov_price'])} ({tradfi_market['ibov_change']:+.2f}%) (Yahoo Finance). Nas commodities, o Ouro registra {fmt_usd(tradfi_market['gold_price'])}/oz (Yahoo Finance) e o Petróleo Brent está cotado em {fmt_usd(tradfi_market['brent_price'])}/bbl (Yahoo Finance).
 
 [01:10 - PANORAMA MACROECONÔMICO]
 A trajetória dos juros e a expansão monetária continuam sendo os principais vetores de apetite ao risco nos mercados emergentes e globais.
@@ -391,7 +391,7 @@ def generate_b2b_report(lang):
 Date/Time: {now_str}
 
 1. EXECUTIVE SUMMARY
-- Primary Asset: Bitcoin (BTC) | Price: {fmt_usd(crypto_market['btc_price'])} | 24h Change: {crypto_market['btc_change']:+.2f}%
+- Primary Asset: Bitcoin (BTC) | Price: {fmt_usd(crypto_market['btc_price'])} | 24h Change: {crypto_market['btc_change']:+.2f}% (CoinGecko)
 - Market Dominance: {crypto_market['btc_dom']:.1f}% (CoinGecko Global)
 - Sentiment Benchmark: {fng['value']}/100 ({fng['sentiment']} - Alternative.me)
 
@@ -401,8 +401,8 @@ Date/Time: {now_str}
 - 48h Predictive Vector: {pred['direction']} ({pred['confidence']})
 
 3. INFRASTRUCTURE & ALTCOINS
-- Ethereum (ETH): {fmt_usd(crypto_market['eth_price'])} ({crypto_market['eth_change']:+.2f}%)
-- Solana (SOL): {fmt_usd(crypto_market['sol_price'])} ({crypto_market['sol_change']:+.2f}%)
+- Ethereum (ETH): {fmt_usd(crypto_market['eth_price'])} ({crypto_market['eth_change']:+.2f}%) (CoinGecko)
+- Solana (SOL): {fmt_usd(crypto_market['sol_price'])} ({crypto_market['sol_change']:+.2f}%) (CoinGecko)
 
 4. RISK MANAGEMENT RECOMMENDATION
 Capital preservation recommended near upper resistance boundaries. Order book depth shows cluster consolidation."""
@@ -411,7 +411,7 @@ Capital preservation recommended near upper resistance boundaries. Order book de
 Data/Hora: {now_str}
 
 1. SUMÁRIO EXECUTIVO
-- Ativo Principal: Bitcoin (BTC) | Preço: {fmt_usd(crypto_market['btc_price'])} | Variação 24h: {crypto_market['btc_change']:+.2f}%
+- Ativo Principal: Bitcoin (BTC) | Preço: {fmt_usd(crypto_market['btc_price'])} | Variação 24h: {crypto_market['btc_change']:+.2f}% (CoinGecko)
 - Dominância de Mercado: {crypto_market['btc_dom']:.1f}% (CoinGecko Global)
 - Sentimento de Mercado: {fng['value']}/100 ({fng['sentiment']} - Alternative.me)
 
@@ -421,8 +421,8 @@ Data/Hora: {now_str}
 - Vetor Preditivo 48h: {pred['direction']} ({pred['confidence']})
 
 3. INFRAESTRUTURA E ALTCOINS LÍDERES
-- Ethereum (ETH): {fmt_usd(crypto_market['eth_price'])} ({crypto_market['eth_change']:+.2f}%)
-- Solana (SOL): {fmt_usd(crypto_market['sol_price'])} ({crypto_market['sol_change']:+.2f}%)
+- Ethereum (ETH): {fmt_usd(crypto_market['eth_price'])} ({crypto_market['eth_change']:+.2f}%) (CoinGecko)
+- Solana (SOL): {fmt_usd(crypto_market['sol_price'])} ({crypto_market['sol_change']:+.2f}%) (CoinGecko)
 
 4. RECOMENDAÇÃO DE GESTÃO DE RISCO
 Preservação de capital recomendada nas proximidades da resistência superior. Mapeamento de liquidez indica consolidação de book."""
@@ -434,14 +434,14 @@ def generate_tradfi_b2b_report(lang):
 Date/Time: {now_str}
 
 1. MACRO LIQUIDITY & BENCHMARKS
-- S&P 500 Index: {fmt_pts(tradfi_market['sp500_price'])} ({tradfi_market['sp500_change']:+.2f}%)
-- Ibovespa Index: {fmt_pts(tradfi_market['ibov_price'])} ({tradfi_market['ibov_change']:+.2f}%)
-- Foreign Exchange (USD/BRL): {fmt_brl(tradfi_market['usdbrl_price'])} ({tradfi_market['usdbrl_change']:+.2f}%)
-- Global M2 Money Supply: {m2['m2_formatted']} ({m2['yoy_formatted']}) [FRED St. Louis Fed]
+- S&P 500 Index: {fmt_pts(tradfi_market['sp500_price'])} ({tradfi_market['sp500_change']:+.2f}%) (Yahoo Finance)
+- Ibovespa Index: {fmt_pts(tradfi_market['ibov_price'])} ({tradfi_market['ibov_change']:+.2f}%) (Yahoo Finance)
+- Foreign Exchange (USD/BRL): {fmt_brl(tradfi_market['usdbrl_price'])} ({tradfi_market['usdbrl_change']:+.2f}%) (Yahoo Finance)
+- Global M2 Money Supply: {m2['m2_formatted']} ({m2['yoy_formatted']}) (FRED St. Louis Fed)
 
 2. COMMODITIES DESK
-- Gold Spot (XAU/USD): {fmt_usd(tradfi_market['gold_price'])}/oz ({tradfi_market['gold_change']:+.2f}%)
-- Brent Crude Oil: {fmt_usd(tradfi_market['brent_price'])}/bbl ({tradfi_market['brent_change']:+.2f}%)
+- Gold Spot (XAU/USD): {fmt_usd(tradfi_market['gold_price'])}/oz ({tradfi_market['gold_change']:+.2f}%) (Yahoo Finance)
+- Brent Crude Oil: {fmt_usd(tradfi_market['brent_price'])}/bbl ({tradfi_market['brent_change']:+.2f}%) (Yahoo Finance)
 
 3. ALLOCATION STRATEGY
 Cross-asset liquidity monitoring advises balanced positioning across risk-on equities and defensive inflation hedges."""
@@ -450,14 +450,14 @@ Cross-asset liquidity monitoring advises balanced positioning across risk-on equ
 Data/Hora: {now_str}
 
 1. PANORAMA MACRO E BENCHMARKS
-- S&P 500: {fmt_pts(tradfi_market['sp500_price'])} ({tradfi_market['sp500_change']:+.2f}%)
-- Ibovespa: {fmt_pts(tradfi_market['ibov_price'])} ({tradfi_market['ibov_change']:+.2f}%)
-- Câmbio (USD/BRL): {fmt_brl(tradfi_market['usdbrl_price'])} ({tradfi_market['usdbrl_change']:+.2f}%)
-- M2 Global (Liquidez Monetária): {m2['m2_formatted']} ({m2['yoy_formatted']}) [FRED St. Louis Fed]
+- S&P 500: {fmt_pts(tradfi_market['sp500_price'])} ({tradfi_market['sp500_change']:+.2f}%) (Yahoo Finance)
+- Ibovespa: {fmt_pts(tradfi_market['ibov_price'])} ({tradfi_market['ibov_change']:+.2f}%) (Yahoo Finance)
+- Câmbio (USD/BRL): {fmt_brl(tradfi_market['usdbrl_price'])} ({tradfi_market['usdbrl_change']:+.2f}%) (Yahoo Finance)
+- M2 Global (Liquidez Monetária): {m2['m2_formatted']} ({m2['yoy_formatted']}) (FRED St. Louis Fed)
 
 2. MESA DE COMMODITIES
-- Ouro Spot (XAU/USD): {fmt_usd(tradfi_market['gold_price'])}/oz ({tradfi_market['gold_change']:+.2f}%)
-- Petróleo Brent: {fmt_usd(tradfi_market['brent_price'])}/bbl ({tradfi_market['brent_change']:+.2f}%)
+- Ouro Spot (XAU/USD): {fmt_usd(tradfi_market['gold_price'])}/oz ({tradfi_market['gold_change']:+.2f}%) (Yahoo Finance)
+- Petróleo Brent: {fmt_usd(tradfi_market['brent_price'])}/bbl ({tradfi_market['brent_change']:+.2f}%) (Yahoo Finance)
 
 3. ESTRATÉGIA DE ALOCAÇÃO
 Monitoramento de liquidez entre ativos recomenda alocação equilibrada entre renda variável e hedges defensivos contra inflação."""
@@ -616,27 +616,27 @@ with col_right:
 
         st.markdown(f"""
             <div class="stCard">
-                <div class="metric-title">1. S&P 500 (EUA)</div>
+                <div class="metric-title">1. S&P 500 (Yahoo Finance)</div>
                 <div class="metric-value">{fmt_pts(tradfi_market['sp500_price'])}</div>
                 <div class="{sp_class}">{tradfi_market['sp500_change']:+.2f}% hoje</div>
             </div>
             <div class="stCard">
-                <div class="metric-title">2. IBOVESPA (Brasil)</div>
+                <div class="metric-title">2. IBOVESPA (Yahoo Finance)</div>
                 <div class="metric-value">{fmt_pts(tradfi_market['ibov_price'])}</div>
                 <div class="{ibov_class}">{tradfi_market['ibov_change']:+.2f}% hoje</div>
             </div>
             <div class="stCard">
-                <div class="metric-title">3. Dólar / Real (USD/BRL)</div>
+                <div class="metric-title">3. USD / BRL (Yahoo Finance)</div>
                 <div class="metric-value">{fmt_brl(tradfi_market['usdbrl_price'])}</div>
                 <div class="{usd_class}">{tradfi_market['usdbrl_change']:+.2f}% (24h)</div>
             </div>
             <div class="stCard">
-                <div class="metric-title">4. Ouro Spot (XAU/USD)</div>
+                <div class="metric-title">4. Ouro Spot / XAU (Yahoo Finance)</div>
                 <div class="metric-value">{fmt_usd(tradfi_market['gold_price'])}</div>
                 <div class="{gold_class}">{tradfi_market['gold_change']:+.2f}% hoje</div>
             </div>
             <div class="stCard">
-                <div class="metric-title">5. Petróleo Brent (Brent Crude)</div>
+                <div class="metric-title">5. Petróleo Brent (Yahoo Finance)</div>
                 <div class="metric-value">{fmt_usd(tradfi_market['brent_price'])}</div>
                 <div class="{brent_class}">{tradfi_market['brent_change']:+.2f}% hoje</div>
             </div>
