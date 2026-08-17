@@ -1,5 +1,4 @@
 import streamlit as st
-from datetime import datetime
 
 # Configuração da página
 st.set_page_config(
@@ -51,8 +50,31 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Dados Mockados / Estado Atual (17/08/2026 14:44:16 BRT)
+# Timestamp do Dashboard
 data_atual = "17/08/2026 às 14:44:16 BRT"
+
+# Função para lógica condicional de Níveis Técnicos
+def calcular_nivel_condicional(estado):
+    estado_clean = estado.lower()
+    if "bullish" in estado_clean or "compradora" in estado_clean:
+        return "Próxima Resistência", "status-green", "↑"
+    elif "bearish" in estado_clean or "vendedora" in estado_clean:
+        return "Próximo Suporte", "status-red", "↓"
+    else:
+        return "Suporte Atual", "status-blue", "→"
+
+# Definições de Tendência e Níveis Atuais
+sp500_tendencia = "Pressão Vendedora"
+sp500_score = "38 pts"
+sp500_estado = "bearish"
+sp500_rotulo, sp500_css, sp500_seta = calcular_nivel_condicional(sp500_estado)
+sp500_valor_nivel = "7.680 pts"
+
+ibov_tendencia = "Consolidação 7D"
+ibov_score = "52 pts"
+ibov_estado = "neutro"
+ibov_rotulo, ibov_css, ibov_seta = calcular_nivel_condicional(ibov_estado)
+ibov_valor_nivel = "165.200 pts"
 
 # Sidebar - Configurações OMNI
 st.sidebar.title("⚙️ Configurações OMNI")
@@ -90,7 +112,7 @@ with col_left:
     st.subheader("📰 Relatório B2B (TradFi & Macroeconomia)")
     st.caption("Relatório Macro/TradFi (B2B):")
     
-    # Texto do Relatório B2B com padrão corrigido (Ibovespa com pontuação completa no item 3)
+    # Texto do Relatório B2B Ajustado Dinamicamente
     relatorio_texto = f"""=== RELATÓRIO INSTITUCIONAL TRADFI & MACROECONOMIA (B2B) ===
 Data/Hora: {data_atual}
 
@@ -104,48 +126,48 @@ Data/Hora: {data_atual}
 - Ouro Spot (XAU/USD): $4.474,90/oz (+0.85%) (Yahoo Finance)
 - Petróleo Brent: $90,69/bbl (+2.45%) (Yahoo Finance)
 
-3. VETORES PREDITIVOS E TENDÊNCIAS
-- S&P 500 (EUA): Tendência 7D (Pressão Vendedora (38 pts)) | Matriz Preditiva 48h: Consolidação (-> Sem Viés Claro (46 pts))
-- Ibovespa (Brasil): Tendência 7D (Consolidação 7D (52 pts)) | Matriz Preditiva 48h: Consolidação (-> Sem Viés Claro (49 pts))"""
+3. VETORES PREDITIVOS E NÍVEIS TÉCNICOS
+- S&P 500 (EUA): Tendência 7D ({sp500_tendencia} - {sp500_score}) | {sp500_rotulo}: {sp500_valor_nivel}
+- Ibovespa (Brasil): Tendência 7D ({ibov_tendencia} - {ibov_score}) | {ibov_rotulo}: {ibov_valor_nivel}"""
 
     st.text_area("", value=relatorio_texto, height=310, disabled=False)
     
-    # Cards de Vetores Preditivos e Tendências
+    # Cards de Vetores Preditivos e Níveis Condicionais
     c1, c2, c3, c4 = st.columns(4)
     
     with c1:
-        st.markdown("""
+        st.markdown(f"""
         <div class="stCard">
             <div class="metric-label">Tendência 7D (S&P 500)</div>
-            <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">Pressão Vendedora</div>
-            <div class="status-red">↓ Teste de Suporte (38 pts)</div>
+            <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">{sp500_tendencia}</div>
+            <div class="status-red">↓ {sp500_score}</div>
         </div>
         """, unsafe_allow_html=True)
 
     with c2:
-        st.markdown("""
+        st.markdown(f"""
         <div class="stCard">
-            <div class="metric-label">Tendência 7D (Ibovespa)</div>
-            <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">Consolidação 7D</div>
-            <div class="status-blue">→ Defesa de Nível (52 pts)</div>
+            <div class="metric-label">{sp500_rotulo} (S&P 500)</div>
+            <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">{sp500_valor_nivel}</div>
+            <div class="{sp500_css}">{sp500_seta} Nível Crítico</div>
         </div>
         """, unsafe_allow_html=True)
 
     with c3:
-        st.markdown("""
+        st.markdown(f"""
         <div class="stCard">
-            <div class="metric-label">Preditiva 48h (S&P 500)</div>
-            <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">Consolidação</div>
-            <div class="status-blue">→ Sem Viés Claro (46 pts)</div>
+            <div class="metric-label">Tendência 7D (Ibovespa)</div>
+            <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">{ibov_tendencia}</div>
+            <div class="status-blue">→ {ibov_score}</div>
         </div>
         """, unsafe_allow_html=True)
 
     with c4:
-        st.markdown("""
+        st.markdown(f"""
         <div class="stCard">
-            <div class="metric-label">Preditiva 48h (Ibovespa)</div>
-            <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">Consolidação</div>
-            <div class="status-blue">→ Sem Viés Claro (49 pts)</div>
+            <div class="metric-label">{ibov_rotulo} (Ibovespa)</div>
+            <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">{ibov_valor_nivel}</div>
+            <div class="{ibov_css}">{ibov_seta} Nível Crítico</div>
         </div>
         """, unsafe_allow_html=True)
 
