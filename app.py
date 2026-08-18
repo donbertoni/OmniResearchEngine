@@ -161,7 +161,6 @@ brt_tz = timezone(timedelta(hours=-3))
 agora_brt = datetime.now(brt_tz)
 data_atual = agora_brt.strftime("%d/%m/%Y às %H:%M:%S BRT")
 
-# Função resiliente para buscar dados do CoinGecko e Fear & Greed Index
 @st.cache_data(ttl=20)
 def get_coingecko_data():
     data = {
@@ -235,7 +234,6 @@ def get_coingecko_data():
 
     return data
 
-# Função resiliente para buscar dados MACRO via API (AwesomeAPI)
 @st.cache_data(ttl=60)
 def get_macro_data():
     data = {
@@ -260,7 +258,6 @@ def get_macro_data():
         pass
     return data
 
-# Função para calcular Suporte e Resistência ESTRUTURAIS
 def calcular_suporte_resistencia_estrutural(preco_base):
     passo = 2500
     sup = (int(preco_base) // passo) * passo
@@ -286,7 +283,6 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("🎛️ Calibragem (SaaS Enterprise)")
 st.sidebar.caption("Selecione os setores/categorias:")
 
-# Checkboxes dinâmicos baseados no módulo selecionado
 selected_categories = {}
 categories_list = list(MARKET_CONFIG_DETAILS[modulo].keys())
 for category in categories_list:
@@ -320,12 +316,14 @@ col_left, col_right = st.columns([1.6, 1])
 
 ativo_categorias = [cat for cat, checked in selected_categories.items() if checked]
 
+# Altura exata da text_area para alinhar exatamente com o término do 4º card da coluna direita (~470px)
+TEXT_AREA_HEIGHT = 470
+
 if modulo == "TradFi (Macro)":
     macro_data = get_macro_data()
     sp500_tendencia, sp500_score, sp500_valor_nivel = "Pressão Vendedora", "38 pts", "7.680 pts"
     ibov_tendencia, ibov_score, ibov_valor_nivel = "Consolidação 7D", "52 pts", "165.200 pts"
 
-    # Geração dos blocos de ativos TradFi formatados para o retângulo do report / roteiro
     ativos_texto_b2b = "\n\n".join([f"[{cat}]:\n" + "\n".join(MARKET_CONFIG_DETAILS['TradFi (Macro)'][cat]) for cat in ativo_categorias])
     ativos_texto_b2c = "\n".join([f"- {cat}: " + ", ".join([item.split(' ')[1] for item in MARKET_CONFIG_DETAILS['TradFi (Macro)'][cat]]) for cat in ativo_categorias])
 
@@ -350,7 +348,7 @@ O mercado global está em ponto crítico hoje ({data_atual}). S&P 500 cotado a {
 
 [CTA & ENCERRAMENTO]
 Deixe seu like e inscreva-se para análises diárias da OMNIRESEARCH!"""
-            st.text_area("", value=roteiro_tradfi, height=320, disabled=False)
+            st.text_area("", value=roteiro_tradfi, height=TEXT_AREA_HEIGHT, disabled=False)
         else:
             st.subheader("📰 Relatório B2B (TradFi & Macroeconomia)")
             st.caption("Relatório Macro/TradFi (B2B) com os 32 ativos integrados ao exportável:")
@@ -373,39 +371,39 @@ Data/Hora: {data_atual}
 
 4. 32 ATIVOS OFICIAIS TRADFI EM FOCO (CALIBRAGEM ENTERPRISE)
 {ativos_texto_b2b}"""
-            st.text_area("", value=relatorio_texto, height=320, disabled=False)
+            st.text_area("", value=relatorio_texto, height=TEXT_AREA_HEIGHT, disabled=False)
         
         c1, c2, c3, c4 = st.columns(4)
         with c1:
             st.markdown(f"""
             <div class="stCard">
-                <div class="metric-label">Tendência 7D (S&P 500)</div>
-                <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">{sp500_tendencia}</div>
+                <div class="metric-label">Tendência 7D (S&P)</div>
+                <div style="font-size: 15px; font-weight: bold; color: #f8fafc;">{sp500_tendencia}</div>
                 <div class="status-red">↓ {sp500_score}</div>
             </div>
             """, unsafe_allow_html=True)
         with c2:
             st.markdown(f"""
             <div class="stCard">
-                <div class="metric-label">Próximo Suporte (S&P 500)</div>
-                <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">{sp500_valor_nivel}</div>
-                <div class="status-red">↓ Nível Crítico</div>
+                <div class="metric-label">Próximo Suporte</div>
+                <div style="font-size: 15px; font-weight: bold; color: #f8fafc;">{sp500_valor_nivel}</div>
+                <div class="status-red">↓ Crítico</div>
             </div>
             """, unsafe_allow_html=True)
         with c3:
             st.markdown(f"""
             <div class="stCard">
-                <div class="metric-label">Tendência 7D (Ibovespa)</div>
-                <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">{ibov_tendencia}</div>
+                <div class="metric-label">Tendência 7D (Ibov)</div>
+                <div style="font-size: 15px; font-weight: bold; color: #f8fafc;">{ibov_tendencia}</div>
                 <div class="status-blue">→ {ibov_score}</div>
             </div>
             """, unsafe_allow_html=True)
         with c4:
             st.markdown(f"""
             <div class="stCard">
-                <div class="metric-label">Suporte Atual (Ibovespa)</div>
-                <div style="font-size: 16px; font-weight: bold; color: #f8fafc;">{ibov_valor_nivel}</div>
-                <div class="status-blue">→ Nível Crítico</div>
+                <div class="metric-label">Suporte Atual</div>
+                <div style="font-size: 15px; font-weight: bold; color: #f8fafc;">{ibov_valor_nivel}</div>
+                <div class="status-blue">→ Crítico</div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -485,7 +483,7 @@ O Bitcoin está sendo negociado a {crypto_data['btc_price']} nesta tarde ({data_
 
 [CTA & ENCERRAMENTO]
 Inscreva-se no canal para manter suas decisões cripto fundamentadas em dados reais!"""
-            st.text_area("", value=roteiro_crypto, height=320, disabled=False)
+            st.text_area("", value=roteiro_crypto, height=TEXT_AREA_HEIGHT, disabled=False)
         else:
             st.subheader("📰 Relatório B2B (Crypto & Web3)")
             st.caption("Relatório Crypto/Web3 (B2B) com os 32 indicadores integrados ao exportável:")
@@ -511,38 +509,38 @@ Data/Hora: {data_atual}
 
 4. 32 MÉTRICAS E INDICADORES EM FOCO (CALIBRAGEM ENTERPRISE)
 {ativos_crypto_b2b}"""
-            st.text_area("", value=relatorio_crypto, height=320, disabled=False)
+            st.text_area("", value=relatorio_crypto, height=TEXT_AREA_HEIGHT, disabled=False)
         
         c1, c2, c3, c4 = st.columns(4)
         with c1:
             st.markdown(f"""
             <div class="stCard">
                 <div class="metric-label">Tendência 7D (BTC)</div>
-                <div style="font-size: 15px; font-weight: bold; color: #f8fafc;">{btc_tendencia}</div>
+                <div style="font-size: 14px; font-weight: bold; color: #f8fafc;">{btc_tendencia}</div>
                 <div class="{btc_status_css}">↑ {btc_score}</div>
             </div>
             """, unsafe_allow_html=True)
         with c2:
             st.markdown(f"""
             <div class="stCard">
-                <div class="metric-label">Próxima Resistência (BTC)</div>
-                <div style="font-size: 15px; font-weight: bold; color: #f8fafc;">{btc_res}</div>
+                <div class="metric-label">Resistência BTC</div>
+                <div style="font-size: 14px; font-weight: bold; color: #f8fafc;">{btc_res}</div>
                 <div class="status-green">↑ Nível Crítico</div>
             </div>
             """, unsafe_allow_html=True)
         with c3:
             st.markdown(f"""
             <div class="stCard">
-                <div class="metric-label">Suporte Crítico (BTC)</div>
-                <div style="font-size: 15px; font-weight: bold; color: #f8fafc;">{btc_sup}</div>
-                <div class="status-blue">↓ Zona de Defesa</div>
+                <div class="metric-label">Suporte Crítico</div>
+                <div style="font-size: 14px; font-weight: bold; color: #f8fafc;">{btc_sup}</div>
+                <div class="status-blue">↓ Zona Defesa</div>
             </div>
             """, unsafe_allow_html=True)
         with c4:
             st.markdown(f"""
             <div class="stCard">
-                <div class="metric-label">Previsão 48h (BTC)</div>
-                <div style="font-size: 15px; font-weight: bold; color: #f8fafc;">{btc_prev_48h}</div>
+                <div class="metric-label">Previsão 48h</div>
+                <div style="font-size: 14px; font-weight: bold; color: #f8fafc;">{btc_prev_48h}</div>
                 <div class="{btc_status_css}">↑ Alvo {btc_res}</div>
             </div>
             """, unsafe_allow_html=True)
