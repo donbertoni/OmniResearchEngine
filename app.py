@@ -180,7 +180,7 @@ MACRO_TICKERS = {
     "USDBRL": ("BRL=X", "USD / BRL / Dólar Real", "R$"),
 }
 
-# Função com cache de 60s para buscar cotações em tempo real via yfinance
+# Função com cache para buscar cotações em tempo real via yfinance
 @st.cache_data(ttl=60)
 def fetch_realtime_quotes():
     all_symbols = [info[0] for info in MACRO_TICKERS.values()]
