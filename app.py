@@ -240,6 +240,9 @@ st.info(f"🕒 **Dados consolidados das {data_atual}**")
 # Layout Principal em Duas Colunas
 col_left, col_right = st.columns([1.6, 1])
 
+# Filtrar categorias ativas selecionadas pelo usuário
+ativo_categorias = [cat for cat, checked in selected_categories.items() if checked]
+
 # LÓGICA DINÂMICA BASEADA NO MÓDULO E FORMATO SELECIONADOS
 if modulo == "TradFi (Macro)":
     macro_data = get_macro_data()
@@ -323,6 +326,22 @@ Data/Hora: {data_atual}
                 <div class="status-blue">→ Nível Crítico</div>
             </div>
             """, unsafe_allow_html=True)
+
+        # Seção automatizada exibindo os itens marcados na Checkbox
+        st.markdown("---")
+        st.subheader("📋 Setores e Categorias em Foco (Calibragem Enterprise)")
+        if ativo_categorias:
+            cat_cols = st.columns(2)
+            for i, cat in enumerate(ativo_categorias):
+                with cat_cols[i % 2]:
+                    st.markdown(f"""
+                    <div class="stCard" style="padding: 12px; margin-bottom: 8px;">
+                        <div style="font-size: 13px; font-weight: bold; color: #38bdf8;">✓ {cat}</div>
+                        <div style="font-size: 11px; color: #94a3b8;">Status: Monitoramento ativo na engine de pesquisa e sintetização.</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+        else:
+            st.warning("⚠️ Nenhuma categoria selecionada na barra lateral.")
 
     with col_right:
         st.subheader("📊 Métricas Agregadas (TradFi)")
@@ -456,6 +475,22 @@ Data/Hora: {data_atual}
                 <div class="{btc_status_css}">↑ Alvo {btc_res}</div>
             </div>
             """, unsafe_allow_html=True)
+
+        # Seção automatizada exibindo os itens marcados na Checkbox
+        st.markdown("---")
+        st.subheader("📋 Setores e Categorias em Foco (Calibragem Enterprise)")
+        if ativo_categorias:
+            cat_cols = st.columns(2)
+            for i, cat in enumerate(ativo_categorias):
+                with cat_cols[i % 2]:
+                    st.markdown(f"""
+                    <div class="stCard" style="padding: 12px; margin-bottom: 8px;">
+                        <div style="font-size: 13px; font-weight: bold; color: #38bdf8;">✓ {cat}</div>
+                        <div style="font-size: 11px; color: #94a3b8;">Status: Monitoramento ativo na engine de pesquisa e sintetização.</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+        else:
+            st.warning("⚠️ Nenhuma categoria selecionada na barra lateral.")
 
     with col_right:
         st.subheader("📊 Métricas Agregadas (Crypto)")
