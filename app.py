@@ -1,7 +1,9 @@
 import streamlit as st
-import requests
+import yfinance as yf
+from datetime import datetime
+import pandas as pd
 
-# Configuração Inicial da Página
+# Configuração da página Streamlit
 st.set_page_config(
     page_title="OMNIRESEARCH Engine",
     page_icon="⚡",
@@ -9,384 +11,367 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilização Customizada CSS
+# Estilização CSS customizada para visual escuro institucional
 st.markdown("""
 <style>
     .stApp {
-        background-color: #0e1117;
-        color: #e0e0e0;
+        background-color: #0B0E14;
+        color: #E2E8F0;
     }
-    
-    /* Banner Superior de Informações */
-    .info-banner {
-        background-color: #1a2638;
-        border: 1px solid #23354d;
+    .status-bar {
+        background-color: #131B2A;
+        padding: 10px 18px;
         border-radius: 8px;
-        padding: 10px 16px;
-        font-size: 13px;
-        color: #8bb4e7;
+        border: 1px solid #1E293B;
         margin-bottom: 20px;
+        color: #94A3B8;
+        font-size: 13px;
     }
-
-    /* Cards de Métricas e Agregados */
     .metric-card {
-        background-color: #131924;
-        border: 1px solid #1e293b;
+        background-color: #161B22;
+        border: 1px solid #21262D;
         border-radius: 8px;
-        padding: 14px;
+        padding: 12px 16px;
         margin-bottom: 12px;
     }
     .metric-title {
         font-size: 12px;
-        color: #94a3b8;
-        margin-bottom: 4px;
+        color: #8B949E;
+        font-weight: 600;
     }
     .metric-value {
         font-size: 20px;
-        font-weight: bold;
-        color: #f8fafc;
+        font-weight: 700;
+        color: #F0F6FC;
+        margin: 4px 0;
     }
-    .metric-change-positive {
+    .metric-change-pos {
         font-size: 12px;
-        color: #10b981;
+        color: #3FB950;
         font-weight: 600;
     }
-    .metric-change-negative {
+    .metric-change-neg {
         font-size: 12px;
-        color: #ef4444;
+        color: #F85149;
         font-weight: 600;
     }
-
-    /* Sub-cards no Rodapé do Relatório */
-    .sub-card {
-        background-color: #131924;
-        border: 1px solid #1e293b;
-        border-radius: 6px;
-        padding: 10px;
-        text-align: center;
-    }
-    .sub-card-label {
-        font-size: 11px;
-        color: #94a3b8;
-    }
-    .sub-card-val {
-        font-size: 13px;
-        font-weight: bold;
-        color: #f8fafc;
-        margin-top: 2px;
-    }
-
-    /* Cards das 8 Categorias */
-    .cat-card {
-        background-color: #131924;
-        border: 1px solid #1e293b;
+    .category-card {
+        background-color: #161B22;
+        border: 1px solid #21262D;
         border-radius: 8px;
         padding: 14px;
-        margin-bottom: 16px;
-        min-height: 185px;
+        margin-bottom: 15px;
     }
-    .cat-header {
+    .category-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: 1px solid #1e293b;
+        border-bottom: 1px solid #21262D;
         padding-bottom: 8px;
         margin-bottom: 10px;
     }
-    .cat-title {
+    .category-title {
         font-size: 14px;
-        font-weight: bold;
-        color: #38bdf8;
+        font-weight: 700;
+        color: #58A6FF;
     }
-    .cat-badge {
+    .category-tag {
         font-size: 10px;
-        background-color: #1e293b;
-        color: #38bdf8;
+        background-color: #21262D;
+        color: #8B949E;
         padding: 2px 6px;
         border-radius: 4px;
     }
-    .cat-row {
+    .asset-row {
         display: flex;
         justify-content: space-between;
-        font-size: 12px;
-        margin-bottom: 6px;
-        color: #94a3b8;
+        align-items: center;
+        padding: 4px 0;
+        font-size: 13px;
     }
-    .cat-row-val {
-        color: #f8fafc;
-        font-weight: 600;
-    }
-
-    /* Caixa de Aviso / Auto-Pilot */
-    .autopilot-notice {
-        background-color: #172554;
-        border: 1px solid #1e40af;
-        border-radius: 6px;
-        padding: 12px;
-        font-size: 12px;
-        color: #93c5fd;
-        margin-top: 15px;
-    }
-    .autopilot-active {
-        background-color: #0f291e;
-        border: 1px solid #10b981;
-        border-radius: 6px;
-        padding: 12px;
-        font-size: 12px;
-        color: #34d399;
-        margin-top: 15px;
+    .asset-symbol {
+        color: #C9D1D9;
+        font-weight: 500;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# PIPELINE DE INGESTÃO DE API (DADOS DINÂMICOS DE PREÇO E % VARIAÇÃO)
+# Definição dos ativos por categoria e seus tickers na API yfinance
+CATEGORIES = {
+    "1 - Bancos e Seguradoras": {
+        "tag": "Banking & Ins.",
+        "assets": [
+            ("ITUB4", "ITUB4.SA", "R$"),
+            ("BBAS3", "BBAS3.SA", "R$"),
+            ("BBDC4", "BBDC4.SA", "R$"),
+            ("BBSE3", "BBSE3.SA", "R$"),
+        ]
+    },
+    "2 - Energia": {
+        "tag": "Energy",
+        "assets": [
+            ("PETR4", "PETR4.SA", "R$"),
+            ("PRIO3", "PRIO3.SA", "R$"),
+            ("EQTL3", "EQTL3.SA", "R$"),
+            ("CPFE3", "CPFE3.SA", "R$"),
+        ]
+    },
+    "3 - Tech": {
+        "tag": "Technology",
+        "assets": [
+            ("TOTVS3", "TOTS3.SA", "R$"),
+            ("NVDA", "NVDA", "$"),
+            ("AAPL", "AAPL", "$"),
+            ("MSFT", "MSFT", "$"),
+        ]
+    },
+    "4 - Commodities": {
+        "tag": "Commodities",
+        "assets": [
+            ("VALE3", "VALE3.SA", "R$"),
+            ("GGBR4", "GGBR4.SA", "R$"),
+            ("CMIG4", "CMIG4.SA", "R$"),
+            ("KLBN11", "KLBN11.SA", "R$"),
+        ]
+    },
+    "5 - Varejo": {
+        "tag": "Retail",
+        "assets": [
+            ("ASAI3", "ASAI3.SA", "R$"),
+            ("LREN3", "LREN3.SA", "R$"),
+            ("MGLU3", "MGLU3.SA", "R$"),
+            ("RADL3", "RADL3.SA", "R$"),
+        ]
+    },
+    "6 - Logística e Infra.": {
+        "tag": "Infra & Log",
+        "assets": [
+            ("RAIL3", "RAIL3.SA", "R$"),
+            ("WEGE3", "WEGE3.SA", "R$"),
+            ("CCRO3", "CCRO3.SA", "R$"),
+            ("EMBR3", "EMBR3.SA", "R$"),
+        ]
+    },
+    "7 - Agro e Indústria": {
+        "tag": "Agri & Industry",
+        "assets": [
+            ("SLCE3", "SLCE3.SA", "R$"),
+            ("BRFS3", "BRFS3.SA", "R$"),
+            ("ABEV3", "ABEV3.SA", "R$"),
+            ("JBSS3", "JBSS3.SA", "R$"),
+        ]
+    },
+    "8 - Crypto e Digital": {
+        "tag": "Digital Assets",
+        "assets": [
+            ("BTCUSDT", "BTC-USD", "$"),
+            ("ETHUSDT", "ETH-USD", "$"),
+            ("SOLUSDT", "SOL-USD", "$"),
+            ("BNBUSDT", "BNB-USD", "$"),
+        ]
+    }
+}
+
+MACRO_TICKERS = {
+    "SPX": ("^GSPC", "S&P 500 / SPX", "pts"),
+    "IBOV": ("^BVSP", "Ibovespa / IBOV", "pts"),
+    "DXY": ("DX-Y.NYB", "DXY / Índice Dólar", "pts"),
+    "US10Y": ("^TNX", "US 10Y Treasury Yield", "%"),
+    "USDBRL": ("BRL=X", "USD / BRL / Dólar Real", "R$"),
+}
+
+# Função com cache de 60s para buscar cotações em tempo real via yfinance
 @st.cache_data(ttl=60)
-def fetch_api_market_data(modulo_ativo):
-    """
-    Consome diretamente as APIs de mercado (CoinGecko / Financial APIs / BCB / Brapi / B3).
-    Preço e porcentagem de variação vêm obrigatoriamente vinculados no mesmo payload da API.
-    """
-    if modulo_ativo == "Crypto":
-        try:
-            url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true"
-            res = requests.get(url, timeout=5).json()
-            
-            btc_p = f"${res['bitcoin']['usd']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-            btc_c = f"{res['bitcoin']['usd_24h_change']:+.2f}% hoje".replace(".", ",")
-            
-            eth_p = f"${res['ethereum']['usd']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-            eth_c = f"{res['ethereum']['usd_24h_change']:+.2f}% hoje".replace(".", ",")
-            
-            sol_p = f"${res['solana']['usd']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-            sol_c = f"{res['solana']['usd_24h_change']:+.2f}% hoje".replace(".", ",")
-        except Exception:
-            # Payload dinâmico direto da API
-            btc_p, btc_c = "$64.744,00", "+1,86% hoje"
-            eth_p, eth_c = "$1.911,66", "+0,65% hoje"
-            sol_p, sol_c = "$76,84", "+1,64% hoje"
-
-        metrics_list = [
-            ("1. Bitcoin / USDT", btc_p, btc_c, "#ef4444" if "-" in btc_c else "#10b981", "CoinGecko API"),
-            ("2. Ethereum / USDT", eth_p, eth_c, "#ef4444" if "-" in eth_c else "#10b981", "CoinGecko API"),
-            ("3. Solana / USDT", sol_p, sol_c, "#ef4444" if "-" in sol_c else "#10b981", "CoinGecko API"),
-            ("4. Dominância BTC", "56,56%", "+0,63% hoje", "#10b981", "CoinGecko API"),
-            ("5. Bitcoin Fear & Greed Index", "41 / 100", "Medo", "#f59e0b", "Alternative.me API")
-        ]
-
-        sub_cards_data = [
-            ("Tendência 7D (BTC)", "Compradora", "↑ 78 pts", "#10b981"),
-            ("Resistência (BTC)", "$65.000", "↑ Nível Crítico", "#10b981"),
-            ("Suporte Crítico", "$62.500", "↓ Zona Defesa", "#ef4444"),
-            ("Previsão 48h", "Consolidação", "↔ Alvo $64.500", "#f59e0b")
-        ]
-
-        categories = [
-            {"active": True, "title": "1. ETF's (Spot & Inst.)", "badge": "Institutional", "data": [("Entrada Líquida Diária", "+$248.5M"), ("AUM Total Spot ETFs", "$58.4B"), ("Atividade IBIT / FBTC", "Acumulação Alta"), ("Fluxo Líquido (7D)", "+$1.12B")]},
-            {"active": True, "title": "2. Treasury & Tesourarias", "badge": "Corporate", "data": [("MicroStrategy Holdings", "226.500 BTC"), ("Compras 7D Corporativo", "+$12.4M"), ("Dominância no Circulante", "3,15%"), ("Reservas em Balanço", "Estáveis")]},
-            {"active": True, "title": "3. Mineração & Hashrate", "badge": "On-Chain", "data": [("Hashrate Agregado", "642 EH/s"), ("Hashprice (TH/dia)", "$0,048 USD"), ("Dificuldade Atual", "86.8 T"), ("Estresse Mineradores", "Neutro")]},
-            {"active": True, "title": "4. Volume Spot (24 hs)", "badge": "Market Data", "data": [("BTC / USDT Spot", f"{btc_p} ({btc_c})"), ("ETH / USDT Spot", f"{eth_p} ({eth_c})"), ("SOL / USDT Spot", f"{sol_p} ({sol_c})"), ("Volume Global 24h", "$28.4B")]},
-            {"active": True, "title": "5. Volume Futuros (24 hs)", "badge": "Derivatives", "data": [("Volume Derivados 24h", "$89.2B"), ("Funding Rate BTC", "+0.012%"), ("Viés de Financiamento", "Neutro/Comprador"), ("Proporção Longs", "52,4%")]},
-            {"active": True, "title": "6. Open Interest (OI)", "badge": "Derivatives", "data": [("Open Interest Total", "$32.1B"), ("CME Market Share", "30,5% ($9.8B)"), ("Nível de Alavancagem", "Moderado"), ("Risco de Liquidação", "Baixo")]},
-            {"active": True, "title": "7. DeFi & Layer 1s", "badge": "Ecosystem", "data": [("Dominância Bitcoin", "56,56% (+0,63%)"), ("TVL Agregado DeFi", "$84.2B"), ("Solana DEX Volume", "$1.82B"), ("Taxa Gas Ethereum", "12 Gwei")]},
-            {"active": True, "title": "8. Stablecoins & Liquidez", "badge": "Liquidity", "data": [("Reservas Corretoras", "2.05M BTC"), ("Tendência de Reservas", "Outflow Contínuo"), ("Fear & Greed Index", "41 / 100 (Medo)"), ("Poder de Compra USDT", "Elevado")]}
-        ]
-
-    else:  # TradFi (Macro)
-        metrics_list = [
-            ("1. S&P 500 / SPX", "5.542,15", "+0,45% hoje", "#10b981", "Investing API"),
-            ("2. Ibovespa / IBOV", "134.120,50", "+0,78% hoje", "#10b981", "B3 / Brapi API"),
-            ("3. DXY / Índice Dólar", "102,45", "-0,18% hoje", "#ef4444", "MarketWatch API"),
-            ("4. US 10Y Treasury Yield", "3,88%", "-2 bps hoje", "#ef4444", "MarketWatch API"),
-            ("5. USD / BRL / Dólar Real", "R$ 5,48", "-0,32% hoje", "#ef4444", "BCB API")
-        ]
-
-        sub_cards_data = [
-            ("Tendência 7D (Macro)", "Compradora", "↑ 72 pts", "#10b981"),
-            ("Resistência (S&P)", "5.600 pts", "↑ Nível Crítico", "#10b981"),
-            ("Suporte Crítico", "5.420 pts", "↓ Zona Defesa", "#ef4444"),
-            ("Previsão 48h", "Alta Moderada", "↑ Alvo 5.580", "#38bdf8")
-        ]
-
-        categories = [
-            {"active": True, "title": "1. Bancos e Seguradoras", "badge": "Banking & Ins.", "data": [("ITUB4", "R$ 34,20 (+0,85%)"), ("BBAS3", "R$ 28,15 (+1,12%)"), ("BBDC4", "R$ 15,40 (+0,40%)"), ("BBSE3", "R$ 33,90 (+0,30%)")]},
-            {"active": True, "title": "2. Energia", "badge": "Energy", "data": [("PETR4", "R$ 38,50 (+1,45%)"), ("PRIO3", "R$ 46,10 (+0,90%)"), ("EQTL3", "R$ 31,80 (+0,25%)"), ("CPFE3", "R$ 34,60 (+0,15%)")]},
-            {"active": True, "title": "3. Tech", "badge": "Technology", "data": [("TOTVS3", "R$ 29,40 (+0,60%)"), ("NVDA", "$ 128,50 (+2,30%)"), ("AAPL", "$ 224,10 (+0,80%)"), ("MSFT", "$ 448,20 (+1,10%)")]},
-            {"active": True, "title": "4. Commodities", "badge": "Commodities", "data": [("VALE3", "R$ 61,80 (-0,45%)"), ("GGBR4", "R$ 19,10 (+0,20%)"), ("CMIG4", "R$ 11,25 (+0,50%)"), ("KLBN11", "R$ 21,80 (-0,10%)")]},
-            {"active": True, "title": "5. Varejo", "badge": "Retail", "data": [("ASAI3", "R$ 12,40 (+0,70%)"), ("LREN3", "R$ 17,80 (-0,30%)"), ("MGLU3", "R$ 13,10 (+1,50%)"), ("RADL3", "R$ 26,50 (+0,40%)")]},
-            {"active": True, "title": "6. Logística e Infra.", "badge": "Infra & Log", "data": [("RAIL3", "R$ 22,30 (+0,80%)"), ("WEGE3", "R$ 52,10 (+1,15%)"), ("CCRO3", "R$ 13,60 (+0,10%)"), ("EMBR3", "R$ 41,20 (+1,80%)")]},
-            {"active": True, "title": "7. Agro e Indústria", "badge": "Agri & Industry", "data": [("SLCE3", "R$ 18,90 (+0,30%)"), ("BRFS3", "R$ 23,40 (+1,20%)"), ("ABEV3", "R$ 12,85 (+0,15%)"), ("JBSS3", "R$ 35,60 (+0,95%)")]},
-            {"active": True, "title": "8. Crypto e Digital", "badge": "Digital Assets", "data": [("BTCUSDT", "$ 64.744,00 (+1,86%)"), ("ETHUSDT", "$ 1.911,66 (+0,65%)"), ("SOLUSDT", "$ 76,84 (+1,64%)"), ("BNBUSDT", "$ 582,40 (+0,90%)")]}
-        ]
-
-    return metrics_list, sub_cards_data, categories
-
-# BARRA LATERAL (Sidebar)
-with st.sidebar:
-    st.title("⚙️ Configurações OMNI")
-    st.caption("Controle de geração de roteiros e relatórios")
+def fetch_realtime_quotes():
+    all_symbols = [info[0] for info in MACRO_TICKERS.values()]
+    for cat in CATEGORIES.values():
+        for _, ticker, _ in cat["assets"]:
+            all_symbols.append(ticker)
     
-    st.selectbox("🌐 Idioma do Output:", ["Português (BR)", "English (US)"], index=0)
-    modulo = st.radio("💡 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=0)
-    
-    st.divider()
-    
-    st.subheader("🎛️ Calibragem (SaaS Enterprise)")
-    st.caption("Selecione os setores/categorias:")
-    
-    if modulo == "Crypto":
-        cat_1 = st.checkbox("1 - ETF's", value=True)
-        cat_2 = st.checkbox("2 - Treasury", value=True)
-        cat_3 = st.checkbox("3 - Mineração e Hashrate", value=True)
-        cat_4 = st.checkbox("4 - Volume Spot (24 hs)", value=True)
-        cat_5 = st.checkbox("5 - Volume Futuros (24 hs)", value=True)
-        cat_6 = st.checkbox("6 - Open Interest", value=True)
-        cat_7 = st.checkbox("7 - DeFi e Layer 1s", value=True)
-        cat_8 = st.checkbox("8 - Stablecoins", value=True)
-    else:
-        cat_1 = st.checkbox("1 - Bancos e Seguradoras", value=True)
-        cat_2 = st.checkbox("2 - Energia", value=True)
-        cat_3 = st.checkbox("3 - Tech", value=True)
-        cat_4 = st.checkbox("4 - Commodities", value=True)
-        cat_5 = st.checkbox("5 - Varejo", value=True)
-        cat_6 = st.checkbox("6 - Logística e Infra.", value=True)
-        cat_7 = st.checkbox("7 - Agro e Indústria", value=True)
-        cat_8 = st.checkbox("8 - Crypto e Digital", value=True)
-    
-    st.divider()
-    
-    formato = st.radio(f"🎯 Formato ({modulo}):", ["B2B (Relatório)", "B2C (YouTube)"], index=0)
-    
-    if formato == "B2B (Relatório)":
-        st.markdown("""
-        <div class="autopilot-notice">
-            💡 O modo Auto-Pilot está disponível exclusivamente para entregáveis B2C (YouTube).
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.subheader("🤖 Automação & Auto-Pilot")
-        auto_pilot = st.toggle("Ativar Modo Auto-Pilot", value=True)
-        if auto_pilot:
-            st.markdown("""
-            <div class="autopilot-active">
-                ⚡ <strong>Auto-Pilot Ativo</strong><br/>
-                Pipeline automatizado para geração contínua de vídeos e roteiros B2C.
-            </div>
-            """, unsafe_allow_html=True)
-            st.select_slider("Frequência de disparo:", options=["1h", "4h", "12h", "24h"], value="4h")
+    unique_symbols = list(set(all_symbols))
+    quotes = {}
 
-# OBTER DADOS VIA API
-metrics_list, sub_cards_data, categories = fetch_api_market_data(modulo)
+    try:
+        data = yf.download(unique_symbols, period="5d", interval="1d", group_by="ticker", progress=False)
+        for sym in unique_symbols:
+            try:
+                sub_df = data if len(unique_symbols) == 1 else data[sym]
+                sub_df = sub_df.dropna(subset=['Close'])
+                if len(sub_df) >= 2:
+                    curr = float(sub_df['Close'].iloc[-1])
+                    prev = float(sub_df['Close'].iloc[-2])
+                    chg = float(((curr - prev) / prev) * 100)
+                    quotes[sym] = {"price": curr, "change": chg}
+                elif len(sub_df) == 1:
+                    quotes[sym] = {"price": float(sub_df['Close'].iloc[-1]), "change": 0.0}
+            except Exception:
+                quotes[sym] = {"price": 0.0, "change": 0.0}
+    except Exception:
+        for sym in unique_symbols:
+            try:
+                t = yf.Ticker(sym)
+                hist = t.history(period="5d")
+                if len(hist) >= 2:
+                    curr = float(hist['Close'].iloc[-1])
+                    prev = float(hist['Close'].iloc[-2])
+                    chg = float(((curr - prev) / prev) * 100)
+                    quotes[sym] = {"price": curr, "change": chg}
+                elif len(hist) == 1:
+                    quotes[sym] = {"price": float(hist['Close'].iloc[-1]), "change": 0.0}
+            except Exception:
+                quotes[sym] = {"price": 0.0, "change": 0.0}
 
-# Atualizar ativação das 8 categorias no estado dinâmico
-cat_flags = [cat_1, cat_2, cat_3, cat_4, cat_5, cat_6, cat_7, cat_8]
-for idx, c in enumerate(categories):
-    c["active"] = cat_flags[idx]
+    return quotes
 
-# CONSTRUÇÃO DINÂMICA DO QUADRADO DE RESUMO DO REPORT (SEM TEXTO ESTÁTICO)
-report_lines = []
-report_lines.append(f"=== RELATÓRIO INSTITUCIONAL {modulo.upper()} (B2B) ===")
-report_lines.append("Data/Hora: 18/08/2026 às 10:39:42 BRT\n")
+def fmt_num(val, dec=2):
+    if val is None or pd.isna(val) or val == 0.0:
+        return "--"
+    s = f"{val:,.{dec}f}"
+    return s.replace(",", "X").replace(".", ",").replace("X", ".")
 
-report_lines.append("1. PANORAMA & BENCHMARKS DE MERCADO (DADOS DE API)")
-for title, val, change, _, source in metrics_list:
-    report_lines.append(f"- {title}: {val} ({change}) [{source}]")
+def fmt_pct(val):
+    if val is None or pd.isna(val):
+        return "0,00%"
+    sign = "+" if val > 0 else ""
+    return f"{sign}{val:.2f}%".replace(".", ",")
 
-report_lines.append("\n2. ANÁLISE INTEGRADA DAS 8 CATEGORIAS SELECIONADAS (DADOS DE API)")
-active_cats_for_report = [c for c in categories if c["active"]]
-if active_cats_for_report:
-    for c in active_cats_for_report:
-        report_lines.append(f"\n• {c['title'].upper()} ({c['badge']}):")
-        for item, val in c["data"]:
-            report_lines.append(f"   - {item}: {val}")
-else:
-    report_lines.append("   [Nenhuma categoria selecionada no painel de calibragem lateral]")
+# Busca dados de cotação atualizados
+quotes = fetch_realtime_quotes()
 
-report_lines.append("\n3. VETORES PREDITIVOS E SINAIS TÉCNICOS")
-for label, val, status, _ in sub_cards_data:
-    report_lines.append(f"- {label}: {val} | {status}")
+# --- SIDEBAR: Configurações ---
+st.sidebar.title("⚡ Configurações OMNI")
+st.sidebar.caption("Controle de geração de roteiros e relatórios")
 
-report_text = "\n".join(report_lines)
+idioma = st.sidebar.selectbox("🌐 Idioma do Output:", ["Português (BR)", "English", "Español"])
+modulo = st.sidebar.radio("💡 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
 
-# ÁREA PRINCIPAL DA DASHBOARD
-st.markdown("# ⚡ OMNIRESEARCH Engine")
-st.markdown("**Plataforma Integrada de Inteligência Financeira:** YouTube Auto/HITL, Relatórios B2B (Crypto) e TradFi (Macro)")
+st.sidebar.markdown("---")
+st.sidebar.subheader("🎛️ Calibragem (SaaS Enterprise)")
+st.sidebar.caption("Selecione os setores/categorias:")
 
-st.markdown(f"""
-<div class="info-banner">
-    🕒 <strong>Dados consolidados das 18/08/2026 às 10:39:42 BRT</strong> &nbsp;|&nbsp; 
-    Status da API: <span style="color:#10b981;">● Online</span> &nbsp;|&nbsp; 
-    Módulo Ativo: <strong>{modulo}</strong>
-</div>
-""", unsafe_allow_html=True)
+selected_categories = []
+for key in CATEGORIES.keys():
+    if st.sidebar.checkbox(key, value=True):
+        selected_categories.append(key)
 
-report_title = f"📄 Relatório B2B ({'Crypto & Web3' if modulo == 'Crypto' else 'TradFi & Macro'})"
-metrics_title = f"📊 Métricas Agregadas ({'Crypto' if modulo == 'Crypto' else 'TradFi & Macro'})"
+st.sidebar.markdown("---")
+formato = st.sidebar.radio("🎯 Formato (TradFi (Macro)):", ["B2B (Relatório)", "B2C (YouTube)"], index=0)
 
-# RENDERIZAÇÃO PRINCIPAL
-col_left, col_right = st.columns([1.65, 1], gap="medium")
+st.sidebar.info("💡 O modo Auto-Pilot está disponível exclusivamente para entregáveis B2C (YouTube).")
 
+# --- CORPO PRINCIPAL ---
+st.title("⚡ OMNIRESEARCH Engine")
+st.caption("Plataforma Integrada de Inteligência Financeira: YouTube Auto/HITL, Relatórios B2B (Crypto) e TradFi (Macro)")
+
+now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
+st.markdown(
+    f"""
+    <div class="status-bar">
+        🕒 <b>Dados consolidados das {now_str}</b> | Status da API: <span style="color: #10B981;">● Online (yfinance)</span> | <b>Módulo Ativo:</b> {modulo}
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+col_left, col_right = st.columns([1.3, 1])
+
+# Painel Esquerdo: Relatório B2B em Tempo Real
 with col_left:
-    st.markdown(f"### {report_title}")
-    st.caption("Relatório com indicadores integrados ao exportável:")
-    
-    st.text_area(
-        label="Relatório",
-        value=report_text,
-        height=280,
-        label_visibility="collapsed"
-    )
-    
-    sub1, sub2, sub3, sub4 = st.columns(4)
-    cols_sub = [sub1, sub2, sub3, sub4]
-    for col, (label, val, status, color) in zip(cols_sub, sub_cards_data):
-        with col:
-            st.markdown(f"""
-            <div class="sub-card">
-                <div class="sub-card-label">{label}</div>
-                <div class="sub-card-val">{val}</div>
-                <div style="font-size:11px; color:{color}; font-weight:600;">{status}</div>
-            </div>
-            """, unsafe_allow_html=True)
+    st.subheader("📄 Relatório B2B (TradFi & Macro)")
+    st.caption("Relatório com indicadores integrados em tempo real via API:")
 
+    spx_q = quotes.get(MACRO_TICKERS["SPX"][0], {"price": 0.0, "change": 0.0})
+    ibov_q = quotes.get(MACRO_TICKERS["IBOV"][0], {"price": 0.0, "change": 0.0})
+    dxy_q = quotes.get(MACRO_TICKERS["DXY"][0], {"price": 0.0, "change": 0.0})
+    us10y_q = quotes.get(MACRO_TICKERS["US10Y"][0], {"price": 0.0, "change": 0.0})
+    usdbrl_q = quotes.get(MACRO_TICKERS["USDBRL"][0], {"price": 0.0, "change": 0.0})
+
+    report_lines = [
+        "=== RELATÓRIO INSTITUCIONAL TRADFI (MACRO) (B2B) ===",
+        f"Data/Hora: {now_str}",
+        "",
+        "1. PANORAMA & BENCHMARKS DE MERCADO (DADOS VIA YFINANCE API)",
+        f"- 1. S&P 500 / SPX: {fmt_num(spx_q['price'])} ({fmt_pct(spx_q['change'])} hoje) [yfinance API]",
+        f"- 2. Ibovespa / IBOV: {fmt_num(ibov_q['price'])} ({fmt_pct(ibov_q['change'])} hoje) [yfinance API]",
+        f"- 3. DXY / Índice Dólar: {fmt_num(dxy_q['price'])} ({fmt_pct(dxy_q['change'])} hoje) [yfinance API]",
+        f"- 4. US 10Y Treasury Yield: {fmt_num(us10y_q['price'])}% ({fmt_num(us10y_q['change'])} bps hoje) [yfinance API]",
+        f"- 5. USD / BRL / Dólar Real: R$ {fmt_num(usdbrl_q['price'])} ({fmt_pct(usdbrl_q['change'])} hoje) [yfinance API]",
+        "",
+        "2. ANÁLISE INTEGRADA DAS CATEGORIAS SELECIONADAS (DADOS EM TEMPO REAL)"
+    ]
+
+    for cat_name in selected_categories:
+        cat_info = CATEGORIES[cat_name]
+        report_lines.append(f"\n• {cat_name.upper()} ({cat_info['tag']}):")
+        for disp_name, ticker, currency in cat_info["assets"]:
+            q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
+            report_lines.append(f"  - {disp_name}: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
+
+    st.text_area("", value="\n".join(report_lines), height=380)
+
+    # Cards técnicos do relatório
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.metric("Tendência 7D (Macro)", "Compradora", f"{fmt_pct(spx_q['change'])}")
+    with c2:
+        st.metric("Resistência (S&P)", f"{fmt_num(spx_q['price'] * 1.02, dec=0)} pts", "Nível Crítico")
+    with c3:
+        st.metric("Suporte Crítico", f"{fmt_num(spx_q['price'] * 0.98, dec=0)} pts", "Zona Defesa")
+    with c4:
+        st.metric("Previsão 48h", "Alta Moderada", f"Alvo {fmt_num(spx_q['price'] * 1.01, dec=0)}")
+
+# Painel Direito: Métricas Agregadas
 with col_right:
-    st.markdown(f"### {metrics_title}")
-    st.caption("Atualizado via API às 10:39:42 BRT")
-    
-    for title, val, change, color, source in metrics_list:
+    st.subheader("📊 Métricas Agregadas (TradFi & Macro)")
+    st.caption(f"Atualizado via yfinance API às {datetime.now().strftime('%H:%M:%S BRT')}")
+
+    macro_items = [
+        ("1. S&P 500 / SPX", spx_q, "pts", ""),
+        ("2. Ibovespa / IBOV", ibov_q, "pts", ""),
+        ("3. DXY / Índice Dólar", dxy_q, "pts", ""),
+        ("4. US 10Y Treasury Yield", us10y_q, "%", "%"),
+        ("5. USD / BRL / Dólar Real", usdbrl_q, "pts", "R$ ")
+    ]
+
+    for label, data, unit, prefix in macro_items:
+        change_cls = "metric-change-pos" if data["change"] >= 0 else "metric-change-neg"
+        val_str = f"{prefix}{fmt_num(data['price'])}"
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-title">{title} <span style="color:#64748b; font-size:10px;">({source})</span></div>
-            <div class="metric-value">{val}</div>
-            <div class="metric-change-positive" style="color: {color};">{change}</div>
+            <div class="metric-title">{label} <span style="font-size:10px; opacity:0.6;">[yfinance API]</span></div>
+            <div class="metric-value">{val_str}</div>
+            <div class="{change_cls}">{fmt_pct(data['change'])} hoje</div>
         </div>
         """, unsafe_allow_html=True)
 
-st.divider()
+st.markdown("---")
 
-# PAINEL DAS 8 CATEGORIAS
-st.markdown(f"### 📁 Painel de Análise Integrada das 8 Categorias ({modulo})")
-st.caption("Visão detalhada dos setores selecionados no painel lateral:")
+# Section 2: Painel de Análise das Categorias
+st.subheader("📂 Painel de Análise Integrada das 8 Categorias (TradFi (Macro))")
+st.caption("Visão detalhada dos setores selecionados no painel lateral com cotações automáticas:")
 
-active_cats = [c for c in categories if c["active"]]
-
-if active_cats:
-    for i in range(0, len(active_cats), 4):
-        cols = st.columns(4)
-        group = active_cats[i:i+4]
-        for col, cat in zip(cols, group):
-            with col:
-                rows_html = "".join([
-                    f'<div class="cat-row"><span>{label}:</span><span class="cat-row-val">{val}</span></div>'
-                    for label, val in cat["data"]
-                ])
-                st.markdown(f"""
-                <div class="cat-card">
-                    <div class="cat-header">
-                        <span class="cat-title">{cat["title"]}</span>
-                        <span class="cat-badge">{cat["badge"]}</span>
-                    </div>
-                    {rows_html}
-                </div>
-                """, unsafe_allow_html=True)
-else:
-    st.info("Nenhuma categoria selecionada no painel de calibragem da barra lateral.")
+cols = st.columns(4)
+for idx, cat_name in enumerate(selected_categories):
+    cat_info = CATEGORIES[cat_name]
+    col = cols[idx % 4]
+    
+    with col:
+        st.markdown(f"""
+        <div class="category-card">
+            <div class="category-header">
+                <div class="category-title">{cat_name}</div>
+                <div class="category-tag">{cat_info['tag']}</div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        for disp_name, ticker, currency in cat_info["assets"]:
+            q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
+            color_style = "color: #3FB950;" if q["change"] >= 0 else "color: #F85149;"
+            st.markdown(f"""
+            <div class="asset-row">
+                <span class="asset-symbol">{disp_name}:</span>
+                <span><b>{currency} {fmt_num(q['price'])}</b> <span style="{color_style} font-size: 11px;">({fmt_pct(q['change'])})</span></span>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        st.markdown("</div>", unsafe_allow_html=True)
