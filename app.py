@@ -12,8 +12,7 @@ st.set_page_config(
 )
 
 # Estilização CSS customizada para visual escuro institucional
-st.markdown("""
-<style>
+st.markdown("""<style>
     .stApp {
         background-color: #0B0E14;
         color: #E2E8F0;
@@ -116,8 +115,7 @@ st.markdown("""
     [data-testid="stMetricDelta"] {
         font-size: 11px !important;
     }
-</style>
-""", unsafe_allow_html=True)
+</style>""", unsafe_allow_html=True)
 
 # Estrutura de dados para TradFi / Macro (8 categorias)
 CATEGORIES_TRADFI = {
@@ -430,11 +428,7 @@ st.caption("Plataforma Integrada de Inteligência Financeira: YouTube Auto/HITL,
 
 now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 st.markdown(
-    f"""
-    <div class="status-bar">
-        🕒 <b>Dados consolidados das {now_str}</b> | Status da API: <span style="color: #10B981;">● Online (yfinance)</span> | <b>Módulo Ativo:</b> {modulo}
-    </div>
-    """,
+    f'<div class="status-bar">🕒 <b>Dados consolidados das {now_str}</b> | Status da API: <span style="color: #10B981;">● Online (yfinance)</span> | <b>Módulo Ativo:</b> {modulo}</div>',
     unsafe_allow_html=True
 )
 
@@ -537,17 +531,14 @@ with col_right:
             chg_str = item.get("static_chg", "")
             change_cls = "metric-change-neutral" if "Greed" in chg_str else ("metric-change-pos" if "+" in chg_str else "metric-change-neg")
 
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-title">{label} <span style="font-size:10px; opacity:0.6;">[{badge}]</span></div>
-            <div class="metric-value">{val_str}</div>
-            <div class="{change_cls}">{chg_str}</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="metric-card"><div class="metric-title">{label} <span style="font-size:10px; opacity:0.6;">[{badge}]</span></div><div class="metric-value">{val_str}</div><div class="{change_cls}">{chg_str}</div></div>',
+            unsafe_allow_html=True
+        )
 
 st.markdown("---")
 
-# Painel de Análise das Categorias Ativas (Montagem do HTML unificado por card)
+# Painel de Análise das Categorias Ativas (Sem recuo para evitar que o Markdown converta em código)
 st.subheader(f"📂 Painel de Análise Integrada das Categorias ({modulo})")
 st.caption("Visão detalhada dos setores selecionados no painel lateral com cotações automáticas:")
 
@@ -557,25 +548,14 @@ if selected_categories:
         cat_info = active_categories[cat_name]
         col = cols[idx % len(cols)]
         
-        card_html = f"""
-        <div class="category-card">
-            <div class="category-header">
-                <div class="category-title">{cat_name}</div>
-                <div class="category-tag">{cat_info['tag']}</div>
-            </div>
-        """
+        card_html = f'<div class="category-card"><div class="category-header"><div class="category-title">{cat_name}</div><div class="category-tag">{cat_info["tag"]}</div></div>'
         
         for disp_name, ticker, currency in cat_info["assets"]:
             q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
             color_style = "color: #3FB950;" if q["change"] >= 0 else "color: #F85149;"
-            card_html += f"""
-            <div class="asset-row">
-                <span class="asset-symbol">{disp_name}:</span>
-                <span><b>{currency} {fmt_num(q['price'])}</b> <span style="{color_style} font-size: 11px;">({fmt_pct(q['change'])})</span></span>
-            </div>
-            """
+            card_html += f'<div class="asset-row"><span class="asset-symbol">{disp_name}:</span><span><b>{currency} {fmt_num(q["price"])}</b> <span style="{color_style} font-size: 11px;">({fmt_pct(q["change"])})</span></span></div>'
             
-        card_html += "</div>"
+        card_html += '</div>'
         
         with col:
             st.markdown(card_html, unsafe_allow_html=True)
