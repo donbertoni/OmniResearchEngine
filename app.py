@@ -1,5 +1,4 @@
 import streamlit as st
-import datetime
 
 # Configuração Inicial da Página
 st.set_page_config(
@@ -9,27 +8,26 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilização Customizada (CSS)
+# Estilização Customizada Coesa (CSS)
 st.markdown("""
 <style>
-    /* Estilização Geral do Container */
     .stApp {
         background-color: #0e1117;
         color: #e0e0e0;
     }
     
-    /* Box do Banner Superior */
+    /* Header e Banner */
     .info-banner {
         background-color: #1a2638;
         border: 1px solid #23354d;
         border-radius: 8px;
-        padding: 12px 18px;
-        font-size: 14px;
+        padding: 10px 16px;
+        font-size: 13px;
         color: #8bb4e7;
         margin-bottom: 20px;
     }
 
-    /* Cards de Métricas Principais */
+    /* Cards de Métricas e Categorias */
     .metric-card {
         background-color: #131924;
         border: 1px solid #1e293b;
@@ -43,7 +41,7 @@ st.markdown("""
         margin-bottom: 4px;
     }
     .metric-value {
-        font-size: 22px;
+        font-size: 20px;
         font-weight: bold;
         color: #f8fafc;
     }
@@ -58,7 +56,7 @@ st.markdown("""
         font-weight: 600;
     }
 
-    /* Cards de Resumo Sub-Report */
+    /* Sub-Cards do Relatório */
     .sub-card {
         background-color: #131924;
         border: 1px solid #1e293b;
@@ -76,47 +74,68 @@ st.markdown("""
         color: #f8fafc;
         margin-top: 2px;
     }
-    .sub-card-status {
-        font-size: 11px;
-        font-weight: 600;
-    }
 
-    /* Cards das 8 Categorias no Rodapé */
+    /* Blocos de Categoria do Rodapé */
     .cat-card {
         background-color: #131924;
         border: 1px solid #1e293b;
         border-radius: 8px;
-        padding: 16px;
+        padding: 14px;
         margin-bottom: 16px;
-        height: 100%;
+        min-height: 185px;
     }
-    .cat-title {
-        font-size: 15px;
-        font-weight: bold;
-        color: #38bdf8;
+    .cat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
         border-bottom: 1px solid #1e293b;
         padding-bottom: 8px;
-        margin-bottom: 12px;
+        margin-bottom: 10px;
     }
-    .cat-item {
+    .cat-title {
+        font-size: 14px;
+        font-weight: bold;
+        color: #38bdf8;
+    }
+    .cat-badge {
+        font-size: 10px;
+        background-color: #1e293b;
+        color: #38bdf8;
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+    .cat-row {
+        display: flex;
+        justify-content: space-between;
         font-size: 12px;
-        color: #cbd5e1;
         margin-bottom: 6px;
+        color: #94a3b8;
     }
-    .cat-item strong {
+    .cat-row-val {
         color: #f8fafc;
+        font-weight: 600;
+    }
+
+    /* Status Auto-Pilot */
+    .autopilot-box {
+        background-color: #0f291e;
+        border: 1px solid #10b981;
+        border-radius: 6px;
+        padding: 10px;
+        margin-top: 10px;
+        font-size: 12px;
+        color: #34d399;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# SIDEBAR: Configurações & Calibragem
+# BARRA LATERAL (Sidebar)
 with st.sidebar:
     st.title("⚙️ Configurações OMNI")
     st.caption("Controle de geração de roteiros e relatórios")
     
     st.selectbox("🌐 Idioma do Output:", ["Português (BR)", "English (US)"], index=0)
-    
-    st.radio("💡 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=0)
+    modulo = st.radio("💡 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=0)
     
     st.divider()
     
@@ -134,22 +153,37 @@ with st.sidebar:
     
     st.divider()
     
-    st.radio("🎯 Formato (Crypto):", ["B2B (Relatório)", "B2C (YouTube)"], index=0)
+    formato = st.radio("🎯 Formato (Crypto):", ["B2B (Relatório)", "B2C (YouTube)"], index=0)
     
-    st.info("💡 O modo Auto-Pilot está disponível exclusivamente para entregáveis B2C (YouTube).")
+    # REATIVAÇÃO E CONTROLE DO AUTO-PILOT
+    st.subheader("🤖 Automação & Auto-Pilot")
+    auto_pilot = st.toggle("Ativar Modo Auto-Pilot", value=(formato == "B2C (YouTube)"))
+    
+    if auto_pilot:
+        st.markdown("""
+        <div class="autopilot-box">
+            ⚡ <strong>Auto-Pilot Ativo</strong><br/>
+            Pipeline automático executando coleta de dados, síntese B2B e geração de roteiros/vídeos HITL.
+        </div>
+        """, unsafe_allow_html=True)
+        freq_auto = st.select_slider("Frequência de disparo:", options=["1h", "4h", "12h", "24h"], value="4h")
+    else:
+        st.info("✋ Modo Manual / Human-In-The-Loop (HITL) selecionado.")
 
-# HEADER PRINCIPAL
+# ÁREA PRINCIPAL DA DASHBOARD
 st.markdown("# ⚡ OMNIRESEARCH Engine")
 st.markdown("**Plataforma Integrada de Inteligência Financeira:** YouTube Auto/HITL, Relatórios B2B (Crypto) e TradFi (Macro)")
 
-# Banner de horário dos dados
+# Banner de Status da Atualização
 st.markdown("""
 <div class="info-banner">
-    🕒 <strong>Dados consolidados das 18/08/2026 às 10:39:42 BRT</strong>
+    🕒 <strong>Dados consolidados das 18/08/2026 às 10:39:42 BRT</strong> &nbsp;|&nbsp; 
+    Status da API: <span style="color:#10b981;">● Online</span> &nbsp;|&nbsp; 
+    Módulo Ativo: <strong>{}</strong>
 </div>
-""", unsafe_allow_html=True)
+""".format(modulo), unsafe_allow_html=True)
 
-# LAYOUT SUPERIOR (Relatório + Métricas Lado a Lado)
+# VISÃO DASHBOARD SUPERIOR (Relatório B2B + Métricas Agregadas)
 col_left, col_right = st.columns([1.65, 1], gap="medium")
 
 with col_left:
@@ -174,9 +208,9 @@ Data/Hora: 18/08/2026 às 10:39:42 BRT
 - Tendência 7D (BTC): Tendência Compradora (78 pts)"""
 
     st.text_area(
-        label="Relatório Completo",
+        label="Relatório",
         value=report_text,
-        height=280,
+        height=265,
         label_visibility="collapsed"
     )
     
@@ -186,32 +220,32 @@ Data/Hora: 18/08/2026 às 10:39:42 BRT
         st.markdown("""
         <div class="sub-card">
             <div class="sub-card-label">Tendência 7D (BTC)</div>
-            <div class="sub-card-val">Tendência Compradora</div>
-            <div class="sub-card-status" style="color: #10b981;">↑ 78 pts</div>
+            <div class="sub-card-val">Compradora</div>
+            <div style="font-size:11px; color:#10b981; font-weight:600;">↑ 78 pts</div>
         </div>
         """, unsafe_allow_html=True)
     with sub2:
         st.markdown("""
         <div class="sub-card">
-            <div class="sub-card-label">Próxima Resistência (BTC)</div>
+            <div class="sub-card-label">Resistência (BTC)</div>
             <div class="sub-card-val">$65.000</div>
-            <div class="sub-card-status" style="color: #10b981;">↑ Nível Crítico</div>
+            <div style="font-size:11px; color:#10b981; font-weight:600;">↑ Nível Crítico</div>
         </div>
         """, unsafe_allow_html=True)
     with sub3:
         st.markdown("""
         <div class="sub-card">
-            <div class="sub-card-label">Suporte Crítico (BTC)</div>
+            <div class="sub-card-label">Suporte Crítico</div>
             <div class="sub-card-val">$62.500</div>
-            <div class="sub-card-status" style="color: #ef4444;">↓ Zona de Defesa</div>
+            <div style="font-size:11px; color:#ef4444; font-weight:600;">↓ Zona Defesa</div>
         </div>
         """, unsafe_allow_html=True)
     with sub4:
         st.markdown("""
         <div class="sub-card">
-            <div class="sub-card-label">Previsão 48h (BTC)</div>
+            <div class="sub-card-label">Previsão 48h</div>
             <div class="sub-card-val">Alta Moderada</div>
-            <div class="sub-card-status" style="color: #38bdf8;">↑ Alvo $65.000</div>
+            <div style="font-size:11px; color:#38bdf8; font-weight:600;">↑ Alvo $65k</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -253,122 +287,123 @@ with col_right:
 
 st.divider()
 
-# SEÇÃO INFERIOR: BLOCOS DAS 8 CATEGORIAS
-st.markdown("### 📂 Painel de Análise Integrada das 8 Categorias")
-st.caption("Visão detalhada dos setores selecionados no painel lateral de calibragem:")
+# SEÇÃO INFERIOR: BLOCOS DAS 8 CATEGORIAS INTEGRADAS AO DASHBOARD
+st.markdown("### 📁 Painel de Análise Integrada das 8 Categorias")
+st.caption("Métricas detalhadas e consolidadas diretamente com os dados do relatório acima:")
 
-# Lista de dados para as 8 categorias
+# Estrutura com dados 100% conectados com o relatório principal
 categories = [
     {
-        "id": "etf",
         "active": cat_etf,
         "title": "1. ETF's (Spot & Inst.)",
-        "items": [
-            ("Entrada Líquida (Diária)", "+$248.5M (IBIT / FBTC)"),
-            ("AUM Total Spot ETFs", "$58.4 Billion"),
-            ("Fluxo Líquido 7D", "+$1.12B (Entrada Ativa)"),
-            ("Sentimento Institucional", "Acumulação Forte")
+        "badge": "Institutional",
+        "data": [
+            ("Entrada Líquida Diária", "+$248.5M"),
+            ("AUM Total Spot ETFs", "$58.4B"),
+            ("Atividade IBIT / FBTC", "Acumulação Alta"),
+            ("Fluxo Líquido (7D)", "+$1.12B")
         ]
     },
     {
-        "id": "treasury",
         "active": cat_treasury,
         "title": "2. Treasury & Tesourarias",
-        "items": [
-            ("Holdings MicroStrategy", "226.500 BTC"),
-            ("Compras Corporativas 7D", "+$12.4M agregados"),
-            ("Dominância Corporativa", "3,15% do Circulante"),
-            ("Empresas Públicas em BTC", "42 Empresas")
+        "badge": "Corporate",
+        "data": [
+            ("MicroStrategy Holdings", "226.500 BTC"),
+            ("Compras 7D Corporativo", "+$12.4M"),
+            ("Dominância no Circulante", "3,15%"),
+            ("Reservas em Balanço", "Estáveis")
         ]
     },
     {
-        "id": "mineracao",
         "active": cat_mineracao,
         "title": "3. Mineração & Hashrate",
-        "items": [
-            ("Hashrate Agregado", "642 EH/s (+1.4%)"),
+        "badge": "On-Chain",
+        "data": [
+            ("Hashrate Agregado", "642 EH/s"),
             ("Hashprice (TH/dia)", "$0,048 USD"),
-            ("Dificuldade Atual", "86.8 T (Próx +1.8%)"),
-            ("Estresse dos Mineradores", "Médio / Neutro")
+            ("Dificuldade Atual", "86.8 T"),
+            ("Estresse Mineradores", "Neutro")
         ]
     },
     {
-        "id": "spot",
         "active": cat_spot,
         "title": "4. Volume Spot (24 hs)",
-        "items": [
-            ("Volume Global Spot", "$28.4 Billion (+14.2%)"),
-            ("Binance Share", "44.8% ($12.7B)"),
-            ("Dominância Par BTC/USDT", "58.2% do Volume"),
-            ("Profundidade de Livro (2%)", "$310M no Bid/Ask")
+        "badge": "Market Data",
+        "data": [
+            ("BTC / USDT Spot Price", "$64.481,00"),
+            ("ETH / USDT Spot Price", "$1.909,21"),
+            ("SOL / USDT Spot Price", "$76,05"),
+            ("Volume Global 24h", "$28.4B")
         ]
     },
     {
-        "id": "futuros",
         "active": cat_futuros,
         "title": "5. Volume Futuros (24 hs)",
-        "items": [
-            ("Volume Derivados 24h", "$89.2 Billion"),
-            ("Razão Volume/Spot", "3.14x (Alavancagem Controlada)"),
-            ("Proporção Long/Short", "52.4% Longs"),
-            ("Volume de Liquidações 24h", "$42.1M (Pred. Shorts)")
+        "badge": "Derivatives",
+        "data": [
+            ("Volume Derivados 24h", "$89.2B"),
+            ("Funding Rate BTC", "+0.012%"),
+            ("Viés de Financiamento", "Neutro/Comprador"),
+            ("Proporção Longs", "52,4%")
         ]
     },
     {
-        "id": "oi",
         "active": cat_oi,
         "title": "6. Open Interest (OI)",
-        "items": [
-            ("Open Interest BTC", "$32.1 Billion (+3.8%)"),
-            ("CME Open Interest", "$9.8B (30.5% Mkt Share)"),
-            ("Funding Rate Médio", "+0.0092% (Neutro)"),
-            ("Alavancagem Estática", "Moderada / Segura")
+        "badge": "Derivatives",
+        "data": [
+            ("Open Interest Total", "$32.1B"),
+            ("CME Market Share", "30,5% ($9.8B)"),
+            ("Nível de Alavancagem", "Moderado"),
+            ("Risco de Liquidação", "Baixo")
         ]
     },
     {
-        "id": "defi",
         "active": cat_defi,
         "title": "7. DeFi & Layer 1s",
-        "items": [
-            ("TVL Agregado DeFi", "$84.2 Billion (+2.4%)"),
-            ("Liderança TVL", "Ethereum ($48.2B / 57.2%)"),
-            ("Solana DEX Volume 24h", "$1.82 Billion"),
-            ("Gas Médio Ethereum", "12 Gwei (Baixo)")
+        "badge": "Ecosystem",
+        "data": [
+            ("Dominância Bitcoin", "56,56% (+0,63%)"),
+            ("TVL Agregado DeFi", "$84.2B"),
+            ("Solana DEX Volume", "$1.82B"),
+            ("Taxa Gas Ethereum", "12 Gwei")
         ]
     },
     {
-        "id": "stablecoins",
         "active": cat_stable,
         "title": "8. Stablecoins & Liquidez",
-        "items": [
-            ("Market Cap Stables", "$168.4 Billion (+0.8%)"),
-            ("Dominância USDT", "69.2% ($116.5B)"),
-            ("Net Inflow Corretoras", "+$412M (Poder de Compra)"),
-            ("Oferta Liquida em Exchanges", "$24.8B Prontos")
+        "badge": "Liquidity",
+        "data": [
+            ("Reservas Corretoras", "2.05M BTC"),
+            ("Tendência de Reservas", "Outflow Contínuo"),
+            ("Fear & Greed Index", "41 / 100 (Medo)"),
+            ("Poder de Compra USDT", "Elevado")
         ]
     }
 ]
 
-# Renderização dos 8 blocos em Grid (4 Colunas x 2 Linhas)
-active_categories = [c for c in categories if c["active"]]
+# Filtragem de categorias selecionadas na calibragem
+active_cats = [c for c in categories if c["active"]]
 
-if active_categories:
-    # Dividir as categorias ativas em grupos de 4 por linha
-    for row_idx in range(0, len(active_categories), 4):
+if active_cats:
+    # Organização visual em grid de 4 colunas por linha
+    for i in range(0, len(active_cats), 4):
         cols = st.columns(4)
-        row_cats = active_categories[row_idx:row_idx+4]
-        
-        for col, cat in zip(cols, row_cats):
+        group = active_cats[i:i+4]
+        for col, cat in zip(cols, group):
             with col:
-                items_html = "".join([
-                    f'<div class="cat-item">• {k}: <strong>{v}</strong></div>'
-                    for k, v in cat["items"]
+                rows_html = "".join([
+                    f'<div class="cat-row"><span>{label}:</span><span class="cat-row-val">{val}</span></div>'
+                    for label, val in cat["data"]
                 ])
-                
                 st.markdown(f"""
                 <div class="cat-card">
-                    <div class="cat-title">{cat["title"]}</div>
-                    {items_html}
+                    <div class="cat-header">
+                        <span class="cat-title">{cat["title"]}</span>
+                        <span class="cat-badge">{cat["badge"]}</span>
+                    </div>
+                    {rows_html}
                 </div>
                 """, unsafe_allow_html=True)
 else:
