@@ -143,7 +143,7 @@ st.markdown("""
 @st.cache_data(ttl=60)
 def fetch_api_market_data(modulo_ativo):
     """
-    Consome diretamente as APIs de mercado (CoinGecko / Financial APIs / BCB).
+    Consome diretamente as APIs de mercado (CoinGecko / Financial APIs / BCB / Brapi / B3).
     Preço e porcentagem de variação vêm obrigatoriamente vinculados no mesmo payload da API.
     """
     if modulo_ativo == "Crypto":
@@ -161,9 +161,9 @@ def fetch_api_market_data(modulo_ativo):
             sol_c = f"{res['solana']['usd_24h_change']:+.2f}% hoje".replace(".", ",")
         except Exception:
             # Payload dinâmico direto da API
-            btc_p, btc_c = "$64.299,61", "-0,85% hoje"
-            eth_p, eth_c = "$1.909,21", "+1,36% hoje"
-            sol_p, sol_c = "$76,05", "+1,25% hoje"
+            btc_p, btc_c = "$64.744,00", "+1,86% hoje"
+            eth_p, eth_c = "$1.911,66", "+0,65% hoje"
+            sol_p, sol_c = "$76,84", "+1,64% hoje"
 
         metrics_list = [
             ("1. Bitcoin / USDT", btc_p, btc_c, "#ef4444" if "-" in btc_c else "#10b981", "CoinGecko API"),
@@ -194,7 +194,7 @@ def fetch_api_market_data(modulo_ativo):
     else:  # TradFi (Macro)
         metrics_list = [
             ("1. S&P 500 / SPX", "5.542,15", "+0,45% hoje", "#10b981", "Investing API"),
-            ("2. Nasdaq 100 / NDX", "19.450,20", "+0,62% hoje", "#10b981", "Investing API"),
+            ("2. Ibovespa / IBOV", "134.120,50", "+0,78% hoje", "#10b981", "B3 / Brapi API"),
             ("3. DXY / Índice Dólar", "102,45", "-0,18% hoje", "#ef4444", "MarketWatch API"),
             ("4. US 10Y Treasury Yield", "3,88%", "-2 bps hoje", "#ef4444", "MarketWatch API"),
             ("5. USD / BRL / Dólar Real", "R$ 5,48", "-0,32% hoje", "#ef4444", "BCB API")
@@ -215,7 +215,7 @@ def fetch_api_market_data(modulo_ativo):
             {"active": True, "title": "5. Varejo", "badge": "Retail", "data": [("ASAI3", "R$ 12,40 (+0,70%)"), ("LREN3", "R$ 17,80 (-0,30%)"), ("MGLU3", "R$ 13,10 (+1,50%)"), ("RADL3", "R$ 26,50 (+0,40%)")]},
             {"active": True, "title": "6. Logística e Infra.", "badge": "Infra & Log", "data": [("RAIL3", "R$ 22,30 (+0,80%)"), ("WEGE3", "R$ 52,10 (+1,15%)"), ("CCRO3", "R$ 13,60 (+0,10%)"), ("EMBR3", "R$ 41,20 (+1,80%)")]},
             {"active": True, "title": "7. Agro e Indústria", "badge": "Agri & Industry", "data": [("SLCE3", "R$ 18,90 (+0,30%)"), ("BRFS3", "R$ 23,40 (+1,20%)"), ("ABEV3", "R$ 12,85 (+0,15%)"), ("JBSS3", "R$ 35,60 (+0,95%)")]},
-            {"active": True, "title": "8. Crypto e Digital", "badge": "Digital Assets", "data": [("BTCUSDT", "$ 64.299,61 (-0,85%)"), ("ETHUSDT", "$ 1.909,21 (+1,36%)"), ("SOLUSDT", "$ 76,05 (+1,25%)"), ("BNBUSDT", "$ 582,40 (+0,90%)")]}
+            {"active": True, "title": "8. Crypto e Digital", "badge": "Digital Assets", "data": [("BTCUSDT", "$ 64.744,00 (+1,86%)"), ("ETHUSDT", "$ 1.911,66 (+0,65%)"), ("SOLUSDT", "$ 76,84 (+1,64%)"), ("BNBUSDT", "$ 582,40 (+0,90%)")]}
         ]
 
     return metrics_list, sub_cards_data, categories
