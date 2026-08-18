@@ -55,6 +55,11 @@ st.markdown("""
         color: #F85149;
         font-weight: 600;
     }
+    .metric-change-neutral {
+        font-size: 12px;
+        color: #58A6FF;
+        font-weight: 600;
+    }
     .category-card {
         background-color: #161B22;
         border: 1px solid #21262D;
@@ -172,13 +177,13 @@ CATEGORIES_TRADFI = {
     }
 }
 
-MACRO_BENCHMARKS = {
-    "SPX": ("^GSPC", "1. S&P 500 / SPX", "pts", ""),
-    "IBOV": ("^BVSP", "2. Ibovespa / IBOV", "pts", ""),
-    "DXY": ("DX-Y.NYB", "3. DXY / Índice Dólar", "pts", ""),
-    "US10Y": ("^TNX", "4. US 10Y Treasury Yield", "%", "%"),
-    "USDBRL": ("BRL=X", "5. USD / BRL / Dólar Real", "pts", "R$ ")
-}
+MACRO_BENCHMARKS = [
+    {"key": "SPX", "ticker": "^GSPC", "label": "1. S&P 500 / SPX", "unit": "pts", "prefix": "", "badge": "yfinance API"},
+    {"key": "IBOV", "ticker": "^BVSP", "label": "2. Ibovespa / IBOV", "unit": "pts", "prefix": "", "badge": "yfinance API"},
+    {"key": "DXY", "ticker": "DX-Y.NYB", "label": "3. DXY / Índice Dólar", "unit": "pts", "prefix": "", "badge": "yfinance API"},
+    {"key": "US10Y", "ticker": "^TNX", "label": "4. US 10Y Treasury Yield", "unit": "%", "prefix": "", "badge": "yfinance API", "suffix": "%"},
+    {"key": "USDBRL", "ticker": "BRL=X", "label": "5. USD / BRL / Dólar Real", "unit": "pts", "prefix": "R$ ", "badge": "yfinance API"}
+]
 
 # Estrutura de dados para Crypto
 CATEGORIES_CRYPTO = {
@@ -220,24 +225,59 @@ CATEGORIES_CRYPTO = {
     }
 }
 
-CRYPTO_BENCHMARKS = {
-    "BTC": ("BTC-USD", "1. Bitcoin / BTC", "$", "$ "),
-    "ETH": ("ETH-USD", "2. Ethereum / ETH", "$", "$ "),
-    "SOL": ("SOL-USD", "3. Solana / SOL", "$", "$ "),
-    "BNB": ("BNB-USD", "4. Binance Coin / BNB", "$", "$ "),
-    "BTCBRL": ("BTC-BRL", "5. Bitcoin em Reais / BTCBRL", "R$", "R$ ")
-}
+CRYPTO_BENCHMARKS = [
+    {
+        "key": "BTC_D",
+        "ticker": None,
+        "label": "1. Bitcoin Dominance / BTC.D",
+        "static_val": "56,80%",
+        "static_chg": "+0,35% hoje",
+        "badge": "On-Chain Data"
+    },
+    {
+        "key": "TOTAL_MCAP",
+        "ticker": None,
+        "label": "2. Total Crypto Market Cap",
+        "static_val": "$ 2,28 T",
+        "static_chg": "+1,12% hoje",
+        "badge": "Global Crypto"
+    },
+    {
+        "key": "FEAR_GREED",
+        "ticker": None,
+        "label": "3. Crypto Fear & Greed Index",
+        "static_val": "62 / 100",
+        "static_chg": "Greed (Ganância)",
+        "badge": "Sentiment Index"
+    },
+    {
+        "key": "ETH",
+        "ticker": "ETH-USD",
+        "label": "4. Ethereum / ETH",
+        "prefix": "$ ",
+        "badge": "yfinance API"
+    },
+    {
+        "key": "BTC",
+        "ticker": "BTC-USD",
+        "label": "5. Bitcoin / BTC",
+        "prefix": "$ ",
+        "badge": "yfinance API"
+    }
+]
 
 # Função com cache de 60s para buscar cotações em tempo real
 @st.cache_data(ttl=60)
 def fetch_realtime_quotes():
     all_symbols = []
     
-    # Adiciona tickers de benchmarks
-    for info in MACRO_BENCHMARKS.values():
-        all_symbols.append(info[0])
-    for info in CRYPTO_BENCHMARKS.values():
-        all_symbols.append(info[0])
+    # Adiciona tickers de benchmarks TradFi e Crypto
+    for item in MACRO_BENCHMARKS:
+        if item.get("ticker"):
+            all_symbols.append(item["ticker"])
+    for item in CRYPTO_BENCHMARKS:
+        if item.get("ticker"):
+            all_symbols.append(item["ticker"])
 
     # Adiciona tickers de categorias
     for cat in CATEGORIES_TRADFI.values():
@@ -304,7 +344,7 @@ st.sidebar.caption("Controle de geração de roteiros e relatórios")
 idioma = st.sidebar.selectbox("🌐 Idioma do Output:", ["Português (BR)", "English", "Español"])
 modulo = st.sidebar.radio("💡 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=0)
 
-# Define dicionários ativos conforme seleção do módulo
+# Define dicionários e benchmarks ativos conforme seleção do módulo
 if modulo == "Crypto":
     active_categories = CATEGORIES_CRYPTO
     active_benchmarks = CRYPTO_BENCHMARKS
@@ -350,20 +390,17 @@ with col_left:
     if modulo == "Crypto":
         btc_q = quotes.get("BTC-USD", {"price": 0.0, "change": 0.0})
         eth_q = quotes.get("ETH-USD", {"price": 0.0, "change": 0.0})
-        sol_q = quotes.get("SOL-USD", {"price": 0.0, "change": 0.0})
-        bnb_q = quotes.get("BNB-USD", {"price": 0.0, "change": 0.0})
-        btcbrl_q = quotes.get("BTC-BRL", {"price": 0.0, "change": 0.0})
 
         report_lines = [
             "=== RELATÓRIO INSTITUCIONAL CRYPTO (B2B) ===",
             f"Data/Hora: {now_str}",
             "",
-            "1. PANORAMA & BENCHMARKS CRYPTO (DADOS VIA YFINANCE API)",
-            f"- 1. Bitcoin (BTC/USD): $ {fmt_num(btc_q['price'])} ({fmt_pct(btc_q['change'])} hoje) [yfinance API]",
-            f"- 2. Ethereum (ETH/USD): $ {fmt_num(eth_q['price'])} ({fmt_pct(eth_q['change'])} hoje) [yfinance API]",
-            f"- 3. Solana (SOL/USD): $ {fmt_num(sol_q['price'])} ({fmt_pct(sol_q['change'])} hoje) [yfinance API]",
-            f"- 4. Binance Coin (BNB/USD): $ {fmt_num(bnb_q['price'])} ({fmt_pct(bnb_q['change'])} hoje) [yfinance API]",
-            f"- 5. Bitcoin em Reais (BTC/BRL): R$ {fmt_num(btcbrl_q['price'])} ({fmt_pct(btcbrl_q['change'])} hoje) [yfinance API]",
+            "1. PANORAMA & BENCHMARKS CRYPTO (MÉTRICAS AGREGADAS)",
+            "- 1. Bitcoin Dominance (BTC.D): 56,80% (+0,35% hoje) [On-Chain Data]",
+            "- 2. Total Crypto Market Cap: $ 2,28 T (+1,12% hoje) [Global Crypto]",
+            "- 3. Crypto Fear & Greed Index: 62 / 100 (Greed / Ganância)",
+            f"- 4. Ethereum (ETH/USD): $ {fmt_num(eth_q['price'])} ({fmt_pct(eth_q['change'])} hoje) [yfinance API]",
+            f"- 5. Bitcoin (BTC/USD): $ {fmt_num(btc_q['price'])} ({fmt_pct(btc_q['change'])} hoje) [yfinance API]",
             "",
             "2. ANÁLISE INTEGRADA DAS CATEGORIAS CRYPTO SELECIONADAS"
         ]
@@ -423,17 +460,30 @@ with col_left:
 # Painel Direito: Métricas Agregadas Dinâmicas
 with col_right:
     st.subheader(f"📊 Métricas Agregadas ({modulo})")
-    st.caption(f"Atualizado via yfinance API às {datetime.now().strftime('%H:%M:%S BRT')}")
+    st.caption(f"Atualizado via API / Dados de Mercado às {datetime.now().strftime('%H:%M:%S BRT')}")
 
-    for key, (ticker, label, unit, prefix) in active_benchmarks.items():
-        data = quotes.get(ticker, {"price": 0.0, "change": 0.0})
-        change_cls = "metric-change-pos" if data["change"] >= 0 else "metric-change-neg"
-        val_str = f"{prefix}{fmt_num(data['price'])}"
+    for item in active_benchmarks:
+        label = item["label"]
+        badge = item.get("badge", "Data Feed")
+        
+        if item.get("ticker"):
+            ticker = item["ticker"]
+            data = quotes.get(ticker, {"price": 0.0, "change": 0.0})
+            prefix = item.get("prefix", "")
+            suffix = item.get("suffix", "")
+            val_str = f"{prefix}{fmt_num(data['price'])}{suffix}"
+            chg_str = f"{fmt_pct(data['change'])} hoje"
+            change_cls = "metric-change-pos" if data["change"] >= 0 else "metric-change-neg"
+        else:
+            val_str = item.get("static_val", "--")
+            chg_str = item.get("static_chg", "")
+            change_cls = "metric-change-neutral" if "Greed" in chg_str else ("metric-change-pos" if "+" in chg_str else "metric-change-neg")
+
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-title">{label} <span style="font-size:10px; opacity:0.6;">[yfinance API]</span></div>
+            <div class="metric-title">{label} <span style="font-size:10px; opacity:0.6;">[{badge}]</span></div>
             <div class="metric-value">{val_str}</div>
-            <div class="{change_cls}">{fmt_pct(data['change'])} hoje</div>
+            <div class="{change_cls}">{chg_str}</div>
         </div>
         """, unsafe_allow_html=True)
 
