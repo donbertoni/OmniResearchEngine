@@ -52,18 +52,28 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Estrutura de Elite (Configuração Centralizada das 8 Categorias por Módulo)
-MARKET_CONFIG = {
-    "TradFi (Macro)": [
-        "1 - Bancos e Seguradoras", "2 - Energia", "3 - Tech", 
-        "4 - Commodities", "5 - Varejo", "6 - Logistica e Infraestrutura", 
-        "7 - Agronegócio e Industria", "8 - Crypto e Digital Assets"
-    ],
-    "Crypto": [
-        "1 - ETF's", "2 - Treasury", "3 - Mineração e Hashrate", 
-        "4 - Volume Spot (24 hs)", "5 - Volume Futuros (24 hs)", "6 - Open Interest", 
-        "7 - DeFi e Layer 1s", "8 - Stablecoins"
-    ]
+# Estrutura de Detalhamento Técnico das 8 Categorias por Módulo
+MARKET_CONFIG_DETAILS = {
+    "TradFi (Macro)": {
+        "1 - Bancos e Seguradoras": "JPMorgan (JPM): $215.40 (+0.8%) | Itaú (ITUB4): R$ 34.20 (+0.4%)",
+        "2 - Energia": "Brent Crude: $90.69/bbl (+2.45%) | Petrobras (PETR4): R$ 38.50 (+1.2%)",
+        "3 - Tech": "NVIDIA (NVDA): $128.50 (+2.1%) | Apple (AAPL): $224.30 (-0.3%)",
+        "4 - Commodities": "Ouro Spot (XAU): $4.474,90/oz (+0,85%) | Prata: $29.80/oz",
+        "5 - Varejo": "Mercado Livre (MELI): $1,850.00 | Amazon (AMZN): $178.20 (+1.1%)",
+        "6 - Logistica e Infraestrutura": "Baltic Dry Index: 1,840 pts | FedEx (FDX): $265.10",
+        "7 - Agronegócio e Industria": "Soja CBOT: $1.045/bushel | Milho CBOT: $412/bushel",
+        "8 - Crypto e Digital Assets": "Coinbase (COIN): $220.40 | MicroStrategy (MSTR): $1,420.00"
+    },
+    "Crypto": {
+        "1 - ETF's": "Fluxo Líquido Diário: +$142.5M | Acumulado Semanal: +$850M (IBIT, FBTC)",
+        "2 - Treasury": "MicroStrategy: 226,500 BTC | Tesouro EUA 10Y: 3.82%",
+        "3 - Mineração e Hashrate": "Hashrate Médio: 620 EH/s | Dificuldade: 88.10 T",
+        "4 - Volume Spot (24 hs)": "Volume Global Spot: $58.4 Bilhões (+8.4% 24h)",
+        "5 - Volume Futuros (24 hs)": "Volume Global Derivativos: $142.2 Bilhões",
+        "6 - Open Interest": "Open Interest Total: $31.4B | Funding Rate Médio: +0.012%",
+        "7 - DeFi e Layer 1s": "TVL Total DeFi: $89.5B | Gas Médio Ethereum: 12 Gwei",
+        "8 - Stablecoins": "Market Cap Stablecoins: $165.8B | Dominância USDT: 68.4%"
+    }
 }
 
 # Timestamp Dinâmico (Horário de Brasília)
@@ -82,7 +92,7 @@ def get_coingecko_data():
         "btc_dom": "56,56%",
         "fng_val": "31 / 100", "fng_classification": "Medo", "fng_css": "status-red"
     }
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    headers = {"User-Agent": "Mozilla/5.0"}
 
     try:
         url_prices = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true"
@@ -99,7 +109,6 @@ def get_coingecko_data():
         if "ethereum" in resp_prices:
             eth_p = resp_prices["ethereum"]["usd"]
             eth_c = resp_prices["ethereum"].get("usd_24h_change", 1.36)
-            data["eth_raw_price"] = eth_p
             data["eth_price"] = f"${eth_p:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
             data["eth_change"] = f"{eth_c:+.2f}%".replace(".", ",")
             data["eth_is_pos"] = eth_c >= 0
@@ -107,7 +116,6 @@ def get_coingecko_data():
         if "solana" in resp_prices:
             sol_p = resp_prices["solana"]["usd"]
             sol_c = resp_prices["solana"].get("usd_24h_change", 1.25)
-            data["sol_raw_price"] = sol_p
             data["sol_price"] = f"${sol_p:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
             data["sol_change"] = f"{sol_c:+.2f}%".replace(".", ",")
             data["sol_is_pos"] = sol_c >= 0
@@ -117,7 +125,6 @@ def get_coingecko_data():
     try:
         url_global = "https://api.coingecko.com/api/v3/global"
         resp_global = requests.get(url_global, headers=headers, timeout=3).json()
-
         if "data" in resp_global:
             dom_btc = resp_global["data"]["market_cap_percentage"]["btc"]
             data["btc_dom"] = f"{dom_btc:.2f}%".replace(".", ",")
@@ -130,18 +137,13 @@ def get_coingecko_data():
         if "data" in resp_fng and len(resp_fng["data"]) > 0:
             val = int(resp_fng["data"][0]["value"])
             classif = resp_fng["data"][0]["value_classification"]
-            
             classif_map = {
-                "Extreme Fear": "Medo Extremo",
-                "Fear": "Medo",
-                "Neutral": "Neutro",
-                "Greed": "Ganância",
-                "Extreme Greed": "Ganância Extrema"
+                "Extreme Fear": "Medo Extremo", "Fear": "Medo",
+                "Neutral": "Neutro", "Greed": "Ganância", "Extreme Greed": "Ganância Extrema"
             }
             pt_classif = classif_map.get(classif, classif)
             data["fng_val"] = f"{val} / 100"
             data["fng_classification"] = pt_classif
-            
             if val >= 55:
                 data["fng_css"] = "status-green"
             elif val <= 45:
@@ -185,9 +187,7 @@ def calcular_suporte_resistencia_estrutural(preco_base):
     res = sup + passo
     if res - preco_base < 400: res += passo
     if preco_base - sup < 400: sup -= passo
-    sup_str = f"${sup:,.0f}".replace(",", ".")
-    res_str = f"${res:,.0f}".replace(",", ".")
-    return sup_str, res_str
+    return f"${sup:,.0f}".replace(",", "."), f"${res:,.0f}".replace(",", ".")
 
 # Sidebar - Configurações OMNI
 st.sidebar.title("⚙️ Configurações OMNI")
@@ -208,7 +208,8 @@ st.sidebar.caption("Selecione os setores/categorias:")
 
 # Checkboxes dinâmicos baseados no módulo selecionado
 selected_categories = {}
-for category in MARKET_CONFIG[modulo]:
+categories_list = list(MARKET_CONFIG_DETAILS[modulo].keys())
+for category in categories_list:
     selected_categories[category] = st.sidebar.checkbox(category, value=True)
 
 st.sidebar.markdown("---")
@@ -219,7 +220,6 @@ formato = st.sidebar.radio(
     help="Escolha o tipo de entregável"
 )
 
-# Lógica Condicional do Auto-Pilot na Sidebar
 if formato == "B2C (YouTube)":
     autopilot = st.sidebar.toggle("🤖 Ativar Modo Auto-Pilot", value=True)
     if autopilot:
@@ -234,16 +234,12 @@ else:
 st.title("⚡ OMNIRESEARCH Engine")
 st.caption("Plataforma Integrada de Inteligência Financeira: YouTube Auto/HITL, Relatórios B2B (Crypto) e TradFi (Macro)")
 
-# Banner de Timestamp
 st.info(f"🕒 **Dados consolidados das {data_atual}**")
 
-# Layout Principal em Duas Colunas
 col_left, col_right = st.columns([1.6, 1])
 
-# Filtrar categorias ativas selecionadas pelo usuário
 ativo_categorias = [cat for cat, checked in selected_categories.items() if checked]
 
-# LÓGICA DINÂMICA BASEADA NO MÓDULO E FORMATO SELECIONADOS
 if modulo == "TradFi (Macro)":
     macro_data = get_macro_data()
     sp500_tendencia, sp500_score, sp500_valor_nivel = "Pressão Vendedora", "38 pts", "7.680 pts"
@@ -253,7 +249,6 @@ if modulo == "TradFi (Macro)":
         if formato == "B2C (YouTube)":
             st.subheader("🎬 Roteiro B2C YouTube (TradFi & Macro)")
             st.caption("Roteiro de Vídeo (YouTube B2C):")
-            
             roteiro_tradfi = f"""[HOOK 0-15s]
 O mercado global está em ponto crítico hoje ({data_atual}). S&P 500 cotado a {macro_data['sp500_val']} pts e o Ibovespa operando em {macro_data['ibov_val']} pts. Vamos direto aos dados do relatório institucional.
 
@@ -268,12 +263,10 @@ O mercado global está em ponto crítico hoje ({data_atual}). S&P 500 cotado a {
 
 [CTA & ENCERRAMENTO]
 Deixe seu like e inscreva-se para análises diárias da OMNIRESEARCH!"""
-
             st.text_area("", value=roteiro_tradfi, height=310, disabled=False)
         else:
             st.subheader("📰 Relatório B2B (TradFi & Macroeconomia)")
             st.caption("Relatório Macro/TradFi (B2B):")
-            
             relatorio_texto = f"""=== RELATÓRIO INSTITUCIONAL TRADFI & MACROECONOMIA (B2B) ===
 Data/Hora: {data_atual}
 
@@ -290,7 +283,6 @@ Data/Hora: {data_atual}
 3. VETORES PREDITIVOS E NÍVEIS TÉCNICOS
 - S&P 500 (EUA): Tendência 7D ({sp500_tendencia} - {sp500_score}) | Próximo Suporte: {sp500_valor_nivel}
 - Ibovespa (Brasil): Tendência 7D ({ibov_tendencia} - {ibov_score}) | Suporte Atual: {ibov_valor_nivel}"""
-
             st.text_area("", value=relatorio_texto, height=310, disabled=False)
         
         c1, c2, c3, c4 = st.columns(4)
@@ -327,17 +319,18 @@ Data/Hora: {data_atual}
             </div>
             """, unsafe_allow_html=True)
 
-        # Seção automatizada exibindo os itens marcados na Checkbox
         st.markdown("---")
         st.subheader("📋 Setores e Categorias em Foco (Calibragem Enterprise)")
         if ativo_categorias:
             cat_cols = st.columns(2)
             for i, cat in enumerate(ativo_categorias):
+                dados_detalhe = MARKET_CONFIG_DETAILS["TradFi (Macro)"][cat]
                 with cat_cols[i % 2]:
                     st.markdown(f"""
                     <div class="stCard" style="padding: 12px; margin-bottom: 8px;">
                         <div style="font-size: 13px; font-weight: bold; color: #38bdf8;">✓ {cat}</div>
-                        <div style="font-size: 11px; color: #94a3b8;">Status: Monitoramento ativo na engine de pesquisa e sintetização.</div>
+                        <div style="font-size: 12px; color: #f8fafc; margin-top: 4px;">{dados_detalhe}</div>
+                        <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">Status: Monitoramento ativo na engine de pesquisa.</div>
                     </div>
                     """, unsafe_allow_html=True)
         else:
@@ -397,7 +390,6 @@ else:
         if formato == "B2C (YouTube)":
             st.subheader("🎬 Roteiro B2C YouTube (Crypto & Web3)")
             st.caption("Roteiro de Vídeo (YouTube B2C):")
-            
             roteiro_crypto = f"""[HOOK 0-15s]
 O Bitcoin está sendo negociado a {crypto_data['btc_price']} nesta tarde ({data_atual})! Vamos analisar a tendência de 7 dias, a previsão de 48 horas e o índice de sentimento de mercado.
 
@@ -414,12 +406,10 @@ O Bitcoin está sendo negociado a {crypto_data['btc_price']} nesta tarde ({data_
 
 [CTA & ENCERRAMENTO]
 Inscreva-se no canal para manter suas decisões cripto fundamentadas em dados reais!"""
-
             st.text_area("", value=roteiro_crypto, height=310, disabled=False)
         else:
             st.subheader("📰 Relatório B2B (Crypto & Web3)")
             st.caption("Relatório Crypto/Web3 (B2B):")
-            
             relatorio_crypto = f"""=== RELATÓRIO INSTITUCIONAL CRYPTO & WEB3 (B2B) ===
 Data/Hora: {data_atual}
 
@@ -439,7 +429,6 @@ Data/Hora: {data_atual}
 - Próxima Resistência (BTC): {btc_res} (Nível Crítico)
 - Suporte Crítico (BTC): {btc_sup} (Zona de Defesa)
 - Previsão 48h (BTC): {btc_prev_48h} | Alvo: {btc_res}"""
-
             st.text_area("", value=relatorio_crypto, height=310, disabled=False)
         
         c1, c2, c3, c4 = st.columns(4)
@@ -476,17 +465,18 @@ Data/Hora: {data_atual}
             </div>
             """, unsafe_allow_html=True)
 
-        # Seção automatizada exibindo os itens marcados na Checkbox
         st.markdown("---")
         st.subheader("📋 Setores e Categorias em Foco (Calibragem Enterprise)")
         if ativo_categorias:
             cat_cols = st.columns(2)
             for i, cat in enumerate(ativo_categorias):
+                dados_detalhe = MARKET_CONFIG_DETAILS["Crypto"][cat]
                 with cat_cols[i % 2]:
                     st.markdown(f"""
                     <div class="stCard" style="padding: 12px; margin-bottom: 8px;">
                         <div style="font-size: 13px; font-weight: bold; color: #38bdf8;">✓ {cat}</div>
-                        <div style="font-size: 11px; color: #94a3b8;">Status: Monitoramento ativo na engine de pesquisa e sintetização.</div>
+                        <div style="font-size: 12px; color: #f8fafc; margin-top: 4px;">{dados_detalhe}</div>
+                        <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">Status: Monitoramento ativo na engine de pesquisa.</div>
                     </div>
                     """, unsafe_allow_html=True)
         else:
