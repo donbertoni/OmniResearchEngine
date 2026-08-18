@@ -325,10 +325,14 @@ if modulo == "TradFi (Macro)":
     sp500_tendencia, sp500_score, sp500_valor_nivel = "Pressão Vendedora", "38 pts", "7.680 pts"
     ibov_tendencia, ibov_score, ibov_valor_nivel = "Consolidação 7D", "52 pts", "165.200 pts"
 
+    # Geração dos blocos de ativos TradFi formatados para o retângulo do report / roteiro
+    ativos_texto_b2b = "\n\n".join([f"[{cat}]:\n" + "\n".join(MARKET_CONFIG_DETAILS['TradFi (Macro)'][cat]) for cat in ativo_categorias])
+    ativos_texto_b2c = "\n".join([f"- {cat}: " + ", ".join([item.split(' ')[1] for item in MARKET_CONFIG_DETAILS['TradFi (Macro)'][cat]]) for cat in ativo_categorias])
+
     with col_left:
         if formato == "B2C (YouTube)":
             st.subheader("🎬 Roteiro B2C YouTube (TradFi & Macro)")
-            st.caption("Roteiro de Vídeo (YouTube B2C):")
+            st.caption("Roteiro de Vídeo (YouTube B2C) com os 32 ativos integrados:")
             roteiro_tradfi = f"""[HOOK 0-15s]
 O mercado global está em ponto crítico hoje ({data_atual}). S&P 500 cotado a {macro_data['sp500_val']} pts e o Ibovespa operando em {macro_data['ibov_val']} pts. Vamos direto aos dados do relatório institucional.
 
@@ -341,12 +345,15 @@ O mercado global está em ponto crítico hoje ({data_atual}). S&P 500 cotado a {
 - Ouro registrando cotação a {macro_data['gold_val']}/oz ({macro_data['gold_chg']}).
 - Petróleo Brent operando a {macro_data['oil_val']}/bbl ({macro_data['oil_chg']}).
 
+[BLOCO 3 - 32 ATIVOS EM FOCO (CALIBRAGEM ENTERPRISE)]
+{ativos_texto_b2c}
+
 [CTA & ENCERRAMENTO]
 Deixe seu like e inscreva-se para análises diárias da OMNIRESEARCH!"""
-            st.text_area("", value=roteiro_tradfi, height=310, disabled=False)
+            st.text_area("", value=roteiro_tradfi, height=360, disabled=False)
         else:
             st.subheader("📰 Relatório B2B (TradFi & Macroeconomia)")
-            st.caption("Relatório Macro/TradFi (B2B):")
+            st.caption("Relatório Macro/TradFi (B2B) com os 32 ativos integrados ao exportável:")
             relatorio_texto = f"""=== RELATÓRIO INSTITUCIONAL TRADFI & MACROECONOMIA (B2B) ===
 Data/Hora: {data_atual}
 
@@ -362,8 +369,11 @@ Data/Hora: {data_atual}
 
 3. VETORES PREDITIVOS E NÍVEIS TÉCNICOS
 - S&P 500 (EUA): Tendência 7D ({sp500_tendencia} - {sp500_score}) | Próximo Suporte: {sp500_valor_nivel}
-- Ibovespa (Brasil): Tendência 7D ({ibov_tendencia} - {ibov_score}) | Suporte Atual: {ibov_valor_nivel}"""
-            st.text_area("", value=relatorio_texto, height=310, disabled=False)
+- Ibovespa (Brasil): Tendência 7D ({ibov_tendencia} - {ibov_score}) | Suporte Atual: {ibov_valor_nivel}
+
+4. 32 ATIVOS OFICIAIS TRADFI EM FOCO (CALIBRAGEM ENTERPRISE)
+{ativos_texto_b2b}"""
+            st.text_area("", value=relatorio_texto, height=360, disabled=False)
         
         c1, c2, c3, c4 = st.columns(4)
         with c1:
@@ -398,23 +408,6 @@ Data/Hora: {data_atual}
                 <div class="status-blue">→ Nível Crítico</div>
             </div>
             """, unsafe_allow_html=True)
-
-        st.markdown("---")
-        st.subheader("📋 32 Ativos Oficiais TradFi em Foco (Calibragem Enterprise)")
-        if ativo_categorias:
-            cat_cols = st.columns(2)
-            for i, cat in enumerate(ativo_categorias):
-                ativos_lista = MARKET_CONFIG_DETAILS["TradFi (Macro)"][cat]
-                ativos_html = "<br>".join(ativos_lista)
-                with cat_cols[i % 2]:
-                    st.markdown(f"""
-                    <div class="stCard" style="padding: 12px; margin-bottom: 8px;">
-                        <div style="font-size: 13px; font-weight: bold; color: #38bdf8;">✓ {cat}</div>
-                        <div style="font-size: 11px; color: #f8fafc; margin-top: 6px; line-height: 1.5;">{ativos_html}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-        else:
-            st.warning("⚠️ Nenhuma categoria selecionada na barra lateral.")
 
     with col_right:
         st.subheader("📊 Métricas Agregadas (TradFi)")
@@ -466,10 +459,13 @@ else:
     eth_status_css = "status-green" if crypto_data["eth_is_pos"] else "status-red"
     sol_status_css = "status-green" if crypto_data["sol_is_pos"] else "status-red"
 
+    ativos_crypto_b2b = "\n\n".join([f"[{cat}]:\n" + "\n".join(MARKET_CONFIG_DETAILS['Crypto'][cat]) for cat in ativo_categorias])
+    ativos_crypto_b2c = "\n".join([f"- {cat}: " + ", ".join([item.split(' ')[1] for item in MARKET_CONFIG_DETAILS['Crypto'][cat]]) for cat in ativo_categorias])
+
     with col_left:
         if formato == "B2C (YouTube)":
             st.subheader("🎬 Roteiro B2C YouTube (Crypto & Web3)")
-            st.caption("Roteiro de Vídeo (YouTube B2C):")
+            st.caption("Roteiro de Vídeo (YouTube B2C) com os 32 indicadores integrados:")
             roteiro_crypto = f"""[HOOK 0-15s]
 O Bitcoin está sendo negociado a {crypto_data['btc_price']} nesta tarde ({data_atual})! Vamos analisar a tendência de 7 dias, a previsão de 48 horas e o índice de sentimento de mercado.
 
@@ -484,12 +480,15 @@ O Bitcoin está sendo negociado a {crypto_data['btc_price']} nesta tarde ({data_
 - Dominância do Bitcoin: {crypto_data['btc_dom']}.
 - Sentimento (Fear & Greed Index): {crypto_data['fng_val']} ({crypto_data['fng_classification']}).
 
+[BLOCO 3 - 32 INDICADORES EM FOCO]
+{ativos_crypto_b2c}
+
 [CTA & ENCERRAMENTO]
 Inscreva-se no canal para manter suas decisões cripto fundamentadas em dados reais!"""
-            st.text_area("", value=roteiro_crypto, height=310, disabled=False)
+            st.text_area("", value=roteiro_crypto, height=360, disabled=False)
         else:
             st.subheader("📰 Relatório B2B (Crypto & Web3)")
-            st.caption("Relatório Crypto/Web3 (B2B):")
+            st.caption("Relatório Crypto/Web3 (B2B) com os 32 indicadores integrados ao exportável:")
             relatorio_crypto = f"""=== RELATÓRIO INSTITUCIONAL CRYPTO & WEB3 (B2B) ===
 Data/Hora: {data_atual}
 
@@ -508,8 +507,11 @@ Data/Hora: {data_atual}
 - Tendência 7D (BTC): {btc_tendencia} ({btc_score})
 - Próxima Resistência (BTC): {btc_res} (Nível Crítico)
 - Suporte Crítico (BTC): {btc_sup} (Zona de Defesa)
-- Previsão 48h (BTC): {btc_prev_48h} | Alvo: {btc_res}"""
-            st.text_area("", value=relatorio_crypto, height=310, disabled=False)
+- Previsão 48h (BTC): {btc_prev_48h} | Alvo: {btc_res}
+
+4. 32 MÉTRICAS E INDICADORES EM FOCO (CALIBRAGEM ENTERPRISE)
+{ativos_crypto_b2b}"""
+            st.text_area("", value=relatorio_crypto, height=360, disabled=False)
         
         c1, c2, c3, c4 = st.columns(4)
         with c1:
@@ -544,23 +546,6 @@ Data/Hora: {data_atual}
                 <div class="{btc_status_css}">↑ Alvo {btc_res}</div>
             </div>
             """, unsafe_allow_html=True)
-
-        st.markdown("---")
-        st.subheader("📋 32 Métricas e Indicadores em Foco (Calibragem Enterprise)")
-        if ativo_categorias:
-            cat_cols = st.columns(2)
-            for i, cat in enumerate(ativo_categorias):
-                ativos_lista = MARKET_CONFIG_DETAILS["Crypto"][cat]
-                ativos_html = "<br>".join(ativos_lista)
-                with cat_cols[i % 2]:
-                    st.markdown(f"""
-                    <div class="stCard" style="padding: 12px; margin-bottom: 8px;">
-                        <div style="font-size: 13px; font-weight: bold; color: #38bdf8;">✓ {cat}</div>
-                        <div style="font-size: 11px; color: #f8fafc; margin-top: 6px; line-height: 1.5;">{ativos_html}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-        else:
-            st.warning("⚠️ Nenhuma categoria selecionada na barra lateral.")
 
     with col_right:
         st.subheader("📊 Métricas Agregadas (Crypto)")
