@@ -350,7 +350,7 @@ O mercado global está em ponto crítico hoje ({data_atual}). S&P 500 cotado a {
 
 [CTA & ENCERRAMENTO]
 Deixe seu like e inscreva-se para análises diárias da OMNIRESEARCH!"""
-            st.text_area("", value=roteiro_tradfi, height=600, disabled=False)
+            st.text_area("", value=roteiro_tradfi, height=320, disabled=False)
         else:
             st.subheader("📰 Relatório B2B (TradFi & Macroeconomia)")
             st.caption("Relatório Macro/TradFi (B2B) com os 32 ativos integrados ao exportável:")
@@ -373,7 +373,7 @@ Data/Hora: {data_atual}
 
 4. 32 ATIVOS OFICIAIS TRADFI EM FOCO (CALIBRAGEM ENTERPRISE)
 {ativos_texto_b2b}"""
-            st.text_area("", value=relatorio_texto, height=600, disabled=False)
+            st.text_area("", value=relatorio_texto, height=320, disabled=False)
         
         c1, c2, c3, c4 = st.columns(4)
         with c1:
@@ -485,7 +485,7 @@ O Bitcoin está sendo negociado a {crypto_data['btc_price']} nesta tarde ({data_
 
 [CTA & ENCERRAMENTO]
 Inscreva-se no canal para manter suas decisões cripto fundamentadas em dados reais!"""
-            st.text_area("", value=roteiro_crypto, height=600, disabled=False)
+            st.text_area("", value=roteiro_crypto, height=320, disabled=False)
         else:
             st.subheader("📰 Relatório B2B (Crypto & Web3)")
             st.caption("Relatório Crypto/Web3 (B2B) com os 32 indicadores integrados ao exportável:")
@@ -511,7 +511,7 @@ Data/Hora: {data_atual}
 
 4. 32 MÉTRICAS E INDICADORES EM FOCO (CALIBRAGEM ENTERPRISE)
 {ativos_crypto_b2b}"""
-            st.text_area("", value=relatorio_crypto, height=600, disabled=False)
+            st.text_area("", value=relatorio_crypto, height=320, disabled=False)
         
         c1, c2, c3, c4 = st.columns(4)
         with c1:
