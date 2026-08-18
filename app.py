@@ -195,7 +195,7 @@ CATEGORIES_TRADFI = {
     }
 }
 
-# Benchmarks TradFi: Petróleo Brent no lugar do DXY e Ouro Spot no lugar do US10Y
+# Benchmarks TradFi: Petróleo Brent e Ouro Spot
 MACRO_BENCHMARKS = [
     {"key": "SPX", "ticker": "^GSPC", "label": "1. S&P 500 / SPX", "unit": "pts", "prefix": "", "badge": "yfinance API"},
     {"key": "IBOV", "ticker": "^BVSP", "label": "2. Ibovespa / IBOV", "unit": "pts", "prefix": "", "badge": "yfinance API"},
@@ -204,7 +204,7 @@ MACRO_BENCHMARKS = [
     {"key": "USDBRL", "ticker": "BRL=X", "label": "5. USD / BRL / Dólar Real", "unit": "pts", "prefix": "R$ ", "badge": "yfinance API"}
 ]
 
-# Estrutura de 8 categorias para Crypto (arquitetura simétrica)
+# Estrutura de 8 categorias para Crypto
 CATEGORIES_CRYPTO = {
     "1 - ETFs": {
         "tag": "ETFs",
@@ -343,7 +343,7 @@ def fetch_realtime_quotes():
     unique_symbols = list(set(all_symbols))
     quotes = {}
 
-    # Tentativa 1: Download em lote
+    # Download em lote
     try:
         data = yf.download(unique_symbols, period="5d", interval="1d", group_by="ticker", progress=False, threads=True)
         for sym in unique_symbols:
@@ -362,7 +362,7 @@ def fetch_realtime_quotes():
     except Exception:
         pass
 
-    # Tentativa 2: Fallback individual para ativos que falharam (ex: EMBR3, CCRO3)
+    # Fallback individual para ativos que falharam
     for sym in unique_symbols:
         if sym not in quotes or quotes[sym]["price"] == 0.0:
             try:
@@ -547,7 +547,7 @@ with col_right:
 
 st.markdown("---")
 
-# Painel de Análise das Categorias Ativas
+# Painel de Análise das Categorias Ativas (Montagem do HTML unificado por card)
 st.subheader(f"📂 Painel de Análise Integrada das Categorias ({modulo})")
 st.caption("Visão detalhada dos setores selecionados no painel lateral com cotações automáticas:")
 
@@ -557,23 +557,25 @@ if selected_categories:
         cat_info = active_categories[cat_name]
         col = cols[idx % len(cols)]
         
-        with col:
-            st.markdown(f"""
-            <div class="category-card">
-                <div class="category-header">
-                    <div class="category-title">{cat_name}</div>
-                    <div class="category-tag">{cat_info['tag']}</div>
-                </div>
-            """, unsafe_allow_html=True)
+        card_html = f"""
+        <div class="category-card">
+            <div class="category-header">
+                <div class="category-title">{cat_name}</div>
+                <div class="category-tag">{cat_info['tag']}</div>
+            </div>
+        """
+        
+        for disp_name, ticker, currency in cat_info["assets"]:
+            q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
+            color_style = "color: #3FB950;" if q["change"] >= 0 else "color: #F85149;"
+            card_html += f"""
+            <div class="asset-row">
+                <span class="asset-symbol">{disp_name}:</span>
+                <span><b>{currency} {fmt_num(q['price'])}</b> <span style="{color_style} font-size: 11px;">({fmt_pct(q['change'])})</span></span>
+            </div>
+            """
             
-            for disp_name, ticker, currency in cat_info["assets"]:
-                q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
-                color_style = "color: #3FB950;" if q["change"] >= 0 else "color: #F85149;"
-                st.markdown(f"""
-                <div class="asset-row">
-                    <span class="asset-symbol">{disp_name}:</span>
-                    <span><b>{currency} {fmt_num(q['price'])}</b> <span style="{color_style} font-size: 11px;">({fmt_pct(q['change'])})</span></span>
-                </div>
-                """, unsafe_allow_html=True)
-                
-            st.markdown("</div>", unsafe_allow_html=True)
+        card_html += "</div>"
+        
+        with col:
+            st.markdown(card_html, unsafe_allow_html=True)
