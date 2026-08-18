@@ -8,7 +8,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilização Customizada CSS
+# Estilização Customizada CSS (Fiel ao layout original)
 st.markdown("""
 <style>
     .stApp {
@@ -259,43 +259,33 @@ else:  # TRADFI (MACRO)
     report_text = """=== RELATÓRIO INSTITUCIONAL TRADFI & MACRO (B2B) ===
 Data/Hora: 18/08/2026 às 10:39:42 BRT
 
-1. BANCOS E SEGURADORAS
-- ITUB4: R$ 34,20 (+0,85%)
-- BBAS3: R$ 28,15 (+1,12%)
-- BBDC4: R$ 15,40 (+0,40%)
-- BBSE3: R$ 33,90 (+0,30%)
+1. PANORAMA MACRO & BENCHMARKS
+- S&P 500 (SPX): 5.542,15 (+0,45%) (Investing)
+- Nasdaq 100 (NDX): 19.450,20 (+0,62%) (Investing)
+- Índice Dólar (DXY): 102,45 (-0,18%) (MarketWatch)
+- US Treasury 10Y (US10Y): 3,88% (-2 bps) (MarketWatch)
 
-2. ENERGIA
-- PETR4: R$ 38,50 (+1,45%)
-- PRIO3: R$ 46,10 (+0,90%)
-- EQTL3: R$ 31,80 (+0,25%)
-- CPFE3: R$ 34,60 (+0,15%)
+2. MERCADO LOCAL & TAXAS (BRASIL)
+- Dólar / Real (USD/BRL): R$ 5,48 (-0,32%) (BCB)
+- Taxa Selic / DI: 10,50% a.a. (Estável) (BCB)
+- Ibovespa (IBOV): 131.250 pts (+0,58%) (B3)
 
-3. TECH
-- TOTVS3: R$ 29,40 (+0,60%)
-- NVDA: $ 128,50 (+2,30%)
-- AAPL: $ 224,10 (+0,80%)
-- MSFT: $ 448,20 (+1,10%)
-
-4. COMMODITIES
-- VALE3: R$ 61,80 (-0,45%)
-- GGBR4: R$ 19,10 (+0,20%)
-- CMIG4: R$ 11,25 (+0,50%)
-- KLBN11: R$ 21,80 (-0,10%)"""
+3. VETORES PREDITIVOS E NÍVEIS TÉCNICOS (S&P 500)
+- Tendência 7D: Tendência Compradora (72 pts)"""
 
     sub_cards_data = [
-        ("Tendência TradFi", "Compradora", "↑ 68 pts", "#10b981"),
-        ("Destaque Setorial", "Bancos & Tech", "↑ Forte Fluxo", "#10b981"),
-        ("Risco Macro", "Moderado", "↔ Inflação/Juros", "#f59e0b"),
-        ("Previsão 48h", "Alta Moderada", "↑ Consolidação", "#38bdf8")
+        ("Tendência 7D (Macro)", "Compradora", "↑ 72 pts", "#10b981"),
+        ("Resistência (S&P)", "5.600 pts", "↑ Nível Crítico", "#10b981"),
+        ("Suporte Crítico", "5.420 pts", "↓ Zona Defesa", "#ef4444"),
+        ("Previsão 48h", "Alta Moderada", "↑ Alvo 5.580", "#38bdf8")
     ]
 
     metrics_list = [
-        ("1. ITUB4 (Itaú Unibanco)", "R$ 34,20", "+0,85% hoje", "#10b981"),
-        ("2. PETR4 (Petrobras)", "R$ 38,50", "+1,45% hoje", "#10b981"),
-        ("3. NVDA (Nvidia Corp)", "$ 128,50", "+2,30% hoje", "#10b981"),
-        ("4. VALE3 (Vale S.A.)", "R$ 61,80", "-0,45% hoje", "#ef4444"),
-        ("5. WEGE3 (WEG S.A.)", "R$ 52,10", "+1,15% hoje", "#10b981")
+        ("1. S&P 500 (SPX)", "5.542,15", "+0,45% hoje", "#10b981"),
+        ("2. Nasdaq 100 (NDX)", "19.450,20", "+0,62% hoje", "#10b981"),
+        ("3. DXY (Índice Dólar)", "102,45", "-0,18% hoje", "#ef4444"),
+        ("4. US 10Y Treasury Yield", "3,88%", "-2 bps hoje", "#ef4444"),
+        ("5. USD / BRL (Dólar/Real)", "R$ 5,48", "-0,32% hoje", "#ef4444")
     ]
 
     categories = [
