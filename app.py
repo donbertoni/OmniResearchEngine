@@ -1,5 +1,6 @@
 import streamlit as st
 import yfinance as yf
+import requests
 from datetime import datetime
 import pandas as pd
 
@@ -312,12 +313,25 @@ CRYPTO_BENCHMARKS = [
     {
         "key": "FEAR_GREED",
         "ticker": None,
-        "label": "5. Crypto Fear & Greed Index",
-        "static_val": "62 / 100",
-        "static_chg": "Greed (Ganância)",
-        "badge": "Sentiment Index"
+        "type": "fng_api",
+        "label": "5. Bitcoin Fear & Greed Index",
+        "badge": "Alternative.me API"
     }
 ]
+
+# Função para buscar Bitcoin Fear & Greed Index via API em tempo real
+@st.cache_data(ttl=300)
+def fetch_btc_fng():
+    try:
+        res = requests.get("https://api.alternative.me/fng/", timeout=5)
+        if res.status_code == 200:
+            data = res.json()["data"][0]
+            val = data.get("value", "62")
+            classification = data.get("value_classification", "Greed")
+            return f"{val} / 100", f"{classification}"
+    except Exception:
+        pass
+    return "62 / 100", "Greed"
 
 # Função com cache de 60s para buscar cotações em tempo real com fallback
 @st.cache_data(ttl=60)
@@ -393,6 +407,7 @@ def fmt_pct(val):
     return f"{sign}{val:.2f}%".replace(".", ",")
 
 quotes = fetch_realtime_quotes()
+fng_val, fng_class = fetch_btc_fng()
 
 # --- SIDEBAR: Configurações ---
 st.sidebar.title("⚡ Configurações OMNI")
@@ -428,7 +443,7 @@ st.caption("Plataforma Integrada de Inteligência Financeira: YouTube Auto/HITL,
 
 now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 st.markdown(
-    f'<div class="status-bar">🕒 <b>Dados consolidados das {now_str}</b> | Status da API: <span style="color: #10B981;">● Online (yfinance)</span> | <b>Módulo Ativo:</b> {modulo}</div>',
+    f'<div class="status-bar">🕒 <b>Dados consolidados das {now_str}</b> | Status da API: <span style="color: #10B981;">● Online (yfinance & Alternative.me)</span> | <b>Módulo Ativo:</b> {modulo}</div>',
     unsafe_allow_html=True
 )
 
@@ -452,7 +467,7 @@ with col_left:
             f"- 2. Ethereum (ETH/USD): $ {fmt_num(eth_q['price'])} ({fmt_pct(eth_q['change'])} hoje) [yfinance API]",
             "- 3. Bitcoin Dominance (BTC.D): 56,80% (+0,35% hoje) [On-Chain Data]",
             "- 4. Total Crypto Market Cap: $ 2,28 T (+1,12% hoje) [Global Crypto]",
-            "- 5. Crypto Fear & Greed Index: 62 / 100 (Greed / Ganância)",
+            f"- 5. Bitcoin Fear & Greed Index: {fng_val} ({fng_class}) [Alternative.me API]",
             "",
             "2. ANÁLISE INTEGRADA DAS CATEGORIAS CRYPTO SELECIONADAS"
         ]
@@ -518,7 +533,11 @@ with col_right:
         label = item["label"]
         badge = item.get("badge", "Data Feed")
         
-        if item.get("ticker"):
+        if item.get("type") == "fng_api":
+            val_str = fng_val
+            chg_str = fng_class
+            change_cls = "metric-change-neutral" if "Greed" in chg_str or "Fear" in chg_str else "metric-change-pos"
+        elif item.get("ticker"):
             ticker = item["ticker"]
             data = quotes.get(ticker, {"price": 0.0, "change": 0.0})
             prefix = item.get("prefix", "")
@@ -538,7 +557,7 @@ with col_right:
 
 st.markdown("---")
 
-# Painel de Análise das Categorias Ativas (Sem recuo para evitar que o Markdown converta em código)
+# Painel de Análise das Categorias Ativas
 st.subheader(f"📂 Painel de Análise Integrada das Categorias ({modulo})")
 st.caption("Visão detalhada dos setores selecionados no painel lateral com cotações automáticas:")
 
