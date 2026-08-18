@@ -40,7 +40,7 @@ st.markdown("""
         font-weight: 600;
     }
     .metric-value {
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 700;
         color: #F0F6FC;
         margin: 4px 0;
@@ -66,6 +66,7 @@ st.markdown("""
         border-radius: 8px;
         padding: 14px;
         margin-bottom: 15px;
+        min-height: 180px;
     }
     .category-header {
         display: flex;
@@ -76,9 +77,12 @@ st.markdown("""
         margin-bottom: 10px;
     }
     .category-title {
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 700;
         color: #58A6FF;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     .category-tag {
         font-size: 10px;
@@ -92,16 +96,30 @@ st.markdown("""
         justify-content: space-between;
         align-items: center;
         padding: 4px 0;
-        font-size: 13px;
+        font-size: 12px;
     }
     .asset-symbol {
         color: #C9D1D9;
         font-weight: 500;
     }
+    /* Estilização de métricas e abas preditivas para evitar estourar container */
+    [data-testid="stMetricValue"] {
+        font-size: 15px !important;
+        font-weight: 700 !important;
+        white-space: nowrap;
+    }
+    [data-testid="stMetricLabel"] {
+        font-size: 11px !important;
+        color: #8B949E !important;
+        white-space: nowrap;
+    }
+    [data-testid="stMetricDelta"] {
+        font-size: 11px !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# Estrutura de dados para TradFi / Macro
+# Estrutura de dados para TradFi / Macro (8 categorias)
 CATEGORIES_TRADFI = {
     "1 - Bancos e Seguradoras": {
         "tag": "Banking & Ins.",
@@ -166,7 +184,7 @@ CATEGORIES_TRADFI = {
             ("JBSS3", "JBSS3.SA", "R$"),
         ]
     },
-    "8 - Crypto e Digital": {
+    "8 - Crypto e Digital Assets": {
         "tag": "Digital Assets",
         "assets": [
             ("BTCUSDT", "BTC-USD", "$"),
@@ -177,18 +195,46 @@ CATEGORIES_TRADFI = {
     }
 }
 
+# Benchmarks TradFi: Petróleo Brent no lugar do DXY e Ouro Spot no lugar do US10Y
 MACRO_BENCHMARKS = [
     {"key": "SPX", "ticker": "^GSPC", "label": "1. S&P 500 / SPX", "unit": "pts", "prefix": "", "badge": "yfinance API"},
     {"key": "IBOV", "ticker": "^BVSP", "label": "2. Ibovespa / IBOV", "unit": "pts", "prefix": "", "badge": "yfinance API"},
-    {"key": "DXY", "ticker": "DX-Y.NYB", "label": "3. DXY / Índice Dólar", "unit": "pts", "prefix": "", "badge": "yfinance API"},
-    {"key": "US10Y", "ticker": "^TNX", "label": "4. US 10Y Treasury Yield", "unit": "%", "prefix": "", "badge": "yfinance API", "suffix": "%"},
+    {"key": "BRENT", "ticker": "BZ=F", "label": "3. Petróleo Brent", "unit": "USD", "prefix": "$ ", "badge": "yfinance API"},
+    {"key": "GOLD", "ticker": "GC=F", "label": "4. Ouro Spot", "unit": "USD", "prefix": "$ ", "badge": "yfinance API"},
     {"key": "USDBRL", "ticker": "BRL=X", "label": "5. USD / BRL / Dólar Real", "unit": "pts", "prefix": "R$ ", "badge": "yfinance API"}
 ]
 
-# Estrutura de dados para Crypto com BTC e ETH no topo
+# Estrutura de 8 categorias para Crypto (arquitetura simétrica)
 CATEGORIES_CRYPTO = {
-    "1 - Major Layer 1s": {
-        "tag": "L1 / Majors",
+    "1 - ETFs": {
+        "tag": "ETFs",
+        "assets": [
+            ("IBIT (BlackRock)", "IBIT", "$"),
+            ("FBTC (Fidelity)", "FBTC", "$"),
+            ("ETHA (Ethereum)", "ETHA", "$"),
+            ("BITO (Futures)", "BITO", "$"),
+        ]
+    },
+    "2 - Treasury": {
+        "tag": "Treasury",
+        "assets": [
+            ("MicroStrategy", "MSTR", "$"),
+            ("Marathon Digital", "MARA", "$"),
+            ("Riot Platforms", "RIOT", "$"),
+            ("Coinbase Global", "COIN", "$"),
+        ]
+    },
+    "3 - Mineração e Hashrate": {
+        "tag": "Mining",
+        "assets": [
+            ("CleanSpark", "CLSK", "$"),
+            ("Hut 8", "HUT", "$"),
+            ("Bitfarms", "BITF", "$"),
+            ("Iris Energy", "IREN", "$"),
+        ]
+    },
+    "4 - Volume Spot (24 hs)": {
+        "tag": "Spot Vol",
         "assets": [
             ("BTCUSDT", "BTC-USD", "$"),
             ("ETHUSDT", "ETH-USD", "$"),
@@ -196,31 +242,40 @@ CATEGORIES_CRYPTO = {
             ("BNBUSDT", "BNB-USD", "$"),
         ]
     },
-    "2 - Altcoins & Smart Contracts": {
-        "tag": "Altcoins",
+    "5 - Volume Futuros (24 hs)": {
+        "tag": "Derivatives",
         "assets": [
-            ("ADAUSD", "ADA-USD", "$"),
-            ("LINKUSD", "LINK-USD", "$"),
-            ("AVAXUSD", "AVAX-USD", "$"),
-            ("DOTUSD", "DOT-USD", "$"),
+            ("BTC Perp", "BTC-USD", "$"),
+            ("ETH Perp", "ETH-USD", "$"),
+            ("SOL Perp", "SOL-USD", "$"),
+            ("DOGE Perp", "DOGE-USD", "$"),
         ]
     },
-    "3 - AI & DePIN Assets": {
-        "tag": "AI & Tech",
+    "6 - Open Interest": {
+        "tag": "Open Interest",
         "assets": [
-            ("FETUSDT", "FET-USD", "$"),
-            ("RENDERUSDT", "RENDER-USD", "$"),
-            ("NEARUSDT", "NEAR-USD", "$"),
-            ("TAOUSD", "TAO-USD", "$"),
+            ("BTC OI Base", "BTC-USD", "$"),
+            ("ETH OI Base", "ETH-USD", "$"),
+            ("SOL OI Base", "SOL-USD", "$"),
+            ("AVAX OI Base", "AVAX-USD", "$"),
         ]
     },
-    "4 - Pares Local & Cross": {
-        "tag": "Pairs / BRL",
+    "7 - DeFi e Layer 1s": {
+        "tag": "DeFi & L1",
         "assets": [
-            ("BTCBRL", "BTC-BRL", "R$"),
-            ("ETHBTC", "ETH-BTC", "Ξ"),
-            ("USDTBRL", "BRL=X", "R$"),
-            ("USDTUSD", "USDT-USD", "$"),
+            ("UNI (Uniswap)", "UNI-USD", "$"),
+            ("AAVE (Aave)", "AAVE-USD", "$"),
+            ("LINK (Chainlink)", "LINK-USD", "$"),
+            ("AVAX (Avalanche)", "AVAX-USD", "$"),
+        ]
+    },
+    "8 - Stablecoins": {
+        "tag": "Stablecoins",
+        "assets": [
+            ("USDT / USD", "USDT-USD", "$"),
+            ("USDC / USD", "USDC-USD", "$"),
+            ("USDT / BRL", "BRL=X", "R$"),
+            ("DAI / USD", "DAI-USD", "$"),
         ]
     }
 }
@@ -266,12 +321,11 @@ CRYPTO_BENCHMARKS = [
     }
 ]
 
-# Função com cache de 60s para buscar cotações em tempo real
+# Função com cache de 60s para buscar cotações em tempo real com fallback
 @st.cache_data(ttl=60)
 def fetch_realtime_quotes():
     all_symbols = []
     
-    # Adiciona tickers de benchmarks TradFi e Crypto
     for item in MACRO_BENCHMARKS:
         if item.get("ticker"):
             all_symbols.append(item["ticker"])
@@ -279,7 +333,6 @@ def fetch_realtime_quotes():
         if item.get("ticker"):
             all_symbols.append(item["ticker"])
 
-    # Adiciona tickers de categorias
     for cat in CATEGORIES_TRADFI.values():
         for _, ticker, _ in cat["assets"]:
             all_symbols.append(ticker)
@@ -290,8 +343,9 @@ def fetch_realtime_quotes():
     unique_symbols = list(set(all_symbols))
     quotes = {}
 
+    # Tentativa 1: Download em lote
     try:
-        data = yf.download(unique_symbols, period="5d", interval="1d", group_by="ticker", progress=False)
+        data = yf.download(unique_symbols, period="5d", interval="1d", group_by="ticker", progress=False, threads=True)
         for sym in unique_symbols:
             try:
                 sub_df = data if len(unique_symbols) == 1 else data[sym]
@@ -304,19 +358,25 @@ def fetch_realtime_quotes():
                 elif len(sub_df) == 1:
                     quotes[sym] = {"price": float(sub_df['Close'].iloc[-1]), "change": 0.0}
             except Exception:
-                quotes[sym] = {"price": 0.0, "change": 0.0}
+                pass
     except Exception:
-        for sym in unique_symbols:
+        pass
+
+    # Tentativa 2: Fallback individual para ativos que falharam (ex: EMBR3, CCRO3)
+    for sym in unique_symbols:
+        if sym not in quotes or quotes[sym]["price"] == 0.0:
             try:
                 t = yf.Ticker(sym)
                 hist = t.history(period="5d")
-                if len(hist) >= 2:
-                    curr = float(hist['Close'].iloc[-1])
-                    prev = float(hist['Close'].iloc[-2])
-                    chg = float(((curr - prev) / prev) * 100)
-                    quotes[sym] = {"price": curr, "change": chg}
-                elif len(hist) == 1:
-                    quotes[sym] = {"price": float(hist['Close'].iloc[-1]), "change": 0.0}
+                if not hist.empty:
+                    hist = hist.dropna(subset=['Close'])
+                    if len(hist) >= 2:
+                        curr = float(hist['Close'].iloc[-1])
+                        prev = float(hist['Close'].iloc[-2])
+                        chg = float(((curr - prev) / prev) * 100)
+                        quotes[sym] = {"price": curr, "change": chg}
+                    elif len(hist) == 1:
+                        quotes[sym] = {"price": float(hist['Close'].iloc[-1]), "change": 0.0}
             except Exception:
                 quotes[sym] = {"price": 0.0, "change": 0.0}
 
@@ -334,7 +394,6 @@ def fmt_pct(val):
     sign = "+" if val > 0 else ""
     return f"{sign}{val:.2f}%".replace(".", ",")
 
-# Busca dados de cotação
 quotes = fetch_realtime_quotes()
 
 # --- SIDEBAR: Configurações ---
@@ -344,7 +403,6 @@ st.sidebar.caption("Controle de geração de roteiros e relatórios")
 idioma = st.sidebar.selectbox("🌐 Idioma do Output:", ["Português (BR)", "English", "Español"])
 modulo = st.sidebar.radio("💡 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=0)
 
-# Define dicionários e benchmarks ativos conforme seleção do módulo
 if modulo == "Crypto":
     active_categories = CATEGORIES_CRYPTO
     active_benchmarks = CRYPTO_BENCHMARKS
@@ -405,10 +463,10 @@ with col_left:
             "2. ANÁLISE INTEGRADA DAS CATEGORIAS CRYPTO SELECIONADAS"
         ]
     else:
+        brent_q = quotes.get("BZ=F", {"price": 0.0, "change": 0.0})
+        gold_q = quotes.get("GC=F", {"price": 0.0, "change": 0.0})
         spx_q = quotes.get("^GSPC", {"price": 0.0, "change": 0.0})
         ibov_q = quotes.get("^BVSP", {"price": 0.0, "change": 0.0})
-        dxy_q = quotes.get("DX-Y.NYB", {"price": 0.0, "change": 0.0})
-        us10y_q = quotes.get("^TNX", {"price": 0.0, "change": 0.0})
         usdbrl_q = quotes.get("BRL=X", {"price": 0.0, "change": 0.0})
 
         report_lines = [
@@ -418,8 +476,8 @@ with col_left:
             "1. PANORAMA & BENCHMARKS DE MERCADO (DADOS VIA YFINANCE API)",
             f"- 1. S&P 500 / SPX: {fmt_num(spx_q['price'])} ({fmt_pct(spx_q['change'])} hoje) [yfinance API]",
             f"- 2. Ibovespa / IBOV: {fmt_num(ibov_q['price'])} ({fmt_pct(ibov_q['change'])} hoje) [yfinance API]",
-            f"- 3. DXY / Índice Dólar: {fmt_num(dxy_q['price'])} ({fmt_pct(dxy_q['change'])} hoje) [yfinance API]",
-            f"- 4. US 10Y Treasury Yield: {fmt_num(us10y_q['price'])}% ({fmt_num(us10y_q['change'])} bps hoje) [yfinance API]",
+            f"- 3. Petróleo Brent: $ {fmt_num(brent_q['price'])} ({fmt_pct(brent_q['change'])} hoje) [yfinance API]",
+            f"- 4. Ouro Spot: $ {fmt_num(gold_q['price'])} ({fmt_pct(gold_q['change'])} hoje) [yfinance API]",
             f"- 5. USD / BRL / Dólar Real: R$ {fmt_num(usdbrl_q['price'])} ({fmt_pct(usdbrl_q['change'])} hoje) [yfinance API]",
             "",
             "2. ANÁLISE INTEGRADA DAS CATEGORIAS SELECIONADAS (DADOS EM TEMPO REAL)"
@@ -434,26 +492,26 @@ with col_left:
 
     st.text_area("", value="\n".join(report_lines), height=380)
 
-    # Cards técnicos dinâmicos
+    # Cards técnicos preditivos com formatação otimizada
     c1, c2, c3, c4 = st.columns(4)
     if modulo == "Crypto":
         main_q = quotes.get("BTC-USD", {"price": 0.0, "change": 0.0})
         with c1:
-            st.metric("Tendência 7D (BTC)", "Compradora", f"{fmt_pct(main_q['change'])}")
+            st.metric("Tendência (BTC)", "Compradora", f"{fmt_pct(main_q['change'])}")
         with c2:
-            st.metric("Resistência (BTC)", f"$ {fmt_num(main_q['price'] * 1.05, dec=0)}", "Nível Crítico")
+            st.metric("Resistência", f"$ {fmt_num(main_q['price'] * 1.05, dec=0)}", "Nível Crítico")
         with c3:
-            st.metric("Suporte Crítico", f"$ {fmt_num(main_q['price'] * 0.95, dec=0)}", "Zona Defesa")
+            st.metric("Suporte", f"$ {fmt_num(main_q['price'] * 0.95, dec=0)}", "Zona Defesa")
         with c4:
             st.metric("Previsão 48h", "Alta Moderada", f"Alvo $ {fmt_num(main_q['price'] * 1.03, dec=0)}")
     else:
         main_q = quotes.get("^GSPC", {"price": 0.0, "change": 0.0})
         with c1:
-            st.metric("Tendência 7D (Macro)", "Compradora", f"{fmt_pct(main_q['change'])}")
+            st.metric("Tendência (Macro)", "Compradora", f"{fmt_pct(main_q['change'])}")
         with c2:
-            st.metric("Resistência (S&P)", f"{fmt_num(main_q['price'] * 1.02, dec=0)} pts", "Nível Crítico")
+            st.metric("Resistência", f"{fmt_num(main_q['price'] * 1.02, dec=0)}", "Nível Crítico")
         with c3:
-            st.metric("Suporte Crítico", f"{fmt_num(main_q['price'] * 0.98, dec=0)} pts", "Zona Defesa")
+            st.metric("Suporte", f"{fmt_num(main_q['price'] * 0.98, dec=0)}", "Zona Defesa")
         with c4:
             st.metric("Previsão 48h", "Alta Moderada", f"Alvo {fmt_num(main_q['price'] * 1.01, dec=0)}")
 
@@ -489,7 +547,7 @@ with col_right:
 
 st.markdown("---")
 
-# Section 2: Painel de Análise das Categorias Ativas
+# Painel de Análise das Categorias Ativas
 st.subheader(f"📂 Painel de Análise Integrada das Categorias ({modulo})")
 st.caption("Visão detalhada dos setores selecionados no painel lateral com cotações automáticas:")
 
