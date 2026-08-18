@@ -185,7 +185,7 @@ MACRO_BENCHMARKS = [
     {"key": "USDBRL", "ticker": "BRL=X", "label": "5. USD / BRL / Dólar Real", "unit": "pts", "prefix": "R$ ", "badge": "yfinance API"}
 ]
 
-# Estrutura de dados para Crypto
+# Estrutura de dados para Crypto com BTC e ETH no topo
 CATEGORIES_CRYPTO = {
     "1 - Major Layer 1s": {
         "tag": "L1 / Majors",
@@ -227,9 +227,23 @@ CATEGORIES_CRYPTO = {
 
 CRYPTO_BENCHMARKS = [
     {
+        "key": "BTC",
+        "ticker": "BTC-USD",
+        "label": "1. Bitcoin / BTC",
+        "prefix": "$ ",
+        "badge": "yfinance API"
+    },
+    {
+        "key": "ETH",
+        "ticker": "ETH-USD",
+        "label": "2. Ethereum / ETH",
+        "prefix": "$ ",
+        "badge": "yfinance API"
+    },
+    {
         "key": "BTC_D",
         "ticker": None,
-        "label": "1. Bitcoin Dominance / BTC.D",
+        "label": "3. Bitcoin Dominance / BTC.D",
         "static_val": "56,80%",
         "static_chg": "+0,35% hoje",
         "badge": "On-Chain Data"
@@ -237,7 +251,7 @@ CRYPTO_BENCHMARKS = [
     {
         "key": "TOTAL_MCAP",
         "ticker": None,
-        "label": "2. Total Crypto Market Cap",
+        "label": "4. Total Crypto Market Cap",
         "static_val": "$ 2,28 T",
         "static_chg": "+1,12% hoje",
         "badge": "Global Crypto"
@@ -245,24 +259,10 @@ CRYPTO_BENCHMARKS = [
     {
         "key": "FEAR_GREED",
         "ticker": None,
-        "label": "3. Crypto Fear & Greed Index",
+        "label": "5. Crypto Fear & Greed Index",
         "static_val": "62 / 100",
         "static_chg": "Greed (Ganância)",
         "badge": "Sentiment Index"
-    },
-    {
-        "key": "ETH",
-        "ticker": "ETH-USD",
-        "label": "4. Ethereum / ETH",
-        "prefix": "$ ",
-        "badge": "yfinance API"
-    },
-    {
-        "key": "BTC",
-        "ticker": "BTC-USD",
-        "label": "5. Bitcoin / BTC",
-        "prefix": "$ ",
-        "badge": "yfinance API"
     }
 ]
 
@@ -396,11 +396,11 @@ with col_left:
             f"Data/Hora: {now_str}",
             "",
             "1. PANORAMA & BENCHMARKS CRYPTO (MÉTRICAS AGREGADAS)",
-            "- 1. Bitcoin Dominance (BTC.D): 56,80% (+0,35% hoje) [On-Chain Data]",
-            "- 2. Total Crypto Market Cap: $ 2,28 T (+1,12% hoje) [Global Crypto]",
-            "- 3. Crypto Fear & Greed Index: 62 / 100 (Greed / Ganância)",
-            f"- 4. Ethereum (ETH/USD): $ {fmt_num(eth_q['price'])} ({fmt_pct(eth_q['change'])} hoje) [yfinance API]",
-            f"- 5. Bitcoin (BTC/USD): $ {fmt_num(btc_q['price'])} ({fmt_pct(btc_q['change'])} hoje) [yfinance API]",
+            f"- 1. Bitcoin (BTC/USD): $ {fmt_num(btc_q['price'])} ({fmt_pct(btc_q['change'])} hoje) [yfinance API]",
+            f"- 2. Ethereum (ETH/USD): $ {fmt_num(eth_q['price'])} ({fmt_pct(eth_q['change'])} hoje) [yfinance API]",
+            "- 3. Bitcoin Dominance (BTC.D): 56,80% (+0,35% hoje) [On-Chain Data]",
+            "- 4. Total Crypto Market Cap: $ 2,28 T (+1,12% hoje) [Global Crypto]",
+            "- 5. Crypto Fear & Greed Index: 62 / 100 (Greed / Ganância)",
             "",
             "2. ANÁLISE INTEGRADA DAS CATEGORIAS CRYPTO SELECIONADAS"
         ]
