@@ -96,8 +96,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Definição dos ativos por categoria e seus tickers na API yfinance
-CATEGORIES = {
+# Estrutura de dados para TradFi / Macro
+CATEGORIES_TRADFI = {
     "1 - Bancos e Seguradoras": {
         "tag": "Banking & Ins.",
         "assets": [
@@ -172,22 +172,81 @@ CATEGORIES = {
     }
 }
 
-MACRO_TICKERS = {
-    "SPX": ("^GSPC", "S&P 500 / SPX", "pts"),
-    "IBOV": ("^BVSP", "Ibovespa / IBOV", "pts"),
-    "DXY": ("DX-Y.NYB", "DXY / Índice Dólar", "pts"),
-    "US10Y": ("^TNX", "US 10Y Treasury Yield", "%"),
-    "USDBRL": ("BRL=X", "USD / BRL / Dólar Real", "R$"),
+MACRO_BENCHMARKS = {
+    "SPX": ("^GSPC", "1. S&P 500 / SPX", "pts", ""),
+    "IBOV": ("^BVSP", "2. Ibovespa / IBOV", "pts", ""),
+    "DXY": ("DX-Y.NYB", "3. DXY / Índice Dólar", "pts", ""),
+    "US10Y": ("^TNX", "4. US 10Y Treasury Yield", "%", "%"),
+    "USDBRL": ("BRL=X", "5. USD / BRL / Dólar Real", "pts", "R$ ")
 }
 
-# Função com cache para buscar cotações em tempo real via yfinance
+# Estrutura de dados para Crypto
+CATEGORIES_CRYPTO = {
+    "1 - Major Layer 1s": {
+        "tag": "L1 / Majors",
+        "assets": [
+            ("BTCUSDT", "BTC-USD", "$"),
+            ("ETHUSDT", "ETH-USD", "$"),
+            ("SOLUSDT", "SOL-USD", "$"),
+            ("BNBUSDT", "BNB-USD", "$"),
+        ]
+    },
+    "2 - Altcoins & Smart Contracts": {
+        "tag": "Altcoins",
+        "assets": [
+            ("ADAUSD", "ADA-USD", "$"),
+            ("LINKUSD", "LINK-USD", "$"),
+            ("AVAXUSD", "AVAX-USD", "$"),
+            ("DOTUSD", "DOT-USD", "$"),
+        ]
+    },
+    "3 - AI & DePIN Assets": {
+        "tag": "AI & Tech",
+        "assets": [
+            ("FETUSDT", "FET-USD", "$"),
+            ("RENDERUSDT", "RENDER-USD", "$"),
+            ("NEARUSDT", "NEAR-USD", "$"),
+            ("TAOUSD", "TAO-USD", "$"),
+        ]
+    },
+    "4 - Pares Local & Cross": {
+        "tag": "Pairs / BRL",
+        "assets": [
+            ("BTCBRL", "BTC-BRL", "R$"),
+            ("ETHBTC", "ETH-BTC", "Ξ"),
+            ("USDTBRL", "BRL=X", "R$"),
+            ("USDTUSD", "USDT-USD", "$"),
+        ]
+    }
+}
+
+CRYPTO_BENCHMARKS = {
+    "BTC": ("BTC-USD", "1. Bitcoin / BTC", "$", "$ "),
+    "ETH": ("ETH-USD", "2. Ethereum / ETH", "$", "$ "),
+    "SOL": ("SOL-USD", "3. Solana / SOL", "$", "$ "),
+    "BNB": ("BNB-USD", "4. Binance Coin / BNB", "$", "$ "),
+    "BTCBRL": ("BTC-BRL", "5. Bitcoin em Reais / BTCBRL", "R$", "R$ ")
+}
+
+# Função com cache de 60s para buscar cotações em tempo real
 @st.cache_data(ttl=60)
 def fetch_realtime_quotes():
-    all_symbols = [info[0] for info in MACRO_TICKERS.values()]
-    for cat in CATEGORIES.values():
+    all_symbols = []
+    
+    # Adiciona tickers de benchmarks
+    for info in MACRO_BENCHMARKS.values():
+        all_symbols.append(info[0])
+    for info in CRYPTO_BENCHMARKS.values():
+        all_symbols.append(info[0])
+
+    # Adiciona tickers de categorias
+    for cat in CATEGORIES_TRADFI.values():
         for _, ticker, _ in cat["assets"]:
             all_symbols.append(ticker)
-    
+    for cat in CATEGORIES_CRYPTO.values():
+        for _, ticker, _ in cat["assets"]:
+            all_symbols.append(ticker)
+
     unique_symbols = list(set(all_symbols))
     quotes = {}
 
@@ -235,7 +294,7 @@ def fmt_pct(val):
     sign = "+" if val > 0 else ""
     return f"{sign}{val:.2f}%".replace(".", ",")
 
-# Busca dados de cotação atualizados
+# Busca dados de cotação
 quotes = fetch_realtime_quotes()
 
 # --- SIDEBAR: Configurações ---
@@ -243,19 +302,27 @@ st.sidebar.title("⚡ Configurações OMNI")
 st.sidebar.caption("Controle de geração de roteiros e relatórios")
 
 idioma = st.sidebar.selectbox("🌐 Idioma do Output:", ["Português (BR)", "English", "Español"])
-modulo = st.sidebar.radio("💡 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
+modulo = st.sidebar.radio("💡 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=0)
+
+# Define dicionários ativos conforme seleção do módulo
+if modulo == "Crypto":
+    active_categories = CATEGORIES_CRYPTO
+    active_benchmarks = CRYPTO_BENCHMARKS
+else:
+    active_categories = CATEGORIES_TRADFI
+    active_benchmarks = MACRO_BENCHMARKS
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🎛️ Calibragem (SaaS Enterprise)")
 st.sidebar.caption("Selecione os setores/categorias:")
 
 selected_categories = []
-for key in CATEGORIES.keys():
+for key in active_categories.keys():
     if st.sidebar.checkbox(key, value=True):
         selected_categories.append(key)
 
 st.sidebar.markdown("---")
-formato = st.sidebar.radio("🎯 Formato (TradFi (Macro)):", ["B2B (Relatório)", "B2C (YouTube)"], index=0)
+formato = st.sidebar.radio(f"🎯 Formato ({modulo}):", ["B2B (Relatório)", "B2C (YouTube)"], index=0)
 
 st.sidebar.info("💡 O modo Auto-Pilot está disponível exclusivamente para entregáveis B2C (YouTube).")
 
@@ -277,31 +344,52 @@ col_left, col_right = st.columns([1.3, 1])
 
 # Painel Esquerdo: Relatório B2B em Tempo Real
 with col_left:
-    st.subheader("📄 Relatório B2B (TradFi & Macro)")
+    st.subheader(f"📄 Relatório B2B ({modulo})")
     st.caption("Relatório com indicadores integrados em tempo real via API:")
 
-    spx_q = quotes.get(MACRO_TICKERS["SPX"][0], {"price": 0.0, "change": 0.0})
-    ibov_q = quotes.get(MACRO_TICKERS["IBOV"][0], {"price": 0.0, "change": 0.0})
-    dxy_q = quotes.get(MACRO_TICKERS["DXY"][0], {"price": 0.0, "change": 0.0})
-    us10y_q = quotes.get(MACRO_TICKERS["US10Y"][0], {"price": 0.0, "change": 0.0})
-    usdbrl_q = quotes.get(MACRO_TICKERS["USDBRL"][0], {"price": 0.0, "change": 0.0})
+    if modulo == "Crypto":
+        btc_q = quotes.get("BTC-USD", {"price": 0.0, "change": 0.0})
+        eth_q = quotes.get("ETH-USD", {"price": 0.0, "change": 0.0})
+        sol_q = quotes.get("SOL-USD", {"price": 0.0, "change": 0.0})
+        bnb_q = quotes.get("BNB-USD", {"price": 0.0, "change": 0.0})
+        btcbrl_q = quotes.get("BTC-BRL", {"price": 0.0, "change": 0.0})
 
-    report_lines = [
-        "=== RELATÓRIO INSTITUCIONAL TRADFI (MACRO) (B2B) ===",
-        f"Data/Hora: {now_str}",
-        "",
-        "1. PANORAMA & BENCHMARKS DE MERCADO (DADOS VIA YFINANCE API)",
-        f"- 1. S&P 500 / SPX: {fmt_num(spx_q['price'])} ({fmt_pct(spx_q['change'])} hoje) [yfinance API]",
-        f"- 2. Ibovespa / IBOV: {fmt_num(ibov_q['price'])} ({fmt_pct(ibov_q['change'])} hoje) [yfinance API]",
-        f"- 3. DXY / Índice Dólar: {fmt_num(dxy_q['price'])} ({fmt_pct(dxy_q['change'])} hoje) [yfinance API]",
-        f"- 4. US 10Y Treasury Yield: {fmt_num(us10y_q['price'])}% ({fmt_num(us10y_q['change'])} bps hoje) [yfinance API]",
-        f"- 5. USD / BRL / Dólar Real: R$ {fmt_num(usdbrl_q['price'])} ({fmt_pct(usdbrl_q['change'])} hoje) [yfinance API]",
-        "",
-        "2. ANÁLISE INTEGRADA DAS CATEGORIAS SELECIONADAS (DADOS EM TEMPO REAL)"
-    ]
+        report_lines = [
+            "=== RELATÓRIO INSTITUCIONAL CRYPTO (B2B) ===",
+            f"Data/Hora: {now_str}",
+            "",
+            "1. PANORAMA & BENCHMARKS CRYPTO (DADOS VIA YFINANCE API)",
+            f"- 1. Bitcoin (BTC/USD): $ {fmt_num(btc_q['price'])} ({fmt_pct(btc_q['change'])} hoje) [yfinance API]",
+            f"- 2. Ethereum (ETH/USD): $ {fmt_num(eth_q['price'])} ({fmt_pct(eth_q['change'])} hoje) [yfinance API]",
+            f"- 3. Solana (SOL/USD): $ {fmt_num(sol_q['price'])} ({fmt_pct(sol_q['change'])} hoje) [yfinance API]",
+            f"- 4. Binance Coin (BNB/USD): $ {fmt_num(bnb_q['price'])} ({fmt_pct(bnb_q['change'])} hoje) [yfinance API]",
+            f"- 5. Bitcoin em Reais (BTC/BRL): R$ {fmt_num(btcbrl_q['price'])} ({fmt_pct(btcbrl_q['change'])} hoje) [yfinance API]",
+            "",
+            "2. ANÁLISE INTEGRADA DAS CATEGORIAS CRYPTO SELECIONADAS"
+        ]
+    else:
+        spx_q = quotes.get("^GSPC", {"price": 0.0, "change": 0.0})
+        ibov_q = quotes.get("^BVSP", {"price": 0.0, "change": 0.0})
+        dxy_q = quotes.get("DX-Y.NYB", {"price": 0.0, "change": 0.0})
+        us10y_q = quotes.get("^TNX", {"price": 0.0, "change": 0.0})
+        usdbrl_q = quotes.get("BRL=X", {"price": 0.0, "change": 0.0})
+
+        report_lines = [
+            "=== RELATÓRIO INSTITUCIONAL TRADFI (MACRO) (B2B) ===",
+            f"Data/Hora: {now_str}",
+            "",
+            "1. PANORAMA & BENCHMARKS DE MERCADO (DADOS VIA YFINANCE API)",
+            f"- 1. S&P 500 / SPX: {fmt_num(spx_q['price'])} ({fmt_pct(spx_q['change'])} hoje) [yfinance API]",
+            f"- 2. Ibovespa / IBOV: {fmt_num(ibov_q['price'])} ({fmt_pct(ibov_q['change'])} hoje) [yfinance API]",
+            f"- 3. DXY / Índice Dólar: {fmt_num(dxy_q['price'])} ({fmt_pct(dxy_q['change'])} hoje) [yfinance API]",
+            f"- 4. US 10Y Treasury Yield: {fmt_num(us10y_q['price'])}% ({fmt_num(us10y_q['change'])} bps hoje) [yfinance API]",
+            f"- 5. USD / BRL / Dólar Real: R$ {fmt_num(usdbrl_q['price'])} ({fmt_pct(usdbrl_q['change'])} hoje) [yfinance API]",
+            "",
+            "2. ANÁLISE INTEGRADA DAS CATEGORIAS SELECIONADAS (DADOS EM TEMPO REAL)"
+        ]
 
     for cat_name in selected_categories:
-        cat_info = CATEGORIES[cat_name]
+        cat_info = active_categories[cat_name]
         report_lines.append(f"\n• {cat_name.upper()} ({cat_info['tag']}):")
         for disp_name, ticker, currency in cat_info["assets"]:
             q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
@@ -309,31 +397,36 @@ with col_left:
 
     st.text_area("", value="\n".join(report_lines), height=380)
 
-    # Cards técnicos do relatório
+    # Cards técnicos dinâmicos
     c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.metric("Tendência 7D (Macro)", "Compradora", f"{fmt_pct(spx_q['change'])}")
-    with c2:
-        st.metric("Resistência (S&P)", f"{fmt_num(spx_q['price'] * 1.02, dec=0)} pts", "Nível Crítico")
-    with c3:
-        st.metric("Suporte Crítico", f"{fmt_num(spx_q['price'] * 0.98, dec=0)} pts", "Zona Defesa")
-    with c4:
-        st.metric("Previsão 48h", "Alta Moderada", f"Alvo {fmt_num(spx_q['price'] * 1.01, dec=0)}")
+    if modulo == "Crypto":
+        main_q = quotes.get("BTC-USD", {"price": 0.0, "change": 0.0})
+        with c1:
+            st.metric("Tendência 7D (BTC)", "Compradora", f"{fmt_pct(main_q['change'])}")
+        with c2:
+            st.metric("Resistência (BTC)", f"$ {fmt_num(main_q['price'] * 1.05, dec=0)}", "Nível Crítico")
+        with c3:
+            st.metric("Suporte Crítico", f"$ {fmt_num(main_q['price'] * 0.95, dec=0)}", "Zona Defesa")
+        with c4:
+            st.metric("Previsão 48h", "Alta Moderada", f"Alvo $ {fmt_num(main_q['price'] * 1.03, dec=0)}")
+    else:
+        main_q = quotes.get("^GSPC", {"price": 0.0, "change": 0.0})
+        with c1:
+            st.metric("Tendência 7D (Macro)", "Compradora", f"{fmt_pct(main_q['change'])}")
+        with c2:
+            st.metric("Resistência (S&P)", f"{fmt_num(main_q['price'] * 1.02, dec=0)} pts", "Nível Crítico")
+        with c3:
+            st.metric("Suporte Crítico", f"{fmt_num(main_q['price'] * 0.98, dec=0)} pts", "Zona Defesa")
+        with c4:
+            st.metric("Previsão 48h", "Alta Moderada", f"Alvo {fmt_num(main_q['price'] * 1.01, dec=0)}")
 
-# Painel Direito: Métricas Agregadas
+# Painel Direito: Métricas Agregadas Dinâmicas
 with col_right:
-    st.subheader("📊 Métricas Agregadas (TradFi & Macro)")
+    st.subheader(f"📊 Métricas Agregadas ({modulo})")
     st.caption(f"Atualizado via yfinance API às {datetime.now().strftime('%H:%M:%S BRT')}")
 
-    macro_items = [
-        ("1. S&P 500 / SPX", spx_q, "pts", ""),
-        ("2. Ibovespa / IBOV", ibov_q, "pts", ""),
-        ("3. DXY / Índice Dólar", dxy_q, "pts", ""),
-        ("4. US 10Y Treasury Yield", us10y_q, "%", "%"),
-        ("5. USD / BRL / Dólar Real", usdbrl_q, "pts", "R$ ")
-    ]
-
-    for label, data, unit, prefix in macro_items:
+    for key, (ticker, label, unit, prefix) in active_benchmarks.items():
+        data = quotes.get(ticker, {"price": 0.0, "change": 0.0})
         change_cls = "metric-change-pos" if data["change"] >= 0 else "metric-change-neg"
         val_str = f"{prefix}{fmt_num(data['price'])}"
         st.markdown(f"""
@@ -346,32 +439,33 @@ with col_right:
 
 st.markdown("---")
 
-# Section 2: Painel de Análise das Categorias
-st.subheader("📂 Painel de Análise Integrada das 8 Categorias (TradFi (Macro))")
+# Section 2: Painel de Análise das Categorias Ativas
+st.subheader(f"📂 Painel de Análise Integrada das Categorias ({modulo})")
 st.caption("Visão detalhada dos setores selecionados no painel lateral com cotações automáticas:")
 
-cols = st.columns(4)
-for idx, cat_name in enumerate(selected_categories):
-    cat_info = CATEGORIES[cat_name]
-    col = cols[idx % 4]
-    
-    with col:
-        st.markdown(f"""
-        <div class="category-card">
-            <div class="category-header">
-                <div class="category-title">{cat_name}</div>
-                <div class="category-tag">{cat_info['tag']}</div>
-            </div>
-        """, unsafe_allow_html=True)
+if selected_categories:
+    cols = st.columns(min(len(selected_categories), 4))
+    for idx, cat_name in enumerate(selected_categories):
+        cat_info = active_categories[cat_name]
+        col = cols[idx % len(cols)]
         
-        for disp_name, ticker, currency in cat_info["assets"]:
-            q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
-            color_style = "color: #3FB950;" if q["change"] >= 0 else "color: #F85149;"
+        with col:
             st.markdown(f"""
-            <div class="asset-row">
-                <span class="asset-symbol">{disp_name}:</span>
-                <span><b>{currency} {fmt_num(q['price'])}</b> <span style="{color_style} font-size: 11px;">({fmt_pct(q['change'])})</span></span>
-            </div>
+            <div class="category-card">
+                <div class="category-header">
+                    <div class="category-title">{cat_name}</div>
+                    <div class="category-tag">{cat_info['tag']}</div>
+                </div>
             """, unsafe_allow_html=True)
             
-        st.markdown("</div>", unsafe_allow_html=True)
+            for disp_name, ticker, currency in cat_info["assets"]:
+                q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
+                color_style = "color: #3FB950;" if q["change"] >= 0 else "color: #F85149;"
+                st.markdown(f"""
+                <div class="asset-row">
+                    <span class="asset-symbol">{disp_name}:</span>
+                    <span><b>{currency} {fmt_num(q['price'])}</b> <span style="{color_style} font-size: 11px;">({fmt_pct(q['change'])})</span></span>
+                </div>
+                """, unsafe_allow_html=True)
+                
+            st.markdown("</div>", unsafe_allow_html=True)
