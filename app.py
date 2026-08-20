@@ -15,7 +15,6 @@ st.set_page_config(
 )
 
 st.markdown("""<style>
-    /* Estilo Geral do App */
     .stApp {
         background-color: #0B0E14;
         color: #E2E8F0;
@@ -81,7 +80,7 @@ st.markdown("""<style>
         border: none !important;
     }
 
-    /* ALINHAMENTO DOS CHECKBOXES E COR VERDE */
+    /* ALINHAMENTO DOS CHECKBOXES */
     div[data-testid="stCheckbox"] {
         display: flex !important;
         justify-content: flex-end !important;
@@ -99,12 +98,11 @@ st.markdown("""<style>
         cursor: pointer !important;
     }
 
-    /* Força o fundo dos checkboxes marcados a ficarem verdes */
-    div[data-baseweb="checkbox"] input:checked ~ div div {
-        background-color: #2E7D32 !important;
-        border-color: #2E7D32 !important;
-    }
-    div[data-baseweb="checkbox"] input:checked ~ div {
+    /* FORÇA ABSOLUTA DO CHECKBOX SELECIONADO PARA VERDE (#2E7D32) */
+    div[data-baseweb="checkbox"] input:checked ~ div div,
+    div[data-baseweb="checkbox"] input:checked ~ div,
+    div[data-baseweb="checkbox"] [aria-checked="true"],
+    span[data-baseweb="checkbox"] div[aria-checked="true"] {
         background-color: #2E7D32 !important;
         border-color: #2E7D32 !important;
     }
