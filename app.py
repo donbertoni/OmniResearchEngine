@@ -15,6 +15,7 @@ st.set_page_config(
 )
 
 st.markdown("""<style>
+    /* Estilo Geral do App */
     .stApp {
         background-color: #0B0E14;
         color: #E2E8F0;
@@ -31,24 +32,27 @@ st.markdown("""<style>
         font-size: 13px;
     }
     
-    /* Metrics Cards do Painel Direito */
+    /* Metrics Cards do Painel Direito e Geral */
     .metric-card {
         background-color: #161B22;
         border: 1px solid #30363D;
         border-radius: 8px;
-        padding: 12px 16px;
+        padding: 14px 16px;
         margin-bottom: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
     .metric-title {
         font-size: 12px;
         color: #8B949E;
         font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
     .metric-value {
         font-size: 18px;
         font-weight: 700;
         color: #F0F6FC;
-        margin: 4px 0;
+        margin: 6px 0;
     }
     .metric-change-pos {
         font-size: 12px;
@@ -80,6 +84,12 @@ st.markdown("""<style>
         border: none !important;
     }
 
+    /* ESTILIZAÇÃO ROBUSTA DE CHECKBOXES (Verde quando checados) */
+    div.row-widget.stCheckbox input[type="checkbox"]:checked + div div {
+        background-color: #238636 !important;
+        border-color: #2EA043 !important;
+    }
+
     /* ALINHAMENTO DOS CHECKBOXES */
     div[data-testid="stCheckbox"] {
         display: flex !important;
@@ -97,29 +107,36 @@ st.markdown("""<style>
         padding: 0px !important;
         cursor: pointer !important;
     }
-
-    /* FORÇA ABSOLUTA DO CHECKBOX SELECIONADO PARA VERDE (#2E7D32) */
-    div[data-baseweb="checkbox"] input:checked ~ div div,
-    div[data-baseweb="checkbox"] input:checked ~ div,
-    div[data-baseweb="checkbox"] [aria-checked="true"],
-    span[data-baseweb="checkbox"] div[aria-checked="true"] {
-        background-color: #2E7D32 !important;
-        border-color: #2E7D32 !important;
+    div.stCheckbox label span {
+        color: #E6EDF3 !important;
     }
 
-    /* AJUSTE DE MÉTRICAS PADRÃO STREAMLIT */
+    /* AJUSTE DE MÉTRICAS PADRÃO STREAMLIT PARA EVITAR SOBREPOSIÇÃO */
     [data-testid="stMetricValue"] {
-        font-size: 15px !important;
+        font-size: 16px !important;
         font-weight: 700 !important;
         white-space: nowrap;
+        color: #F0F6FC !important;
     }
     [data-testid="stMetricLabel"] {
-        font-size: 11px !important;
+        font-size: 12px !important;
         color: #8B949E !important;
         white-space: nowrap;
+        font-weight: 600;
     }
     [data-testid="stMetricDelta"] {
-        font-size: 11px !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+    }
+    
+    /* Container customizado para métricas inferiores */
+    .metric-container-box {
+        background-color: #161B22;
+        border: 1px solid #30363D;
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 10px;
+        margin-bottom: 20px;
     }
 </style>""", unsafe_allow_html=True)
 
@@ -477,7 +494,7 @@ if "Free" in tier_selected:
     max_free_tickers = 0
     allow_customization = False
     allow_white_label = False
-    st.sidebar.info("📌 Modo Free: 32 ativos fixos padrão. Sem alteração.")
+    st.sidebar.info("ℹ️ Modo Free: 32 ativos fixos padrão. Sem alteração.")
 elif "Standard" in tier_selected:
     max_assets_allowed = 32
     max_free_tickers = 5
@@ -489,7 +506,7 @@ else:
     max_free_tickers = 999
     allow_customization = True
     allow_white_label = True
-    st.sidebar.success("🌟 Modo Premium: 100+ Ativos + White-Label Habilitado.")
+    st.sidebar.success("🚀 Modo Premium: 100+ Ativos + White-Label Habilitado.")
 
 active_categories = CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI
 active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
@@ -566,7 +583,7 @@ if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.title(f"🏢 {company_name} — Terminal Quant")
     st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
 else:
-    st.title("📌 OMNIRESEARCH Engine")
+    st.title("⚡ OMNIRESEARCH Engine")
     st.caption("Plataforma Integrada de Inteligência Financeira: YouTube Auto/HITL, Relatórios B2B (Crypto) e TradFi (Macro)")
 
 now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
@@ -574,18 +591,18 @@ now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 col_status, col_btn_refresh = st.columns([3.5, 1])
 with col_status:
     st.markdown(
-        f'<div class="status-bar">🕒 <b>Dados consolidados das {now_str}</b> (Cache 5m) | Status API: <span style="color: #3FB950;">🟢 Online</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
+        f'<div class="status-bar">🕒 <b>Dados consolidados às {now_str}</b> (Cache 5m) | Status API: <span style="color: #3FB950;">🟢 Online</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
         unsafe_allow_html=True
     )
 with col_btn_refresh:
-    if st.button("🔄 Atualizar Cotações"):
+    if st.button("🔄 Atualizar Cotações", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
 
 col_left, col_right = st.columns([1.3, 1])
 
 with col_left:
-    st.subheader(f"📑 Entrega Padrão — {formato}")
+    st.subheader(f"📄 Entrega Padrão — {formato}")
     st.caption("Indicadores e cotações integrados em tempo real via API:")
 
     if "B2B" in formato:
@@ -657,10 +674,11 @@ with col_left:
         st.text_area("", value=output_content, height=350)
 
         st.download_button(
-            label="📥 Baixar Relatório (TXT)",
+            label="💾 Baixar Relatório (TXT)",
             data=output_content,
             file_name=f"OMNI_Relatorio_{modulo}_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-            mime="text/plain"
+            mime="text/plain",
+            use_container_width=True
         )
 
     else:
@@ -685,12 +703,16 @@ Powered by OMNIRESEARCH Engine"""
         st.text_area("", value=script_text, height=350)
 
         st.download_button(
-            label="📥 Baixar Roteiro YouTube (TXT)",
+            label="💾 Baixar Roteiro YouTube (TXT)",
             data=script_text,
             file_name=f"OMNI_Roteiro_YouTube_{modulo}_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-            mime="text/plain"
+            mime="text/plain",
+            use_container_width=True
         )
 
+    st.markdown('<div class="metric-container-box">', unsafe_allow_html=True)
+    st.markdown("#### 🎯 Alvos Preditivos & Zonas Operacionais", help="Métricas calculadas dinamicamente com base nos parâmetros quantitativos selecionados.")
+    
     c1, c2, c3, c4 = st.columns(4)
     if modulo == "Crypto":
         main_q = quotes.get("BTC-USD", {"price": 0.0, "change": 0.0})
@@ -720,7 +742,9 @@ Powered by OMNIRESEARCH Engine"""
             st.metric("Suporte Chave", f"{fmt_num(sup_calc, dec=0)}", f"-{stop_pct}%")
         with c4:
             st.metric(f"Previsão {horizonte_pred}", "Alta Moderada", f"Alvo {fmt_num(target_calc, dec=0)}")
+    st.markdown('</div>', unsafe_allow_html=True)
 
+# Painel Direito: Métricas Agregadas
 with col_right:
     st.subheader(f"📊 Métricas Agregadas ({modulo})")
     st.caption(f"Atualizado via API / Dados de Mercado às {datetime.now().strftime('%H:%M:%S BRT')}")
@@ -775,7 +799,7 @@ st.markdown("---")
 # -----------------------------------------------------------------------------
 # 6. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA)
 # -----------------------------------------------------------------------------
-st.subheader(f"📌 Painel de Análise Integrada das Categorias ({modulo})")
+st.subheader(f"🎛️ Painel de Análise Integrada das Categorias ({modulo})")
 st.caption("Marque/desmarque setores ou ativos específicos para incluir ou excluir do relatório final:")
 
 if selected_categories:
@@ -789,6 +813,7 @@ if selected_categories:
                 with st.container(border=True):
                     cat_key = f"chk_cat_{cat_name}"
                     
+                    # Cabeçalho do Card
                     c_title, c_check = st.columns([3.2, 0.8])
                     with c_title:
                         st.markdown(
@@ -808,6 +833,7 @@ if selected_categories:
                     
                     st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
                     
+                    # Lista de Ativos
                     for disp_name, ticker, currency in cat_info["assets"]:
                         q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                         asset_key = f"chk_asset_{cat_name}_{ticker}"
@@ -837,6 +863,7 @@ if selected_categories:
 
 st.markdown("---")
 
+# Rodapé Institucional
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.caption(f"© {datetime.now().year} {company_name}. Todos os direitos reservados. Relatório de uso exclusivo.")
 else:
