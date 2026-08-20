@@ -9,7 +9,7 @@ import pandas as pd
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="OMNIRESEARCH Engine",
-    page_icon="⚡",
+    page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -69,14 +69,12 @@ st.markdown("""<style>
     .premium-badge { color: #58A6FF; font-weight: bold; }
 
     /* FORÇA FUNDO CINZA INSTITUCIONAL (#161B22) NOS CONTAINERS DAS CATEGORIAS */
-    div[data-testid="stVerticalBlockBorderWrapper"] {
+    div[data-testid="stVerticalBlockBorderWrapper"],
+    div[data-testid="stVerticalBlockBorderWrapper"] > div,
+    div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stVerticalBlock"] {
         background-color: #161B22 !important;
-        border: 1px solid #30363D !important;
+        border-color: #21262D !important;
         border-radius: 10px !important;
-        padding: 12px !important;
-    }
-    div[data-testid="stVerticalBlockBorderWrapper"] > div {
-        background-color: #161B22 !important;
     }
 
     [data-testid="stMetricValue"] {
@@ -411,14 +409,14 @@ def fetch_realtime_quotes(symbols_tuple):
 # -----------------------------------------------------------------------------
 # 4. SIDEBAR: CONTROLE DE TIERS, CATEGORIAS, FORMATOS E PARÂMETROS QUANT
 # -----------------------------------------------------------------------------
-st.sidebar.title("⚡ Configurações OMNI")
+st.sidebar.title("⚙️ Configurações OMNI")
 st.sidebar.caption("Controle de geração de roteiros e relatórios")
 
 idioma = st.sidebar.selectbox("🌐 Idioma do Output:", ["Português (BR)", "English", "Español"])
-modulo = st.sidebar.radio("💡 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=0)
+modulo = st.sidebar.radio("📌 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=0)
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🎛️ Nível de Acesso (Tier SaaS)")
+st.sidebar.subheader("🔑 Nível de Acesso (Tier SaaS)")
 
 tier_selected = st.sidebar.radio(
     "Plano Ativo:",
@@ -443,7 +441,7 @@ else:
     max_free_tickers = 999
     allow_customization = True
     allow_white_label = True
-    st.sidebar.success("🚀 Modo Premium: 100+ Ativos + White-Label Habilitado.")
+    st.sidebar.success("👑 Modo Premium: 100+ Ativos + White-Label Habilitado.")
 
 active_categories = CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI
 active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
@@ -477,13 +475,13 @@ alvo_pct = st.sidebar.slider("Projeção de Resposta (%)", min_value=0.5, max_va
 stop_pct = st.sidebar.slider("Zona de Suporte / Defesa (%)", min_value=0.5, max_value=15.0, value=3.0, step=0.5)
 
 st.sidebar.markdown("---")
-formato = st.sidebar.radio(f"🎯 Formato ({modulo}):", ["B2B (Relatório)", "B2C (YouTube Auto-Pilot)"], index=0)
+formato = st.sidebar.radio(f"📄 Formato ({modulo}):", ["B2B (Relatório)", "B2C (YouTube Auto-Pilot)"], index=0)
 
 company_name = "OMNIRESEARCH Engine"
 cnpi_code = "CNPI-T 0000"
 if allow_white_label:
     st.sidebar.markdown("---")
-    st.sidebar.subheader("🎨 Personalização White-Label")
+    st.sidebar.subheader("🏢 Personalização White-Label")
     company_name = st.sidebar.text_input("Nome da Casa/Escritório:", "XP / BTG / Gestora")
     cnpi_code = st.sidebar.text_input("Registro CNPI/Responsável:", "CNPI-T 3421")
 
@@ -521,10 +519,10 @@ if custom_tickers:
 # 5. CORPO PRINCIPAL & PAINEL DE CONTROLE
 # -----------------------------------------------------------------------------
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
-    st.title(f"🏛️ {company_name} — Terminal Quant")
+    st.title(f"🏢 {company_name} — Terminal Quant")
     st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
 else:
-    st.title("⚡ OMNIRESEARCH Engine")
+    st.title("🚀 OMNIRESEARCH Engine")
     st.caption("Plataforma Integrada de Inteligência Financeira: YouTube Auto/HITL, Relatórios B2B (Crypto) e TradFi (Macro)")
 
 now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
@@ -532,7 +530,7 @@ now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 col_status, col_btn_refresh = st.columns([3.5, 1])
 with col_status:
     st.markdown(
-        f'<div class="status-bar">🕒 <b>Dados consolidados das {now_str}</b> (Cache 10m) | Status API: <span style="color: #3FB950;">● Online</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
+        f'<div class="status-bar">⚡ <b>Dados consolidados das {now_str}</b> (Cache 10m) | Status API: <span style="color: #3FB950;">🟢 Online</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
         unsafe_allow_html=True
     )
 with col_btn_refresh:
@@ -617,7 +615,7 @@ with col_left:
         st.text_area("", value=output_content, height=350)
 
         st.download_button(
-            label="📥 Baixar Relatório (TXT)",
+            label="💾 Baixar Relatório (TXT)",
             data=output_content,
             file_name=f"OMNI_Relatorio_{modulo}_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
             mime="text/plain"
@@ -645,7 +643,7 @@ Powered by OMNIRESEARCH Engine"""
         st.text_area("", value=script_text, height=350)
 
         st.download_button(
-            label="📥 Baixar Roteiro YouTube (TXT)",
+            label="💾 Baixar Roteiro YouTube (TXT)",
             data=script_text,
             file_name=f"OMNI_Roteiro_YouTube_{modulo}_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
             mime="text/plain"
@@ -737,7 +735,7 @@ st.markdown("---")
 # -----------------------------------------------------------------------------
 # 6. PAINEL DE ANÁLISE INTEGRADA COM CARDS CINZAS (#161B22) E RÓTULO "INCLUIR"
 # -----------------------------------------------------------------------------
-st.subheader(f"📂 Painel de Análise Integrada das Categorias ({modulo})")
+st.subheader(f"📁 Painel de Análise Integrada das Categorias ({modulo})")
 st.caption("Marque/desmarque setores ou ativos específicos para incluir ou excluir do relatório final:")
 
 if selected_categories:
@@ -751,21 +749,24 @@ if selected_categories:
                 with st.container(border=True):
                     cat_key = f"chk_cat_{cat_name}"
                     
-                    # Cabeçalho: Título na esquerda, Checkbox "Incluir" alinhado à direita
-                    c_title, c_check = st.columns([2.7, 1.3])
+                    # Cabeçalho: Título na esquerda, Rótulo "Incluir" e Checkbox alinhados perfeitamente à direita
+                    c_title, c_label, c_check = st.columns([2.3, 1.0, 0.7])
                     with c_title:
-                        st.markdown(f"<div style='font-size:13px; font-weight:700; color:#F0F6FC; padding-top:4px;'>{cat_name}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div style='font-size:13px; font-weight:700; color:#F0F6FC; padding-top:2px;'>{cat_name}</div>", unsafe_allow_html=True)
+                    with c_label:
+                        st.markdown("<div style='font-size:12px; font-weight:600; color:#8B949E; text-align:right; padding-top:3px;'>Incluir</div>", unsafe_allow_html=True)
                     with c_check:
                         cat_enabled = st.checkbox(
-                            "Incluir",
+                            "",
                             value=st.session_state.get(cat_key, True),
-                            key=cat_key
+                            key=cat_key,
+                            label_visibility="collapsed"
                         )
                     
                     # Espaçamento limpo sem linhas divisórias
                     st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
                     
-                    # Ativos: Nome e preço na esquerda, Checkbox alinhado à direita
+                    # Ativos: Nome e preço na esquerda, Checkbox alinhado à direita na coluna 0.7
                     for disp_name, ticker, currency in cat_info["assets"]:
                         q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                         asset_key = f"chk_asset_{cat_name}_{ticker}"
