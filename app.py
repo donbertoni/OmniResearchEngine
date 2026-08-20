@@ -81,7 +81,7 @@ st.markdown("""<style>
         border: none !important;
     }
 
-    /* RESTAURAÇÃO E ALINHAMENTO MILIMÉTRICO DOS CHECKBOXES À DIREITA */
+    /* ALINHAMENTO DOS CHECKBOXES */
     div[data-testid="stCheckbox"] {
         display: flex !important;
         justify-content: flex-end !important;
@@ -285,7 +285,7 @@ CRYPTO_BENCHMARKS = [
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO DE DADOS COM RESILIÊNCIA
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO DE DADOS COM RESILIÊNCIA TOTAL
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -337,67 +337,78 @@ def fetch_global_crypto_data():
         "usdt_d_chg": -0.18
     }
 
-def fetch_direct_yahoo_chart(ticker_symbol):
-    try:
-        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker_symbol}"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-        res = requests.get(url, headers=headers, timeout=3)
-        if res.status_code == 200:
-            result = res.json()["chart"]["result"][0]
-            price = result["meta"].get("regularMarketPrice", 0.0)
-            prev_close = result["meta"].get("chartPreviousClose", price)
-            chg = ((price - prev_close) / prev_close * 100) if prev_close else 0.0
-            if price > 0:
-                return {"price": price, "change": chg}
-    except Exception:
-        pass
-    return None
-
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=300)
 def fetch_realtime_quotes(symbols_tuple):
-    alias_map = {"UNI-USD": "UNI7083-USD"}
-    unique_symbols = list(set(symbols_tuple))
-    yf_symbols = [alias_map.get(s, s) for s in unique_symbols]
-    yf_symbols = list(set(yf_symbols))
+    alias_map = {
+        "UNI-USD": "UNI7083-USD",
+    }
+    fallback_candidates = {
+        "BITF": ["BITF", "BITF.TO"],
+        "BRFS3.SA": ["BRFS3.SA", "BRFS"],
+        "JBSS3.SA": ["JBSS3.SA", "JBSAY"],
+        "EMBR3.SA": ["EMBR3.SA", "ERJ"],
+        "CCRO3.SA": ["CCRO3.SA"],
+    }
     
+    unique_symbols = list(set(symbols_tuple))
     quotes = {}
-
-    try:
-        data = yf.download(yf_symbols, period="5d", interval="1d", group_by="ticker", progress=False, threads=False)
-        for sym in yf_symbols:
-            try:
-                sub_df = data if len(yf_symbols) == 1 else data[sym]
-                sub_df = sub_df.dropna(subset=['Close'])
-                if len(sub_df) >= 2:
-                    curr = float(sub_df['Close'].iloc[-1])
-                    prev = float(sub_df['Close'].iloc[-2])
-                    chg = float(((curr - prev) / prev) * 100)
-                    quotes[sym] = {"price": curr, "change": chg}
-                elif len(sub_df) == 1:
-                    quotes[sym] = {"price": float(sub_df['Close'].iloc[-1]), "change": 0.0}
-            except Exception:
-                pass
-    except Exception:
-        pass
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    }
 
     for orig_sym in unique_symbols:
         actual_sym = alias_map.get(orig_sym, orig_sym)
-        if actual_sym not in quotes or quotes[actual_sym]["price"] == 0.0:
-            candidates = [actual_sym, orig_sym]
-            if orig_sym == "BITF" or actual_sym == "BITF":
-                candidates.extend(["BITF", "BITF.TO"])
-            if orig_sym in ["UNI-USD", "UNI7083-USD"]:
-                candidates.extend(["UNI7083-USD", "UNI-USD"])
-                
-            for cand in candidates:
-                res_direct = fetch_direct_yahoo_chart(cand)
-                if res_direct:
-                    quotes[actual_sym] = res_direct
-                    break
-
-        if actual_sym in quotes:
-            quotes[orig_sym] = quotes[actual_sym]
-        elif orig_sym not in quotes:
+        cands = fallback_candidates.get(actual_sym, [actual_sym])
+        if actual_sym not in cands:
+            cands.insert(0, actual_sym)
+        
+        got_data = False
+        for cand in cands:
+            try:
+                url = f"https://query1.finance.yahoo.com/v8/finance/chart/{cand}?range=5d&interval=1d"
+                res = requests.get(url, headers=headers, timeout=4)
+                if res.status_code == 200:
+                    chart_res = res.json().get("chart", {}).get("result", [])
+                    if chart_res:
+                        meta = chart_res[0].get("meta", {})
+                        price = meta.get("regularMarketPrice", 0.0)
+                        
+                        indicators = chart_res[0].get("indicators", {}).get("quote", [{}])[0]
+                        closes = [c for c in indicators.get("close", []) if c is not None]
+                        
+                        if closes:
+                            price = closes[-1]
+                            prev_close = closes[-2] if len(closes) >= 2 else meta.get("chartPreviousClose", price)
+                        else:
+                            prev_close = meta.get("chartPreviousClose", price)
+                        
+                        if price and price > 0:
+                            chg = ((price - prev_close) / prev_close * 100) if prev_close and prev_close > 0 else 0.0
+                            quotes[orig_sym] = {"price": float(price), "change": float(chg)}
+                            got_data = True
+                            break
+            except Exception:
+                pass
+        
+        # Fallback via biblioteca yfinance se requisição HTTP falhar
+        if not got_data:
+            for cand in cands:
+                try:
+                    tk = yf.Ticker(cand)
+                    df = tk.history(period="5d")
+                    if not df.empty:
+                        closes = df['Close'].dropna().tolist()
+                        if closes:
+                            price = closes[-1]
+                            prev = closes[-2] if len(closes) >= 2 else price
+                            chg = ((price - prev) / prev * 100) if prev > 0 else 0.0
+                            quotes[orig_sym] = {"price": float(price), "change": float(chg)}
+                            got_data = True
+                            break
+                except Exception:
+                    pass
+        
+        if not got_data:
             quotes[orig_sym] = {"price": 0.0, "change": 0.0}
 
     return quotes
@@ -522,7 +533,7 @@ now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 col_status, col_btn_refresh = st.columns([3.5, 1])
 with col_status:
     st.markdown(
-        f'<div class="status-bar">⚡ <b>Dados consolidados das {now_str}</b> (Cache 10m) | Status API: <span style="color: #3FB950;">🟢 Online</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
+        f'<div class="status-bar">⚡ <b>Dados consolidados das {now_str}</b> (Cache 5m) | Status API: <span style="color: #3FB950;">🟢 Online</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
         unsafe_allow_html=True
     )
 with col_btn_refresh:
@@ -722,7 +733,7 @@ with col_right:
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 6. PAINEL DE ANÁLISE INTEGRADA (COR DOS CARDS & CHECKBOXES ALINHANDOS)
+# 6. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA)
 # -----------------------------------------------------------------------------
 st.subheader(f"📁 Painel de Análise Integrada das Categorias ({modulo})")
 st.caption("Marque/desmarque setores ou ativos específicos para incluir ou excluir do relatório final:")
