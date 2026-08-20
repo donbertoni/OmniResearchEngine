@@ -772,6 +772,16 @@ with col_right:
 
 st.markdown("---")
 
+st.markdown("""
+<style>
+/* Muda a cor de fundo do checkbox quando marcado para verde */
+div[data-baseweb="checkbox"] input:checked + div {
+    background-color: #2E7D32 !important;
+    border-color: #2E7D32 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # -----------------------------------------------------------------------------
 # 6. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA)
 # -----------------------------------------------------------------------------
