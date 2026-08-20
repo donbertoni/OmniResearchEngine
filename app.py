@@ -1,5 +1,4 @@
 import streamlit as st
-import yfinance as yf
 import requests
 from datetime import datetime
 import pandas as pd
@@ -16,13 +15,10 @@ st.set_page_config(
 )
 
 st.markdown("""<style>
-    /* Estilo Geral do App */
     .stApp {
         background-color: #0B0E14;
         color: #E2E8F0;
     }
-    
-    /* Barra de Status Topo */
     .status-bar {
         background-color: #131B2A;
         padding: 10px 18px;
@@ -32,8 +28,6 @@ st.markdown("""<style>
         color: #94A3B8;
         font-size: 13px;
     }
-    
-    /* Metrics Cards do Painel Direito */
     .metric-card {
         background-color: #161B22;
         border: 1px solid #30363D;
@@ -69,7 +63,6 @@ st.markdown("""<style>
     }
     .premium-badge { color: #58A6FF; font-weight: bold; }
 
-    /* COR DE FUNDO DOS CARDS DAS CATEGORIAS (#161B22) */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background-color: #161B22 !important;
         border: 1px solid #30363D !important;
@@ -82,7 +75,6 @@ st.markdown("""<style>
         border: none !important;
     }
 
-    /* ALINHAMENTO DOS CHECKBOXES */
     div[data-testid="stCheckbox"] {
         display: flex !important;
         justify-content: flex-end !important;
@@ -100,7 +92,6 @@ st.markdown("""<style>
         cursor: pointer !important;
     }
 
-    /* AJUSTE DE MÉTRICAS PADRÃO STREAMLIT */
     [data-testid="stMetricValue"] {
         font-size: 15px !important;
         font-weight: 700 !important;
@@ -286,7 +277,7 @@ CRYPTO_BENCHMARKS = [
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO MULTI-API ISOLADA COM REPETIÇÃO DE SEGURANÇA
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO MULTI-API RESISTENTE A AMBIENTES CLOUD
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -303,7 +294,7 @@ def fmt_pct(val):
 @st.cache_data(ttl=600)
 def fetch_btc_fng():
     try:
-        res = requests.get("https://api.alternative.me/fng/", timeout=3)
+        res = requests.get("https://api.alternative.me/fng/", timeout=4)
         if res.status_code == 200:
             data = res.json()["data"][0]
             val = data.get("value", "62")
@@ -316,124 +307,98 @@ def fetch_btc_fng():
 @st.cache_data(ttl=600)
 def fetch_global_crypto_data():
     try:
-        res = requests.get("https://api.coingecko.com/api/v3/global", timeout=3)
+        res = requests.get("https://api.coingecko.com/api/v3/global", timeout=4)
         if res.status_code == 200:
             data = res.json()["data"]
             btc_d = data.get("market_cap_percentage", {}).get("btc", 56.8)
             usdt_d = data.get("market_cap_percentage", {}).get("usdt", 5.2)
             btc_d_chg = data.get("market_cap_change_percentage_24h_usd", 0.35)
-            usdt_d_chg = -0.18
             return {
                 "btc_d_val": f"{btc_d:.2f}%".replace(".", ","),
                 "btc_d_chg": btc_d_chg,
                 "usdt_d_val": f"{usdt_d:.2f}%".replace(".", ","),
-                "usdt_d_chg": usdt_d_chg
+                "usdt_d_chg": -0.18
             }
     except Exception:
         pass
-    return {
-        "btc_d_val": "56,80%",
-        "btc_d_chg": 0.35,
-        "usdt_d_val": "5,20%",
-        "usdt_d_chg": -0.18
-    }
+    return {"btc_d_val": "56,80%", "btc_d_chg": 0.35, "usdt_d_val": "5,20%", "usdt_d_chg": -0.18}
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=180)
 def fetch_realtime_quotes(symbols_tuple):
     quotes = {}
-    alias_map = {"UNI-USD": "UNI7083-USD"}
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    b3_symbols = []
+    crypto_symbols = []
+    us_symbols = []
 
-    # 1. API Isolada Binance (Crypto)
-    def fetch_binance(sym):
+    # Triagem determinística de mercado por padrão de ticker
+    for sym in symbols_tuple:
+        clean = sym.strip().upper()
+        if clean.endswith(".SA") or re.match(r'^[A-Z]{4}[0-9]{1,2}$', clean):
+            b3_symbols.append(clean)
+        elif "-USD" in clean or clean in ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"]:
+            crypto_symbols.append(clean)
+        else:
+            us_symbols.append(clean)
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    }
+
+    # 1. API B3 REST DEDICADA (brapi.dev) - Ingestão em lote
+    if b3_symbols:
+        clean_b3 = list(set([s.replace(".SA", "") for s in b3_symbols]))
+        chunk_size = 15
+        for i in range(0, len(clean_b3), chunk_size):
+            chunk = clean_b3[i:i + chunk_size]
+            url = f"https://brapi.dev/api/quote/{','.join(chunk)}"
+            try:
+                res = requests.get(url, headers=headers, timeout=5)
+                if res.status_code == 200:
+                    results = res.json().get("results", [])
+                    for item in results:
+                        ticker = item.get("symbol")
+                        price = float(item.get("regularMarketPrice", 0.0) or 0.0)
+                        change = float(item.get("regularMarketChangePercent", 0.0) or 0.0)
+                        
+                        data_dict = {"price": price, "change": change}
+                        quotes[ticker] = data_dict
+                        quotes[f"{ticker}.SA"] = data_dict
+            except Exception:
+                pass
+
+    # 2. CRYPTO API REST (Binance Public API)
+    for c_sym in crypto_symbols:
+        pair = c_sym.replace("-USD", "USDT")
         try:
-            pair = sym.replace("-USD", "USDT")
             res = requests.get(f"https://api.binance.com/api/v3/ticker/24hr?symbol={pair}", timeout=3)
             if res.status_code == 200:
                 data = res.json()
-                p, c = float(data.get("lastPrice", 0)), float(data.get("priceChangePercent", 0))
-                if p > 0: return {"price": p, "change": c}
-        except Exception: pass
-        return None
+                price = float(data.get("lastPrice", 0))
+                change = float(data.get("priceChangePercent", 0))
+                quotes[c_sym] = {"price": price, "change": change}
+        except Exception:
+            pass
 
-    # 2. Fast-Info Nativo yfinance (Individuais)
-    def fetch_yf_fast(sym):
+    # 3. US & MACRO (Direct Yahoo Query REST v7)
+    if us_symbols:
+        tickers_str = ",".join(us_symbols)
+        url = f"https://query1.finance.yahoo.com/v7/finance/quote?symbols={tickers_str}"
         try:
-            t = yf.Ticker(sym)
-            p = float(t.fast_info['lastPrice'])
-            prev = float(t.fast_info['previousClose'])
-            if p > 0:
-                c = ((p - prev) / prev) * 100 if prev > 0 else 0.0
-                return {"price": p, "change": c}
-        except Exception: pass
-        return None
-
-    # 3. Google Finance Scraping Fallback Direct Text Match
-    def fetch_google_finance(sym):
-        try:
-            clean = sym.replace(".SA", "")
-            exchange = "BVMF" if ".SA" in sym else "NASDAQ"
-            url = f"https://www.google.com/finance/quote/{clean}:{exchange}"
-            res = requests.get(url, headers=headers, timeout=3)
-            if res.status_code != 200 and exchange != "BVMF":
-                url = f"https://www.google.com/finance/quote/{clean}:NYSE"
-                res = requests.get(url, headers=headers, timeout=3)
+            res = requests.get(url, headers=headers, timeout=5)
             if res.status_code == 200:
-                m_price = re.search(r'class="YMlKec fxKbKc">([^<]+)<', res.text)
-                if m_price:
-                    raw_p = m_price.group(1).replace("R$", "").replace("$", "").replace("\xa0", "").strip()
-                    if "," in raw_p: raw_p = raw_p.replace(".", "").replace(",", ".")
-                    p = float(raw_p)
-                    m_chg = re.search(r'aria-label="[^"]*?([0-9]+[,\.][0-9]+)%"', res.text)
-                    c = float(m_chg.group(1).replace(",", ".")) if m_chg else 0.0
-                    if "down" in res.text.lower() and c > 0: c = -c
-                    if p > 0: return {"price": p, "change": c}
-        except Exception: pass
-        return None
+                result = res.json().get("quoteResponse", {}).get("result", [])
+                for item in result:
+                    sym = item.get("symbol")
+                    price = float(item.get("regularMarketPrice", 0.0) or 0.0)
+                    change = float(item.get("regularMarketChangePercent", 0.0) or 0.0)
+                    quotes[sym] = {"price": price, "change": change}
+        except Exception:
+            pass
 
-    # Ingestão em Lote via yfinance.download
-    yf_symbols = [alias_map.get(s, s) for s in symbols_tuple if not ("-USD" in s or s in ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"])]
-    yf_batch_data = {}
-    if yf_symbols:
-        try:
-            df = yf.download(yf_symbols, period="5d", interval="1d", progress=False)
-            for sym in yf_symbols:
-                try:
-                    if isinstance(df.columns, pd.MultiIndex):
-                        closes = df["Close"][sym].dropna().values if sym in df["Close"] else []
-                    else:
-                        closes = df["Close"].dropna().values if "Close" in df else []
-                    if len(closes) >= 1:
-                        price = float(closes[-1])
-                        prev = float(closes[-2]) if len(closes) >= 2 else price
-                        chg = ((price - prev) / prev) * 100 if prev > 0 else 0.0
-                        if price > 0:
-                            yf_batch_data[sym] = {"price": price, "change": chg}
-                except Exception: pass
-        except Exception: pass
-
-    # Consolidação final por ativo com cascata de segurança
+    # Garantia de preenchimento para qualquer ticker sem retorno
     for orig_sym in symbols_tuple:
-        actual_sym = alias_map.get(orig_sym, orig_sym)
-        q_data = None
-
-        # Camada 1: Crypto via Binance
-        if "-USD" in actual_sym or actual_sym in ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"]:
-            q_data = fetch_binance(actual_sym)
-
-        # Camada 2: YFinance Download Lote
-        if not q_data or q_data["price"] == 0.0:
-            q_data = yf_batch_data.get(actual_sym)
-
-        # Camada 3: YFinance Fast Info Individual
-        if not q_data or q_data["price"] == 0.0:
-            q_data = fetch_yf_fast(actual_sym)
-
-        # Camada 4: Google Finance Direct Scraping
-        if not q_data or q_data["price"] == 0.0:
-            q_data = fetch_google_finance(actual_sym)
-
-        quotes[orig_sym] = q_data if q_data else {"price": 0.0, "change": 0.0}
+        if orig_sym not in quotes or quotes[orig_sym]["price"] == 0.0:
+            quotes[orig_sym] = {"price": 0.0, "change": 0.0}
 
     return quotes
 
@@ -490,7 +455,7 @@ custom_tickers = []
 if allow_customization:
     st.sidebar.markdown("---")
     st.sidebar.subheader("📌 Injeção de Tickers Livres")
-    c_input = st.sidebar.text_input("Tickers extras (ex: WEGE3.SA, PEPE-USD):", value="")
+    c_input = st.sidebar.text_input("Tickers extras (ex: WEGE3, PETR3, NVDA, PEPE-USD):", value="")
     if c_input:
         custom_tickers = [t.strip().upper() for t in c_input.split(",") if t.strip()]
         if len(custom_tickers) > max_free_tickers:
@@ -533,7 +498,7 @@ active_display_categories = active_categories.copy()
 if custom_tickers:
     custom_assets = []
     for t in custom_tickers:
-        prefix_curr = "R$" if ".SA" in t else "$"
+        prefix_curr = "R$" if (t.endswith(".SA") or re.match(r'^[A-Z]{4}[0-9]{1,2}$', t)) else "$"
         custom_assets.append((t, t, prefix_curr))
     active_display_categories["0 - Tickers Personalizados"] = {
         "tag": "Custom Feed",
@@ -557,7 +522,7 @@ now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 col_status, col_btn_refresh = st.columns([3.5, 1])
 with col_status:
     st.markdown(
-        f'<div class="status-bar">⚡ <b>Dados consolidados das {now_str}</b> (Cache 5m) | Status API: <span style="color: #3FB950;">🟢 Online</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
+        f'<div class="status-bar">⚡ <b>Dados consolidados às {now_str}</b> | Status API: <span style="color: #3FB950;">🟢 Online (Brapi/Binance/Yahoo REST)</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
         unsafe_allow_html=True
     )
 with col_btn_refresh:
@@ -569,7 +534,7 @@ col_left, col_right = st.columns([1.3, 1])
 
 with col_left:
     st.subheader(f"📝 Entrega Padrão — {formato}")
-    st.caption("Indicadores e cotações integrados em tempo real via API:")
+    st.caption("Indicadores e cotações integrados em tempo real via API REST:")
 
     if "B2B" in formato:
         if modulo == "Crypto":
@@ -773,7 +738,6 @@ if selected_categories:
                 with st.container(border=True):
                     cat_key = f"chk_cat_{cat_name}"
                     
-                    # Cabeçalho do Card
                     c_title, c_check = st.columns([3.2, 0.8])
                     with c_title:
                         st.markdown(
@@ -793,7 +757,6 @@ if selected_categories:
                     
                     st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
                     
-                    # Lista de Ativos
                     for disp_name, ticker, currency in cat_info["assets"]:
                         q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                         asset_key = f"chk_asset_{cat_name}_{ticker}"
@@ -823,7 +786,6 @@ if selected_categories:
 
 st.markdown("---")
 
-# Rodapé Institucional
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.caption(f"© {datetime.now().year} {company_name}. Todos os direitos reservados. Relatório de uso exclusivo.")
 else:
