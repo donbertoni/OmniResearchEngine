@@ -32,7 +32,7 @@ st.markdown("""<style>
         font-size: 13px;
     }
     
-    /* Metrics Cards do Painel Direito */
+    /* Metrics Cards do Painel Direito (PADRÃO DE COR DE REFERÊNCIA) */
     .metric-card {
         background-color: #161B22;
         border: 1px solid #21262D;
@@ -68,15 +68,39 @@ st.markdown("""<style>
     }
     .premium-badge { color: #58A6FF; font-weight: bold; }
 
-    /* FORÇA FUNDO CINZA INSTITUCIONAL (#161B22) NOS CONTAINERS DAS CATEGORIAS */
-    div[data-testid="stVerticalBlockBorderWrapper"],
-    div[data-testid="stVerticalBlockBorderWrapper"] > div,
-    div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stVerticalBlock"] {
+    /* UNIFORMIZAÇÃO EXATA DOS CARDS DAS 8 CATEGORIAS COM OS CARDS DE CIMA */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
         background-color: #161B22 !important;
-        border-color: #21262D !important;
-        border-radius: 10px !important;
+        border: 1px solid #21262D !important;
+        border-radius: 8px !important;
+        padding: 14px !important;
+        margin-bottom: 12px !important;
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"] > div {
+        background-color: #161B22 !important;
     }
 
+    /* ALINHAMENTO VERTICAL 100% PERFEITO DAS CHECKBOXES */
+    div[data-testid="stCheckbox"] {
+        margin-top: 0px !important;
+        margin-bottom: 0px !important;
+        padding-top: 0px !important;
+        padding-bottom: 0px !important;
+        height: 24px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+    }
+    div[data-testid="stCheckbox"] label {
+        margin: 0px !important;
+        padding: 0px !important;
+        font-size: 11px !important;
+        color: #8B949E !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+
+    /* AJUSTE DE MÉTRICAS PADRÃO STREAMLIT */
     [data-testid="stMetricValue"] {
         font-size: 15px !important;
         font-weight: 700 !important;
@@ -262,7 +286,7 @@ CRYPTO_BENCHMARKS = [
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO DE DADOS COM RESILIÊNCIA E FALLBACK REST
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO DE DADOS COM RESILIÊNCIA
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -279,7 +303,7 @@ def fmt_pct(val):
 @st.cache_data(ttl=600)
 def fetch_btc_fng():
     try:
-        res = requests.get("https://api.alternative.me/fng/", timeout=5)
+        res = requests.get("https://api.alternative.me/fng/", timeout=3)
         if res.status_code == 200:
             data = res.json()["data"][0]
             val = data.get("value", "62")
@@ -292,7 +316,7 @@ def fetch_btc_fng():
 @st.cache_data(ttl=600)
 def fetch_global_crypto_data():
     try:
-        res = requests.get("https://api.coingecko.com/api/v3/global", timeout=5)
+        res = requests.get("https://api.coingecko.com/api/v3/global", timeout=3)
         if res.status_code == 200:
             data = res.json()["data"]
             btc_d = data.get("market_cap_percentage", {}).get("btc", 56.8)
@@ -315,11 +339,10 @@ def fetch_global_crypto_data():
     }
 
 def fetch_direct_yahoo_chart(ticker_symbol):
-    """Fallback direto via API Chart v8 do Yahoo Finance para evitar bloqueios de scraping."""
     try:
         url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker_symbol}"
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-        res = requests.get(url, headers=headers, timeout=5)
+        res = requests.get(url, headers=headers, timeout=3)
         if res.status_code == 200:
             result = res.json()["chart"]["result"][0]
             price = result["meta"].get("regularMarketPrice", 0.0)
@@ -333,19 +356,15 @@ def fetch_direct_yahoo_chart(ticker_symbol):
 
 @st.cache_data(ttl=600)
 def fetch_realtime_quotes(symbols_tuple):
-    alias_map = {
-        "UNI-USD": "UNI7083-USD",
-    }
-    
+    alias_map = {"UNI-USD": "UNI7083-USD"}
     unique_symbols = list(set(symbols_tuple))
     yf_symbols = [alias_map.get(s, s) for s in unique_symbols]
     yf_symbols = list(set(yf_symbols))
     
     quotes = {}
 
-    # Ingestão em Lote via yfinance
     try:
-        data = yf.download(yf_symbols, period="5d", interval="1d", group_by="ticker", progress=False, threads=True)
+        data = yf.download(yf_symbols, period="5d", interval="1d", group_by="ticker", progress=False, threads=False)
         for sym in yf_symbols:
             try:
                 sub_df = data if len(yf_symbols) == 1 else data[sym]
@@ -362,10 +381,8 @@ def fetch_realtime_quotes(symbols_tuple):
     except Exception:
         pass
 
-    # Fallback individual robusto (especialmente para Bitfarms e Uniswap)
     for orig_sym in unique_symbols:
         actual_sym = alias_map.get(orig_sym, orig_sym)
-        
         if actual_sym not in quotes or quotes[actual_sym]["price"] == 0.0:
             candidates = [actual_sym, orig_sym]
             if orig_sym == "BITF" or actual_sym == "BITF":
@@ -374,31 +391,11 @@ def fetch_realtime_quotes(symbols_tuple):
                 candidates.extend(["UNI7083-USD", "UNI-USD"])
                 
             for cand in candidates:
-                # Tentativa 1: Direct Yahoo REST Query (Mais confiável no Streamlit Cloud)
                 res_direct = fetch_direct_yahoo_chart(cand)
                 if res_direct:
                     quotes[actual_sym] = res_direct
                     break
-                
-                # Tentativa 2: Ticker history via yfinance
-                try:
-                    t = yf.Ticker(cand)
-                    hist = t.history(period="5d")
-                    if not hist.empty:
-                        hist = hist.dropna(subset=['Close'])
-                        if len(hist) >= 2:
-                            curr = float(hist['Close'].iloc[-1])
-                            prev = float(hist['Close'].iloc[-2])
-                            chg = float(((curr - prev) / prev) * 100)
-                            quotes[actual_sym] = {"price": curr, "change": chg}
-                            break
-                        elif len(hist) == 1:
-                            quotes[actual_sym] = {"price": float(hist['Close'].iloc[-1]), "change": 0.0}
-                            break
-                except Exception:
-                    pass
 
-        # Mapeamento final
         if actual_sym in quotes:
             quotes[orig_sym] = quotes[actual_sym]
         elif orig_sym not in quotes:
@@ -429,7 +426,7 @@ if "Free" in tier_selected:
     max_free_tickers = 0
     allow_customization = False
     allow_white_label = False
-    st.sidebar.info("🔒 Modo Free: 32 ativos fixos padrão. Sem alteração.")
+    st.sidebar.info("ℹ️ Modo Free: 32 ativos fixos padrão. Sem alteração.")
 elif "Standard" in tier_selected:
     max_assets_allowed = 32
     max_free_tickers = 5
@@ -455,11 +452,10 @@ for key in active_categories.keys():
     if st.sidebar.checkbox(key, value=True):
         selected_categories.append(key)
 
-# Injeção de Tickers Livres
 custom_tickers = []
 if allow_customization:
     st.sidebar.markdown("---")
-    st.sidebar.subheader("🔍 Injeção de Tickers Livres")
+    st.sidebar.subheader("📌 Injeção de Tickers Livres")
     c_input = st.sidebar.text_input("Tickers extras (ex: WEGE3.SA, PEPE-USD):", value="")
     if c_input:
         custom_tickers = [t.strip().upper() for t in c_input.split(",") if t.strip()]
@@ -467,9 +463,8 @@ if allow_customization:
             st.sidebar.warning(f"Limite do plano: apenas {max_free_tickers} adicionados.")
             custom_tickers = custom_tickers[:max_free_tickers]
 
-# Controles de Parâmetros do Engine Preditivo
 st.sidebar.markdown("---")
-st.sidebar.subheader("⚙️ Parâmetros do Engine Preditivo")
+st.sidebar.subheader("📊 Parâmetros do Engine Preditivo")
 horizonte_pred = st.sidebar.selectbox("Horizonte Temporário:", ["24 Horas", "48 Horas", "7 Dias"], index=1)
 alvo_pct = st.sidebar.slider("Projeção de Resposta (%)", min_value=0.5, max_value=15.0, value=3.0, step=0.5)
 stop_pct = st.sidebar.slider("Zona de Suporte / Defesa (%)", min_value=0.5, max_value=15.0, value=3.0, step=0.5)
@@ -481,11 +476,10 @@ company_name = "OMNIRESEARCH Engine"
 cnpi_code = "CNPI-T 0000"
 if allow_white_label:
     st.sidebar.markdown("---")
-    st.sidebar.subheader("🏢 Personalização White-Label")
+    st.sidebar.subheader("💼 Personalização White-Label")
     company_name = st.sidebar.text_input("Nome da Casa/Escritório:", "XP / BTG / Gestora")
     cnpi_code = st.sidebar.text_input("Registro CNPI/Responsável:", "CNPI-T 3421")
 
-# Compilando Lista Única de Tickers para Download
 symbols_to_fetch = []
 for item in MACRO_BENCHMARKS + CRYPTO_BENCHMARKS:
     if item.get("ticker"):
@@ -501,7 +495,6 @@ quotes = fetch_realtime_quotes(tuple(symbols_to_fetch))
 fng_val, fng_class = fetch_btc_fng()
 global_crypto_data = fetch_global_crypto_data()
 
-# Montagem de Categoria Exclusiva de Tickers Customizados
 active_display_categories = active_categories.copy()
 if custom_tickers:
     custom_assets = []
@@ -519,10 +512,10 @@ if custom_tickers:
 # 5. CORPO PRINCIPAL & PAINEL DE CONTROLE
 # -----------------------------------------------------------------------------
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
-    st.title(f"🏢 {company_name} — Terminal Quant")
+    st.title(f"🏛️ {company_name} — Terminal Quant")
     st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
 else:
-    st.title("🚀 OMNIRESEARCH Engine")
+    st.title("📈 OMNIRESEARCH Engine")
     st.caption("Plataforma Integrada de Inteligência Financeira: YouTube Auto/HITL, Relatórios B2B (Crypto) e TradFi (Macro)")
 
 now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
@@ -540,9 +533,8 @@ with col_btn_refresh:
 
 col_left, col_right = st.columns([1.3, 1])
 
-# Painel Esquerdo: Relatório B2B ou Roteiro B2C
 with col_left:
-    st.subheader(f"📄 Entrega Padrão — {formato}")
+    st.subheader(f"📝 Entrega Padrão — {formato}")
     st.caption("Indicadores e cotações integrados em tempo real via API:")
 
     if "B2B" in formato:
@@ -587,7 +579,6 @@ with col_left:
                 "2. ANÁLISE INTEGRADA DAS CATEGORIAS SELECIONADAS (DADOS EM TEMPO REAL)"
             ]
 
-        # Filtro dinâmico baseado nos checkboxes marcados
         for cat_name in selected_categories:
             if cat_name in active_display_categories:
                 cat_info = active_display_categories[cat_name]
@@ -621,7 +612,7 @@ with col_left:
             mime="text/plain"
         )
 
-    else: # Modo B2C Auto-Pilot (YouTube)
+    else:
         main_symbol = "BTC-USD" if modulo == "Crypto" else "^GSPC"
         main_q = quotes.get(main_symbol, {"price": 0.0, "change": 0.0})
         
@@ -649,7 +640,6 @@ Powered by OMNIRESEARCH Engine"""
             mime="text/plain"
         )
 
-    # Cards Preditivos Dinâmicos
     c1, c2, c3, c4 = st.columns(4)
     if modulo == "Crypto":
         main_q = quotes.get("BTC-USD", {"price": 0.0, "change": 0.0})
@@ -733,7 +723,7 @@ with col_right:
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 6. PAINEL DE ANÁLISE INTEGRADA COM CARDS CINZAS (#161B22) E RÓTULO "INCLUIR"
+# 6. PAINEL DE ANÁLISE INTEGRADA (DIAGRAMAÇÃO E CORES ALINHADAS)
 # -----------------------------------------------------------------------------
 st.subheader(f"📁 Painel de Análise Integrada das Categorias ({modulo})")
 st.caption("Marque/desmarque setores ou ativos específicos para incluir ou excluir do relatório final:")
@@ -749,24 +739,23 @@ if selected_categories:
                 with st.container(border=True):
                     cat_key = f"chk_cat_{cat_name}"
                     
-                    # Cabeçalho: Título na esquerda, Rótulo "Incluir" e Checkbox alinhados perfeitamente à direita
-                    c_title, c_label, c_check = st.columns([2.3, 1.0, 0.7])
+                    # Cabeçalho do Card: Título + Checkbox "Incluir" Alinhados na Mesma Linha
+                    c_title, c_check = st.columns([2.6, 1.4])
                     with c_title:
-                        st.markdown(f"<div style='font-size:13px; font-weight:700; color:#F0F6FC; padding-top:2px;'>{cat_name}</div>", unsafe_allow_html=True)
-                    with c_label:
-                        st.markdown("<div style='font-size:12px; font-weight:600; color:#8B949E; text-align:right; padding-top:3px;'>Incluir</div>", unsafe_allow_html=True)
+                        st.markdown(
+                            f'<div style="font-size: 13px; font-weight: 700; color: #F0F6FC; line-height: 24px; min-height: 24px; display: flex; align-items: center;">{cat_name}</div>',
+                            unsafe_allow_html=True
+                        )
                     with c_check:
                         cat_enabled = st.checkbox(
-                            "",
+                            "Incluir",
                             value=st.session_state.get(cat_key, True),
-                            key=cat_key,
-                            label_visibility="collapsed"
+                            key=cat_key
                         )
                     
-                    # Espaçamento limpo sem linhas divisórias
-                    st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
+                    st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
                     
-                    # Ativos: Nome e preço na esquerda, Checkbox alinhado à direita na coluna 0.7
+                    # Lista de Ativos: Texto e Checkbox perfeitamente pareados a 24px
                     for disp_name, ticker, currency in cat_info["assets"]:
                         q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                         asset_key = f"chk_asset_{cat_name}_{ticker}"
@@ -775,12 +764,13 @@ if selected_categories:
                         price_fmt = f"{currency} {fmt_num(q['price'])}"
                         chg_fmt = fmt_pct(q['change'])
                         
-                        cA, cB = st.columns([3.3, 0.7])
+                        cA, cB = st.columns([3.4, 0.6])
                         with cA:
                             st.markdown(
-                                f'<div style="font-size: 12px; padding: 2px 0;">'
-                                f'<span style="color: #C9D1D9; font-weight: 500;">{disp_name}:</span> '
-                                f'<b style="color: #F0F6FC;">{price_fmt}</b> <span style="{color_style} font-size: 11px;">({chg_fmt})</span>'
+                                f'<div style="font-size: 12px; line-height: 24px; min-height: 24px; display: flex; align-items: center; overflow: hidden; white-space: nowrap;">'
+                                f'<span style="color: #8B949E; font-weight: 500; margin-right: 4px;">{disp_name}:</span> '
+                                f'<b style="color: #F0F6FC; font-weight: 700; margin-right: 4px;">{price_fmt}</b> '
+                                f'<span style="{color_style} font-size: 11px; font-weight: 600;">({chg_fmt})</span>'
                                 f'</div>',
                                 unsafe_allow_html=True
                             )
