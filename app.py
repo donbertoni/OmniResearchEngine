@@ -68,15 +68,13 @@ st.markdown("""<style>
     }
     .premium-badge { color: #58A6FF; font-weight: bold; }
 
-    /* COR DE FUNDO DOS CARDS DAS CATEGORIAS (#161B22) */
-    div[data-testid="stVerticalBlockBorderWrapper"],
-    div[data-testid="stVerticalBlockBorderWrapper"] > div,
-    div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stVerticalBlock"] {
+    /* FORÇANDO COR DE FUNDO DOS CARDS DAS CATEGORIAS (#161B22) COM ALTA ESPECIFICIDADE */
+    html body .stApp div[data-testid="stVerticalBlockBorderWrapper"],
+    html body .stApp div[data-testid="stVerticalBlockBorderWrapper"] > div,
+    html body .stApp [data-testid="stVerticalBlockBorderWrapper"] {
         background-color: #161B22 !important;
+        background: #161B22 !important;
         border-color: #21262D !important;
-    }
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        border: 1px solid #21262D !important;
         border-radius: 8px !important;
         padding: 12px !important;
         margin-bottom: 12px !important;
