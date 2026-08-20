@@ -103,19 +103,8 @@ st.markdown("""<style>
         color: #C9D1D9;
         font-weight: 500;
     }
-    .report-box {
-        background-color: #161B22;
-        border: 1px solid #21262D;
-        border-radius: 8px;
-        padding: 15px;
-        font-family: monospace;
-        color: #C9D1D9;
-    }
-    .free-badge { color: #8B949E; font-weight: bold; }
-    .standard-badge { color: #D29922; font-weight: bold; }
     .premium-badge { color: #58A6FF; font-weight: bold; }
 
-    /* Ajustes para evitar que métricas estourem container */
     [data-testid="stMetricValue"] {
         font-size: 15px !important;
         font-weight: 700 !important;
@@ -295,9 +284,9 @@ CATEGORIES_CRYPTO = {
 CRYPTO_BENCHMARKS = [
     {"key": "BTC", "ticker": "BTC-USD", "label": "1. Bitcoin / BTC", "prefix": "$ ", "badge": "yfinance API"},
     {"key": "ETH", "ticker": "ETH-USD", "label": "2. Ethereum / ETH", "prefix": "$ ", "badge": "yfinance API"},
-    {"key": "BTC_D", "ticker": None, "label": "3. Bitcoin Dominance / BTC.D", "static_val": "56,80%", "static_chg": "+0,35% hoje", "badge": "On-Chain Data"},
-    {"key": "TOTAL_MCAP", "ticker": None, "label": "4. Total Crypto Market Cap", "static_val": "$ 2,28 T", "static_chg": "+1,12% hoje", "badge": "Global Crypto"},
-    {"key": "FEAR_GREED", "ticker": None, "type": "fng_api", "label": "5. Bitcoin Fear & Greed Index", "badge": "Alternative.me API"}
+    {"key": "BTC_D", "type": "global_api", "sub_key": "btc_d", "label": "3. Bitcoin Dominance / BTC.D", "badge": "CoinGecko API"},
+    {"key": "TOTAL_MCAP", "type": "global_api", "sub_key": "total_mcap", "label": "4. Total Crypto Market Cap", "badge": "CoinGecko API"},
+    {"key": "FEAR_GREED", "type": "fng_api", "label": "5. Bitcoin Fear & Greed Index", "badge": "Alternative.me API"}
 ]
 
 # -----------------------------------------------------------------------------
@@ -329,6 +318,31 @@ def fetch_btc_fng():
     return "62 / 100", "Greed"
 
 @st.cache_data(ttl=600)
+def fetch_global_crypto_data():
+    """Upgrade 1: Obtém BTC Dominance e Total Market Cap em tempo real."""
+    try:
+        res = requests.get("https://api.coingecko.com/api/v3/global", timeout=5)
+        if res.status_code == 200:
+            data = res.json()["data"]
+            btc_d = data.get("market_cap_percentage", {}).get("btc", 56.8)
+            total_mcap = data.get("total_market_cap", {}).get("usd", 0)
+            mcap_trillion = total_mcap / 1e12
+            return {
+                "btc_d_val": f"{btc_d:.2f}%".replace(".", ","),
+                "btc_d_chg": "Ao Vivo",
+                "mcap_val": f"$ {mcap_trillion:.2f} T".replace(".", ","),
+                "mcap_chg": "Ao Vivo"
+            }
+    except Exception:
+        pass
+    return {
+        "btc_d_val": "56,80%",
+        "btc_d_chg": "Estimado",
+        "mcap_val": "$ 2,28 T",
+        "mcap_chg": "Estimado"
+    }
+
+@st.cache_data(ttl=600)
 def fetch_realtime_quotes(symbols_tuple):
     unique_symbols = list(set(symbols_tuple))
     quotes = {}
@@ -353,7 +367,6 @@ def fetch_realtime_quotes(symbols_tuple):
     except Exception:
         pass
 
-    # Fallback individual para ativos que falharam no download em lote
     for sym in unique_symbols:
         if sym not in quotes or quotes[sym]["price"] == 0.0:
             try:
@@ -374,7 +387,7 @@ def fetch_realtime_quotes(symbols_tuple):
     return quotes
 
 # -----------------------------------------------------------------------------
-# 4. SIDEBAR: CONTROLE DE TIERS, CATEGORIAS E FORMATOS
+# 4. SIDEBAR: CONTROLE DE TIERS, CATEGORIAS, FORMATOS E PARÂMETROS QUANT
 # -----------------------------------------------------------------------------
 st.sidebar.title("⚡ Configurações OMNI")
 st.sidebar.caption("Controle de geração de roteiros e relatórios")
@@ -391,7 +404,6 @@ tier_selected = st.sidebar.radio(
     index=1
 )
 
-# Definição das Regras por Tier
 if "Free" in tier_selected:
     max_assets_allowed = 32
     max_free_tickers = 0
@@ -423,7 +435,7 @@ for key in active_categories.keys():
     if st.sidebar.checkbox(key, value=True):
         selected_categories.append(key)
 
-# Injeção de Tickers Livres (Conforme permissão do Tier)
+# Injeção de Tickers Livres
 custom_tickers = []
 if allow_customization:
     st.sidebar.markdown("---")
@@ -435,10 +447,16 @@ if allow_customization:
             st.sidebar.warning(f"Limite do plano: apenas {max_free_tickers} adicionados.")
             custom_tickers = custom_tickers[:max_free_tickers]
 
+# Upgrade 4: Controles de Parâmetros do Engine Preditivo
+st.sidebar.markdown("---")
+st.sidebar.subheader("⚙️ Parâmetros do Engine Preditivo")
+horizonte_pred = st.sidebar.selectbox("Horizonte Temporário:", ["24 Horas", "48 Horas", "7 Dias"], index=1)
+alvo_pct = st.sidebar.slider("Projeção de Resposta (%)", min_value=0.5, max_value=15.0, value=3.0, step=0.5)
+stop_pct = st.sidebar.slider("Zona de Suporte / Defesa (%)", min_value=0.5, max_value=15.0, value=3.0, step=0.5)
+
 st.sidebar.markdown("---")
 formato = st.sidebar.radio(f"🎯 Formato ({modulo}):", ["B2B (Relatório)", "B2C (YouTube Auto-Pilot)"], index=0)
 
-# Personalização White-Label (Apenas Premium)
 company_name = "OMNIRESEARCH Engine"
 cnpi_code = "CNPI-T 0000"
 if allow_white_label:
@@ -461,6 +479,21 @@ symbols_to_fetch.extend(custom_tickers)
 
 quotes = fetch_realtime_quotes(tuple(symbols_to_fetch))
 fng_val, fng_class = fetch_btc_fng()
+global_crypto_data = fetch_global_crypto_data()
+
+# Upgrade 2: Montagem de Categoria Exclusiva de Tickers Customizados se existirem
+active_display_categories = active_categories.copy()
+if custom_tickers:
+    custom_assets = []
+    for t in custom_tickers:
+        prefix_curr = "R$" if ".SA" in t else "$"
+        custom_assets.append((t, t, prefix_curr))
+    active_display_categories["0 - Tickers Personalizados"] = {
+        "tag": "Custom Feed",
+        "assets": custom_assets
+    }
+    if "0 - Tickers Personalizados" not in selected_categories:
+        selected_categories.insert(0, "0 - Tickers Personalizados")
 
 # -----------------------------------------------------------------------------
 # 5. CORPO PRINCIPAL & PAINEL DE CONTROLE
@@ -481,7 +514,7 @@ with col_status:
         unsafe_allow_html=True
     )
 with col_btn_refresh:
-    if st.button("🔄 Atualizar Cotações Agora"):
+    if st.button("🔄 Atualizar Cotações"):
         st.cache_data.clear()
         st.rerun()
 
@@ -504,8 +537,8 @@ with col_left:
                 "1. PANORAMA & BENCHMARKS CRYPTO (MÉTRICAS AGREGADAS)",
                 f"- 1. Bitcoin (BTC/USD): $ {fmt_num(btc_q['price'])} ({fmt_pct(btc_q['change'])} hoje) [yfinance API]",
                 f"- 2. Ethereum (ETH/USD): $ {fmt_num(eth_q['price'])} ({fmt_pct(eth_q['change'])} hoje) [yfinance API]",
-                "- 3. Bitcoin Dominance (BTC.D): 56,80% (+0,35% hoje) [On-Chain Data]",
-                "- 4. Total Crypto Market Cap: $ 2,28 T (+1,12% hoje) [Global Crypto]",
+                f"- 3. Bitcoin Dominance (BTC.D): {global_crypto_data['btc_d_val']} ({global_crypto_data['btc_d_chg']}) [CoinGecko API]",
+                f"- 4. Total Crypto Market Cap: {global_crypto_data['mcap_val']} ({global_crypto_data['mcap_chg']}) [CoinGecko API]",
                 f"- 5. Bitcoin Fear & Greed Index: {fng_val} ({fng_class}) [Alternative.me API]",
                 "",
                 "2. ANÁLISE INTEGRADA DAS CATEGORIAS CRYPTO SELECIONADAS"
@@ -532,18 +565,28 @@ with col_left:
             ]
 
         for cat_name in selected_categories:
-            cat_info = active_categories[cat_name]
-            report_lines.append(f"\n• {cat_name.upper()} ({cat_info['tag']}):")
-            for disp_name, ticker, currency in cat_info["assets"]:
-                q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
-                report_lines.append(f"  - {disp_name}: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
+            if cat_name in active_display_categories:
+                cat_info = active_display_categories[cat_name]
+                report_lines.append(f"\n• {cat_name.upper()} ({cat_info['tag']}):")
+                for disp_name, ticker, currency in cat_info["assets"]:
+                    q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
+                    report_lines.append(f"  - {disp_name}: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
 
         if allow_white_label and company_name != "OMNIRESEARCH Engine":
             report_lines.append(f"\nDocumento emitido exclusivamente por {company_name} | Responsável: {cnpi_code}")
         else:
             report_lines.append("\nPowered by OMNIRESEARCH Engine")
 
-        st.text_area("", value="\n".join(report_lines), height=380)
+        output_content = "\n".join(report_lines)
+        st.text_area("", value=output_content, height=350)
+
+        # Upgrade 3: Botão de Download do Relatório B2B
+        st.download_button(
+            label="📥 Baixar Relatório (TXT)",
+            data=output_content,
+            file_name=f"OMNI_Relatorio_{modulo}_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+            mime="text/plain"
+        )
 
     else: # Modo B2C Auto-Pilot (YouTube)
         main_symbol = "BTC-USD" if modulo == "Crypto" else "^GSPC"
@@ -557,36 +600,53 @@ Data/Hora: {now_str}
 
 [01:30] DESTAQUES SETORIAIS:
 - Categorias Monitoradas: {', '.join(selected_categories[:3])}
-- Projeção de Machine Learning para 48h: Tendência Moderada com alvo dinâmico ajustado nas resistências.
+- Projeção de Machine Learning para {horizonte_pred}: Tendência com alvo ajustado em {alvo_pct}% e suporte em {stop_pct}%.
 
 [05:00] FECHAMENTO:
 "Deixe seu like e se inscreva na OMNIRESEARCH Engine para análises diárias em tempo real!"
-\nPowered by OMNIRESEARCH Engine"""
 
-        st.text_area("", value=script_text, height=380)
+Powered by OMNIRESEARCH Engine"""
 
-    # Cards Preditivos Dinâmicos Calculados em Tempo Real
+        st.text_area("", value=script_text, height=350)
+
+        # Upgrade 3: Botão de Download do Roteiro B2C
+        st.download_button(
+            label="📥 Baixar Roteiro YouTube (TXT)",
+            data=script_text,
+            file_name=f"OMNI_Roteiro_YouTube_{modulo}_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+            mime="text/plain"
+        )
+
+    # Cards Preditivos Dinâmicos com Parâmetros Calibráveis
     c1, c2, c3, c4 = st.columns(4)
     if modulo == "Crypto":
         main_q = quotes.get("BTC-USD", {"price": 0.0, "change": 0.0})
+        res_calc = main_q['price'] * (1 + (alvo_pct / 100))
+        sup_calc = main_q['price'] * (1 - (stop_pct / 100))
+        target_calc = main_q['price'] * (1 + ((alvo_pct * 0.7) / 100))
+        
         with c1:
-            st.metric("Tendência (BTC)", "Compradora", f"{fmt_pct(main_q['change'])}")
+            st.metric("Tendência (BTC)", "Compradora" if main_q['change'] >= 0 else "Vendedora", f"{fmt_pct(main_q['change'])}")
         with c2:
-            st.metric("Resistência", f"$ {fmt_num(main_q['price'] * 1.05, dec=0)}", "Nível Crítico")
+            st.metric("Resistência Alvo", f"$ {fmt_num(res_calc, dec=0)}", f"+{alvo_pct}%")
         with c3:
-            st.metric("Suporte", f"$ {fmt_num(main_q['price'] * 0.95, dec=0)}", "Zona Defesa")
+            st.metric("Suporte Chave", f"$ {fmt_num(sup_calc, dec=0)}", f"-{stop_pct}%")
         with c4:
-            st.metric("Previsão 48h", "Alta Moderada", f"Alvo $ {fmt_num(main_q['price'] * 1.03, dec=0)}")
+            st.metric(f"Previsão {horizonte_pred}", "Alta Moderada", f"Alvo $ {fmt_num(target_calc, dec=0)}")
     else:
         main_q = quotes.get("^GSPC", {"price": 0.0, "change": 0.0})
+        res_calc = main_q['price'] * (1 + (alvo_pct / 100))
+        sup_calc = main_q['price'] * (1 - (stop_pct / 100))
+        target_calc = main_q['price'] * (1 + ((alvo_pct * 0.5) / 100))
+
         with c1:
-            st.metric("Tendência (Macro)", "Compradora", f"{fmt_pct(main_q['change'])}")
+            st.metric("Tendência (Macro)", "Compradora" if main_q['change'] >= 0 else "Vendedora", f"{fmt_pct(main_q['change'])}")
         with c2:
-            st.metric("Resistência", f"{fmt_num(main_q['price'] * 1.02, dec=0)}", "Nível Crítico")
+            st.metric("Resistência Alvo", f"{fmt_num(res_calc, dec=0)}", f"+{alvo_pct}%")
         with c3:
-            st.metric("Suporte", f"{fmt_num(main_q['price'] * 0.98, dec=0)}", "Zona Defesa")
+            st.metric("Suporte Chave", f"{fmt_num(sup_calc, dec=0)}", f"-{stop_pct}%")
         with c4:
-            st.metric("Previsão 48h", "Alta Moderada", f"Alvo {fmt_num(main_q['price'] * 1.01, dec=0)}")
+            st.metric(f"Previsão {horizonte_pred}", "Alta Moderada", f"Alvo {fmt_num(target_calc, dec=0)}")
 
 # Painel Direito: Métricas Agregadas Estilizadas (Cards HTML)
 with col_right:
@@ -601,6 +661,15 @@ with col_right:
             val_str = fng_val
             chg_str = fng_class
             change_cls = "metric-change-neutral" if "Greed" in chg_str or "Fear" in chg_str else "metric-change-pos"
+        elif item.get("type") == "global_api":
+            sub_k = item.get("sub_key")
+            if sub_k == "btc_d":
+                val_str = global_crypto_data["btc_d_val"]
+                chg_str = global_crypto_data["btc_d_chg"]
+            else:
+                val_str = global_crypto_data["mcap_val"]
+                chg_str = global_crypto_data["mcap_chg"]
+            change_cls = "metric-change-pos"
         elif item.get("ticker"):
             ticker = item["ticker"]
             data = quotes.get(ticker, {"price": 0.0, "change": 0.0})
@@ -609,10 +678,6 @@ with col_right:
             val_str = f"{prefix}{fmt_num(data['price'])}{suffix}"
             chg_str = f"{fmt_pct(data['change'])} hoje"
             change_cls = "metric-change-pos" if data["change"] >= 0 else "metric-change-neg"
-        else:
-            val_str = item.get("static_val", "--")
-            chg_str = item.get("static_chg", "")
-            change_cls = "metric-change-neutral" if "Greed" in chg_str else ("metric-change-pos" if "+" in chg_str else "metric-change-neg")
 
         st.markdown(
             f'<div class="metric-card"><div class="metric-title">{label} <span style="font-size:10px; opacity:0.6;">[{badge}]</span></div><div class="metric-value">{val_str}</div><div class="{change_cls}">{chg_str}</div></div>',
@@ -630,20 +695,21 @@ st.caption("Visão detalhada dos setores selecionados no painel lateral com cota
 if selected_categories:
     cols = st.columns(min(len(selected_categories), 4))
     for idx, cat_name in enumerate(selected_categories):
-        cat_info = active_categories[cat_name]
-        col = cols[idx % len(cols)]
-        
-        card_html = f'<div class="category-card"><div class="category-header"><div class="category-title">{cat_name}</div><div class="category-tag">{cat_info["tag"]}</div></div>'
-        
-        for disp_name, ticker, currency in cat_info["assets"]:
-            q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
-            color_style = "color: #3FB950;" if q["change"] >= 0 else "color: #F85149;"
-            card_html += f'<div class="asset-row"><span class="asset-symbol">{disp_name}:</span><span><b>{currency} {fmt_num(q["price"])}</b> <span style="{color_style} font-size: 11px;">({fmt_pct(q["change"])})</span></span></div>'
+        if cat_name in active_display_categories:
+            cat_info = active_display_categories[cat_name]
+            col = cols[idx % len(cols)]
             
-        card_html += '</div>'
-        
-        with col:
-            st.markdown(card_html, unsafe_allow_html=True)
+            card_html = f'<div class="category-card"><div class="category-header"><div class="category-title">{cat_name}</div><div class="category-tag">{cat_info["tag"]}</div></div>'
+            
+            for disp_name, ticker, currency in cat_info["assets"]:
+                q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
+                color_style = "color: #3FB950;" if q["change"] >= 0 else "color: #F85149;"
+                card_html += f'<div class="asset-row"><span class="asset-symbol">{disp_name}:</span><span><b>{currency} {fmt_num(q["price"])}</b> <span style="{color_style} font-size: 11px;">({fmt_pct(q["change"])})</span></span></div>'
+                
+            card_html += '</div>'
+            
+            with col:
+                st.markdown(card_html, unsafe_allow_html=True)
 
 st.markdown("---")
 
