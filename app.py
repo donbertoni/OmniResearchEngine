@@ -285,7 +285,7 @@ CRYPTO_BENCHMARKS = [
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO VIA YAHOO V8 DIRECT API
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO MULTI-API ISOLADA
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -343,50 +343,90 @@ def fetch_realtime_quotes(symbols_tuple):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     }
-
     alias_map = {"UNI-USD": "UNI7083-USD"}
 
-    def fetch_yahoo_v8(symbol):
-        url = f"https://query2.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=2d"
+    # 1. API Isolada Binance (Crypto)
+    def fetch_binance(sym):
         try:
-            res = requests.get(url, headers=headers, timeout=4)
+            pair = sym.replace("-USD", "USDT")
+            res = requests.get(f"https://api.binance.com/api/v3/ticker/24hr?symbol={pair}", timeout=3)
             if res.status_code == 200:
                 data = res.json()
-                result = data.get("chart", {}).get("result", [])
+                p, c = float(data.get("lastPrice", 0)), float(data.get("priceChangePercent", 0))
+                if p > 0: return {"price": p, "change": c}
+        except Exception: pass
+        return None
+
+    # 2. API Isolada Brapi (B3 Fallback)
+    def fetch_brapi_single(sym):
+        try:
+            clean = sym.replace(".SA", "")
+            res = requests.get(f"https://brapi.dev/api/quote/{clean}", timeout=3)
+            if res.status_code == 200:
+                data = res.json().get("results", [])
+                if data:
+                    p = data[0].get("regularMarketPrice", 0)
+                    c = data[0].get("regularMarketChangePercent", 0)
+                    if p > 0: return {"price": float(p), "change": float(c)}
+        except Exception: pass
+        return None
+
+    # 3. API Isolada Yahoo v7 (US Stocks / General Fallback)
+    def fetch_yahoo_v7(sym):
+        try:
+            res = requests.get(f"https://query1.finance.yahoo.com/v7/finance/quote?symbols={sym}", headers=headers, timeout=3)
+            if res.status_code == 200:
+                results = res.json().get("quoteResponse", {}).get("result", [])
+                if results:
+                    p = results[0].get("regularMarketPrice", 0)
+                    c = results[0].get("regularMarketChangePercent", 0)
+                    if p > 0: return {"price": float(p), "change": float(c)}
+        except Exception: pass
+        return None
+
+    # 4. Engine Principal Yahoo v8
+    def fetch_yahoo_v8(sym):
+        try:
+            res = requests.get(f"https://query2.finance.yahoo.com/v8/finance/chart/{sym}?interval=1d&range=2d", headers=headers, timeout=3)
+            if res.status_code == 200:
+                result = res.json().get("chart", {}).get("result", [])
                 if result:
                     meta = result[0].get("meta", {})
-                    price = meta.get("regularMarketPrice", 0.0)
-                    prev_close = meta.get("chartPreviousClose") or meta.get("previousClose") or price
+                    indicators = result[0].get("indicators", {}).get("quote", [{}])[0]
+                    closes = [c for c in indicators.get("close", []) if c is not None]
+
+                    price = meta.get("regularMarketPrice") or (closes[-1] if closes else 0.0)
+                    prev_close = meta.get("chartPreviousClose") or meta.get("previousClose")
+                    if not prev_close and len(closes) > 1:
+                        prev_close = closes[0]
+
                     if price and prev_close:
                         chg = ((price - prev_close) / prev_close) * 100
                         return {"price": float(price), "change": float(chg)}
-        except Exception:
-            pass
+        except Exception: pass
         return None
 
     for orig_sym in symbols_tuple:
         actual_sym = alias_map.get(orig_sym, orig_sym)
-        
-        # 1. Requisição direta Yahoo Chart API v8
-        q_data = fetch_yahoo_v8(actual_sym)
-        
-        # 2. Fallback via yfinance fast_info se a V8 falhar
-        if not q_data or q_data["price"] == 0.0:
-            try:
-                tk = yf.Ticker(actual_sym)
-                fast = tk.fast_info
-                p = fast.last_price
-                prev = fast.previous_close
-                if p and prev:
-                    c = ((p - prev) / prev) * 100
-                    q_data = {"price": float(p), "change": float(c)}
-            except Exception:
-                pass
+        q_data = None
 
-        if q_data and q_data["price"] > 0.0:
-            quotes[orig_sym] = q_data
-        else:
-            quotes[orig_sym] = {"price": 0.0, "change": 0.0}
+        # Prioridade 1: Binance para Cryptos nativas
+        if "-USD" in actual_sym or actual_sym in ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"]:
+            q_data = fetch_binance(actual_sym)
+
+        # Prioridade 2: Yahoo Chart v8
+        if not q_data or q_data["price"] == 0.0:
+            q_data = fetch_yahoo_v8(actual_sym)
+
+        # Prioridade 3: Fallback B3 via Brapi
+        if (not q_data or q_data["price"] == 0.0) and ".SA" in actual_sym:
+            q_data = fetch_brapi_single(actual_sym)
+
+        # Prioridade 4: Fallback US via Yahoo Quote v7
+        if not q_data or q_data["price"] == 0.0:
+            q_data = fetch_yahoo_v7(actual_sym)
+
+        quotes[orig_sym] = q_data if q_data else {"price": 0.0, "change": 0.0}
 
     return quotes
 
