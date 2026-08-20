@@ -9,7 +9,7 @@ import pandas as pd
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="OMNIRESEARCH Engine",
-    page_icon="📈",
+    page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -81,7 +81,7 @@ st.markdown("""<style>
         border: none !important;
     }
 
-    /* ALINHAMENTO DOS CHECKBOXES */
+    /* ALINHAMENTO DOS CHECKBOXES E COR VERDE */
     div[data-testid="stCheckbox"] {
         display: flex !important;
         justify-content: flex-end !important;
@@ -99,11 +99,14 @@ st.markdown("""<style>
         cursor: pointer !important;
     }
 
-    /* FORÇAR COR DA CHECKMARK PARA BRANCO */
-    div[data-baseweb="checkbox"] input:checked + div svg,
-    div[data-baseweb="checkbox"] span[aria-checked="true"] svg {
-        color: #FFFFFF !important;
-        fill: #FFFFFF !important;
+    /* Força o fundo dos checkboxes marcados a ficarem verdes */
+    div[data-baseweb="checkbox"] input:checked ~ div div {
+        background-color: #2E7D32 !important;
+        border-color: #2E7D32 !important;
+    }
+    div[data-baseweb="checkbox"] input:checked ~ div {
+        background-color: #2E7D32 !important;
+        border-color: #2E7D32 !important;
     }
 
     /* AJUSTE DE MÉTRICAS PADRÃO STREAMLIT */
@@ -292,7 +295,7 @@ CRYPTO_BENCHMARKS = [
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO ROBUSTA
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO ROBUSTA (YFINANCE 5D + BRAPI MULTI-KEY)
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -445,13 +448,13 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
     return quotes
 
 # -----------------------------------------------------------------------------
-# 4. SIDEBAR: CONTROLE DE TIERS, CATEGORIAS E PARÂMETROS
+# 4. SIDEBAR: CONTROLE DE TIERS, CATEGORIAS, FORMATOS E PARÂMETROS QUANT
 # -----------------------------------------------------------------------------
 st.sidebar.title("⚙️ Configurações OMNI")
 st.sidebar.caption("Controle de geração de roteiros e relatórios")
 
 idioma = st.sidebar.selectbox("🌐 Idioma do Output:", ["Português (BR)", "English", "Español"])
-modulo = st.sidebar.radio("📌 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
+modulo = st.sidebar.radio("📊 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🔌 Conectores de API")
@@ -459,7 +462,7 @@ brapi_token = st.sidebar.text_input(
     "BRAPI API Token:", 
     value="", 
     type="password", 
-    help="Chave de API para fallback dos ativos B3 (.SA) fora do horário de pregão."
+    help="Chave de API para fallback dos ativos B3 (.SA) fora do horário de pregão ou falhas do YFinance."
 )
 
 st.sidebar.markdown("---")
@@ -476,7 +479,7 @@ if "Free" in tier_selected:
     max_free_tickers = 0
     allow_customization = False
     allow_white_label = False
-    st.sidebar.info("ℹ️ Modo Free: 32 ativos fixos padrão.")
+    st.sidebar.info("📌 Modo Free: 32 ativos fixos padrão. Sem alteração.")
 elif "Standard" in tier_selected:
     max_assets_allowed = 32
     max_free_tickers = 5
@@ -488,13 +491,13 @@ else:
     max_free_tickers = 999
     allow_customization = True
     allow_white_label = True
-    st.sidebar.success("🚀 Modo Premium: 100+ Ativos + White-Label Habilitado.")
+    st.sidebar.success("🌟 Modo Premium: 100+ Ativos + White-Label Habilitado.")
 
 active_categories = CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI
 active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🛠️ Calibragem (SaaS Enterprise)")
+st.sidebar.subheader("🎛️ Calibragem (SaaS Enterprise)")
 st.sidebar.caption("Selecione os setores/categorias:")
 
 selected_categories = []
@@ -505,7 +508,7 @@ for key in active_categories.keys():
 custom_tickers = []
 if allow_customization:
     st.sidebar.markdown("---")
-    st.sidebar.subheader("🎯 Injeção de Tickers Livres")
+    st.sidebar.subheader("➕ Injeção de Tickers Livres")
     c_input = st.sidebar.text_input("Tickers extras (ex: WEGE3.SA, PEPE-USD):", value="")
     if c_input:
         custom_tickers = [t.strip().upper() for t in c_input.split(",") if t.strip()]
@@ -514,19 +517,19 @@ if allow_customization:
             custom_tickers = custom_tickers[:max_free_tickers]
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("📊 Parâmetros do Engine Preditivo")
+st.sidebar.subheader("📈 Parâmetros do Engine Preditivo")
 horizonte_pred = st.sidebar.selectbox("Horizonte Temporário:", ["24 Horas", "48 Horas", "7 Dias"], index=1)
 alvo_pct = st.sidebar.slider("Projeção de Resposta (%)", min_value=0.5, max_value=15.0, value=3.0, step=0.5)
 stop_pct = st.sidebar.slider("Zona de Suporte / Defesa (%)", min_value=0.5, max_value=15.0, value=3.0, step=0.5)
 
 st.sidebar.markdown("---")
-formato = st.sidebar.radio(f"📄 Formato ({modulo}):", ["B2B (Relatório)", "B2C (YouTube Auto-Pilot)"], index=0)
+formato = st.sidebar.radio(f"📋 Formato ({modulo}):", ["B2B (Relatório)", "B2C (YouTube Auto-Pilot)"], index=0)
 
 company_name = "OMNIRESEARCH Engine"
 cnpi_code = "CNPI-T 0000"
 if allow_white_label:
     st.sidebar.markdown("---")
-    st.sidebar.subheader("🏷️ Personalização White-Label")
+    st.sidebar.subheader("🏢 Personalização White-Label")
     company_name = st.sidebar.text_input("Nome da Casa/Escritório:", "XP / BTG / Gestora")
     cnpi_code = st.sidebar.text_input("Registro CNPI/Responsável:", "CNPI-T 3421")
 
@@ -562,10 +565,10 @@ if custom_tickers:
 # 5. CORPO PRINCIPAL & PAINEL DE CONTROLE
 # -----------------------------------------------------------------------------
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
-    st.title(f"🏛️ {company_name} — Terminal Quant")
+    st.title(f"🏢 {company_name} — Terminal Quant")
     st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
 else:
-    st.title("🖥️ OMNIRESEARCH Engine")
+    st.title("📌 OMNIRESEARCH Engine")
     st.caption("Plataforma Integrada de Inteligência Financeira: YouTube Auto/HITL, Relatórios B2B (Crypto) e TradFi (Macro)")
 
 now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
@@ -573,7 +576,7 @@ now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 col_status, col_btn_refresh = st.columns([3.5, 1])
 with col_status:
     st.markdown(
-        f'<div class="status-bar">⚡ <b>Dados consolidados das {now_str}</b> (Cache 5m) | Status API: <span style="color: #3FB950;">🟢 Online</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
+        f'<div class="status-bar">🕒 <b>Dados consolidados das {now_str}</b> (Cache 5m) | Status API: <span style="color: #3FB950;">🟢 Online</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
         unsafe_allow_html=True
     )
 with col_btn_refresh:
@@ -584,7 +587,7 @@ with col_btn_refresh:
 col_left, col_right = st.columns([1.3, 1])
 
 with col_left:
-    st.subheader(f"📝 Entrega Padrão — {formato}")
+    st.subheader(f"📑 Entrega Padrão — {formato}")
     st.caption("Indicadores e cotações integrados em tempo real via API:")
 
     if "B2B" in formato:
@@ -720,7 +723,6 @@ Powered by OMNIRESEARCH Engine"""
         with c4:
             st.metric(f"Previsão {horizonte_pred}", "Alta Moderada", f"Alvo {fmt_num(target_calc, dec=0)}")
 
-# Painel Direito: Métricas Agregadas
 with col_right:
     st.subheader(f"📊 Métricas Agregadas ({modulo})")
     st.caption(f"Atualizado via API / Dados de Mercado às {datetime.now().strftime('%H:%M:%S BRT')}")
@@ -771,16 +773,6 @@ with col_right:
         )
 
 st.markdown("---")
-
-st.markdown("""
-<style>
-/* Muda a cor de fundo do checkbox quando marcado para verde */
-div[data-baseweb="checkbox"] input:checked + div {
-    background-color: #2E7D32 !important;
-    border-color: #2E7D32 !important;
-}
-</style>
-""", unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
 # 6. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA)
@@ -850,4 +842,4 @@ st.markdown("---")
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.caption(f"© {datetime.now().year} {company_name}. Todos os direitos reservados. Relatório de uso exclusivo.")
 else:
-    st.caption("🚀 Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
+    st.caption("⚡ Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
