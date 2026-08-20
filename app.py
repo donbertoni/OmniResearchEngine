@@ -285,7 +285,7 @@ CRYPTO_BENCHMARKS = [
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO, INGESTÃO & FALLBACK BRAPI
+# 3. FUNÇÕES DE FORMATAÇÃO, INGESTÃO & FALLBACK MULTI-NÍVEL (YFINANCE + BRAPI LOTE)
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -338,45 +338,34 @@ def fetch_global_crypto_data():
     }
 
 def fetch_brapi_fallback(failed_symbols, token=""):
-    """Busca cirúrgica na BRAPI com suporte a mercado fechado e limpeza de token."""
+    """Busca cirúrgica na BRAPI em lote para ativos B3 com falha."""
     brapi_quotes = {}
     if not failed_symbols:
         return brapi_quotes
 
-    # Higieniza o token removendo prefixos acidentais ou aspas
     token_clean = token.split("=")[-1].strip().replace('"', '').replace("'", "") if token else ""
     sym_map = {sym.replace(".SA", "").strip().upper(): sym for sym in failed_symbols}
-    clean_symbols = list(sym_map.keys())
-    
-    headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Authorization": f"Bearer {token_clean}" if token_clean else ""
-    }
+    clean_symbols_str = ",".join(sym_map.keys())
 
-    def parse_brapi_item(item):
-        raw_sym = str(item.get("symbol", "")).upper()
-        orig_sym = sym_map.get(raw_sym, raw_sym + ".SA")
-        # Garante a captura do preço mesmo se regularMarketPrice vier null fora do pregão
-        price = item.get("regularMarketPrice") or item.get("regularMarketPreviousClose") or item.get("price") or 0.0
-        chg = item.get("regularMarketChangePercent") or item.get("changePercent") or 0.0
-        if price and float(price) > 0:
-            return orig_sym, {"price": float(price), "change": float(chg)}
-        return None, None
+    headers = {"User-Agent": "Mozilla/5.0"}
+    params = {}
+    if token_clean:
+        params["token"] = token_clean
 
-    # Requisições individuais para garantir retorno dos papéis pendentes
-    params = {"token": token_clean} if token_clean else {}
-    for s in clean_symbols:
-        try:
-            url = f"https://brapi.dev/api/quote/{s}"
-            res = requests.get(url, params=params, headers=headers, timeout=4)
-            if res.status_code == 200:
-                results = res.json().get("results", [])
-                if results:
-                    k, v = parse_brapi_item(results[0])
-                    if k:
-                        brapi_quotes[k] = v
-        except Exception:
-            pass
+    try:
+        url = f"https://brapi.dev/api/quote/{clean_symbols_str}"
+        res = requests.get(url, params=params, headers=headers, timeout=5)
+        if res.status_code == 200:
+            results = res.json().get("results", [])
+            for item in results:
+                raw_sym = str(item.get("symbol", "")).upper()
+                orig_sym = sym_map.get(raw_sym, raw_sym + ".SA")
+                price = item.get("regularMarketPrice") or item.get("regularMarketPreviousClose") or item.get("price") or 0.0
+                chg = item.get("regularMarketChangePercent") or item.get("changePercent") or 0.0
+                if price and float(price) > 0:
+                    brapi_quotes[orig_sym] = {"price": float(price), "change": float(chg)}
+    except Exception:
+        pass
 
     return brapi_quotes
 
@@ -411,21 +400,25 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
     except Exception:
         pass
 
-    # Passagem 2: Fallback direto via yf.Ticker fast_info para os que falharam no batch
+    # Passagem 2: Yahoo Direct Chart v8 para os que falharam no batch YFinance
     missing_symbols = [s for s, v in quotes.items() if v["price"] == 0.0]
+    headers_y = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     for orig_sym in missing_symbols:
+        actual_sym = alias_map.get(orig_sym, orig_sym)
         try:
-            t = yf.Ticker(alias_map.get(orig_sym, orig_sym))
-            fast = t.fast_info
-            p = float(fast.last_price or 0.0)
-            prev = float(fast.previous_close or p)
-            if p > 0:
-                c = ((p - prev) / prev) * 100 if prev > 0 else 0.0
-                quotes[orig_sym] = {"price": p, "change": c}
+            url = f"https://query2.finance.yahoo.com/v8/finance/chart/{actual_sym}?interval=1d&range=2d"
+            res = requests.get(url, headers=headers_y, timeout=3)
+            if res.status_code == 200:
+                meta = res.json().get("chart", {}).get("result", [])[0].get("meta", {})
+                p = float(meta.get("regularMarketPrice", 0.0))
+                prev = float(meta.get("chartPreviousClose") or meta.get("previousClose") or p)
+                if p > 0:
+                    c = ((p - prev) / prev) * 100 if prev > 0 else 0.0
+                    quotes[orig_sym] = {"price": p, "change": c}
         except Exception:
             pass
 
-    # Passagem 3: Fallback BRAPI para ativos B3 que continuarem zerados
+    # Passagem 3: Fallback BRAPI em lote para ativos B3 que continuarem zerados
     failed_b3 = [
         sym for sym, val in quotes.items()
         if (val["price"] == 0.0 or pd.isna(val["price"])) and sym.endswith(".SA")
