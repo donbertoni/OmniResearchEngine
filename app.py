@@ -344,23 +344,52 @@ def fetch_realtime_quotes(symbols_tuple):
         price = 0.0
         change = 0.0
 
-        # Método 1: Yahoo v8 Chart API (sem crumb, imune a bloqueio de IP)
-        try:
-            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{query_sym}?interval=1d&range=2d"
-            res = requests.get(url, headers=headers, timeout=4)
-            if res.status_code == 200:
-                result = res.json().get("chart", {}).get("result", [])
-                if result:
-                    meta = result[0].get("meta", {})
-                    price = float(meta.get("regularMarketPrice", 0.0) or 0.0)
-                    prev_close = float(meta.get("chartPreviousClose", meta.get("previousClose", 0.0)) or 0.0)
-                    
-                    if price > 0 and prev_close > 0:
-                        change = ((price - prev_close) / prev_close) * 100
-        except Exception:
-            pass
+        # Tentar query1 e query2 do Yahoo com profundidade de 5 dias
+        for host in ["query1.finance.yahoo.com", "query2.finance.yahoo.com"]:
+            if price > 0:
+                break
+            try:
+                url = f"https://{host}/v8/finance/chart/{query_sym}?interval=1d&range=5d"
+                res = requests.get(url, headers=headers, timeout=4)
+                if res.status_code == 200:
+                    chart_data = res.json().get("chart", {}).get("result", [])
+                    if chart_data:
+                        result_obj = chart_data[0]
+                        meta = result_obj.get("meta", {})
+                        
+                        # 1. Tenta regularMarketPrice
+                        raw_price = meta.get("regularMarketPrice")
+                        
+                        # 2. Se for None/0 (comum em CCRO3, EMBR3, BRFS3, JBSS3), pega o último valor do array de fechamento
+                        if not raw_price or raw_price == 0.0:
+                            quotes_arr = result_obj.get("indicators", {}).get("quote", [{}])[0].get("close", [])
+                            valid_closes = [c for c in quotes_arr if c is not None and c > 0]
+                            if valid_closes:
+                                raw_price = valid_closes[-1]
 
-        # Método 2: Binance Fallback para Crypto
+                        # 3. Fallback adicional para previousClose
+                        if not raw_price or raw_price == 0.0:
+                            raw_price = meta.get("chartPreviousClose") or meta.get("previousClose") or 0.0
+
+                        price = float(raw_price or 0.0)
+
+                        # Cálculo seguro de variação percentual (%)
+                        prev_close = meta.get("chartPreviousClose") or meta.get("previousClose") or 0.0
+                        quotes_arr = result_obj.get("indicators", {}).get("quote", [{}])[0].get("close", [])
+                        valid_closes = [c for c in quotes_arr if c is not None and c > 0]
+                        
+                        if not prev_close or prev_close == 0.0:
+                            if len(valid_closes) >= 2:
+                                prev_close = valid_closes[-2]
+
+                        prev_close = float(prev_close or 0.0)
+
+                        if price > 0 and prev_close > 0:
+                            change = ((price - prev_close) / prev_close) * 100
+            except Exception:
+                pass
+
+        # Fallback Binance para Crypto
         if price == 0.0 and ("-USD" in query_sym or "USDT" in clean):
             try:
                 pair = clean.replace("-USD", "USDT")
@@ -497,7 +526,7 @@ now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 col_status, col_btn_refresh = st.columns([3.5, 1])
 with col_status:
     st.markdown(
-        f'<div class="status-bar">⚡ <b>Dados consolidados às {now_str}</b> | Status API: <span style="color: #3FB950;">🟢 Online (Yahoo Chart v8 / Binance API)</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
+        f'<div class="status-bar">⚡ <b>Dados consolidados às {now_str}</b> | Status API: <span style="color: #3FB950;">🟢 Online (Yahoo Chart v8 Multi-Fallback)</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
         unsafe_allow_html=True
     )
 with col_btn_refresh:
