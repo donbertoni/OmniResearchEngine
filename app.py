@@ -68,13 +68,17 @@ st.markdown("""<style>
     }
     .premium-badge { color: #58A6FF; font-weight: bold; }
 
-    /* FORÇANDO COR DE FUNDO DOS CARDS DAS CATEGORIAS (#161B22) */
-    html body .stApp [data-testid="stVerticalBlockBorderWrapper"],
-    html body .stApp [data-testid="stVerticalBlockBorderWrapper"] > div {
+    /* COR DE FUNDO DOS CARDS DAS CATEGORIAS (#161B22) */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
         background-color: #161B22 !important;
-        background: #161B22 !important;
         border: 1px solid #30363D !important;
         border-radius: 8px !important;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"] > div {
+        background-color: transparent !important;
+        background: transparent !important;
+        border: none !important;
     }
 
     /* RESTAURAÇÃO E ALINHAMENTO MILIMÉTRICO DOS CHECKBOXES À DIREITA */
@@ -734,7 +738,7 @@ if selected_categories:
                 with st.container(border=True):
                     cat_key = f"chk_cat_{cat_name}"
                     
-                    # Cabeçalho do Card: Proporção [3.2, 0.8] com "Incluir" alinhado à direita da palavra
+                    # Cabeçalho do Card
                     c_title, c_check = st.columns([3.2, 0.8])
                     with c_title:
                         st.markdown(
