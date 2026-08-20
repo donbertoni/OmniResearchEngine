@@ -278,7 +278,7 @@ CRYPTO_BENCHMARKS = [
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO PARALELA (THREADPOOL)
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO PARALELA (THREADPOOL + BRAPI FALLBACK)
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -325,7 +325,7 @@ def fetch_global_crypto_data():
     return {"btc_d_val": "56,80%", "btc_d_chg": 0.35, "usdt_d_val": "5,20%", "usdt_d_chg": -0.18}
 
 @st.cache_data(ttl=120)
-def fetch_realtime_quotes(symbols_tuple):
+def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
     quotes = {}
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -374,9 +374,26 @@ def fetch_realtime_quotes(symbols_tuple):
         except Exception:
             pass
 
+        # 3. FALLBACK BRAPI.DEV (Para B3 caso o Yahoo zerou/falhou)
+        if res_data["price"] == 0.0 and re.match(r'^[A-Z]{4}[0-9]{1,2}$', clean):
+            try:
+                token_param = f"?token={brapi_token}" if brapi_token else ""
+                url_brapi = f"https://brapi.dev/api/quote/{clean}{token_param}"
+                res_b = requests.get(url_brapi, timeout=4)
+                if res_b.status_code == 200:
+                    results_b = res_b.json().get("results", [])
+                    if results_b:
+                        data_b = results_b[0]
+                        price_b = float(data_b.get("regularMarketPrice", 0.0) or 0.0)
+                        chg_b = float(data_b.get("regularMarketChangePercent", 0.0) or 0.0)
+                        if price_b > 0:
+                            res_data["price"] = price_b
+                            res_data["change"] = chg_b
+            except Exception:
+                pass
+
         return res_data
 
-    # Execução concorrente em até 15 threads paralelas para evitar timeout no Streamlit Cloud
     unique_symbols = list(set(symbols_tuple))
     with ThreadPoolExecutor(max_workers=15) as executor:
         results = list(executor.map(fetch_single, unique_symbols))
@@ -391,11 +408,22 @@ def fetch_realtime_quotes(symbols_tuple):
     return quotes
 
 # -----------------------------------------------------------------------------
-# 4. SIDEBAR: CONTROLE DE TIERS, CATEGORIAS, FORMATOS E PARÂMETROS QUANT
+# 4. SIDEBAR: CONTROLE DE TIERS, BRAPI API TOKEN, CATEGORIAS E FORMATOS
 # -----------------------------------------------------------------------------
 st.sidebar.title("⚙️ Configurações OMNI")
 st.sidebar.caption("Controle de geração de roteiros e relatórios")
 
+# Campo do Token BRAPI
+st.sidebar.markdown("---")
+st.sidebar.subheader("🔑 Chave API B3 (BRAPI.dev)")
+brapi_token_input = st.sidebar.text_input(
+    "Token BRAPI.dev (Fallback B3):",
+    value="",
+    type="password",
+    help="Insira seu token da brapi.dev para garantir cotações 100% ativas da B3."
+)
+
+st.sidebar.markdown("---")
 idioma = st.sidebar.selectbox("🌐 Idioma do Output:", ["Português (BR)", "English", "Español"])
 modulo = st.sidebar.radio("📌 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
 
@@ -475,7 +503,8 @@ for cat_info in active_categories.values():
 
 symbols_to_fetch.extend(custom_tickers)
 
-quotes = fetch_realtime_quotes(tuple(symbols_to_fetch))
+# Chamada com o token da BRAPI
+quotes = fetch_realtime_quotes(tuple(symbols_to_fetch), brapi_token=brapi_token_input)
 fng_val, fng_class = fetch_btc_fng()
 global_crypto_data = fetch_global_crypto_data()
 
@@ -507,7 +536,7 @@ now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 col_status, col_btn_refresh = st.columns([3.5, 1])
 with col_status:
     st.markdown(
-        f'<div class="status-bar">⚡ <b>Dados consolidados às {now_str}</b> | Status API: <span style="color: #3FB950;">🟢 Online (Parallel Fetch Engine)</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
+        f'<div class="status-bar">⚡ <b>Dados consolidados às {now_str}</b> | Status API: <span style="color: #3FB950;">🟢 Online (Yahoo + BRAPI Fallback)</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
         unsafe_allow_html=True
     )
 with col_btn_refresh:
