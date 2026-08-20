@@ -207,7 +207,7 @@ CATEGORIES_CRYPTO = {
             ("BTC Perp", "BTC-USD", "$"),
             ("ETH Perp", "ETH-USD", "$"),
             ("SOL Perp", "SOL-USD", "$"),
-            ("DOGE Perp", "DOGE-USD", "$"),
+            ("BNB Perp", "BNB-USD", "$"),
         ]
     },
     "6 - Open Interest": {
@@ -284,9 +284,8 @@ def fetch_global_crypto_data():
             btc_d = data.get("market_cap_percentage", {}).get("btc", 56.8)
             usdt_d = data.get("market_cap_percentage", {}).get("usdt", 5.2)
             
-            # Variação calculada/retornada para exibir sinal numérico (+ / -)
             btc_d_chg = data.get("market_cap_change_percentage_24h_usd", 0.35)
-            usdt_d_chg = -0.18  # Variação diária negativa explícita para USDT.D
+            usdt_d_chg = -0.18
             
             return {
                 "btc_d_val": f"{btc_d:.2f}%".replace(".", ","),
@@ -528,7 +527,7 @@ with col_left:
                 "2. ANÁLISE INTEGRADA DAS CATEGORIAS SELECIONADAS (DADOS EM TEMPO REAL)"
             ]
 
-        # Inclusão dinâmica considerando marcas de Seleção dos Setores e Ativos
+        # Filtro dinâmico baseado nos checkboxes marcados
         for cat_name in selected_categories:
             if cat_name in active_display_categories:
                 cat_info = active_display_categories[cat_name]
@@ -621,7 +620,7 @@ Powered by OMNIRESEARCH Engine"""
         with c4:
             st.metric(f"Previsão {horizonte_pred}", "Alta Moderada", f"Alvo {fmt_num(target_calc, dec=0)}")
 
-# Painel Direito: Métricas Agregadas Estilizadas
+# Painel Direito: Métricas Agregadas
 with col_right:
     st.subheader(f"📊 Métricas Agregadas ({modulo})")
     st.caption(f"Atualizado via API / Dados de Mercado às {datetime.now().strftime('%H:%M:%S BRT')}")
@@ -633,7 +632,15 @@ with col_right:
         if item.get("type") == "fng_api":
             val_str = fng_val
             chg_str = fng_class
-            change_cls = "metric-change-neutral" if "Greed" in chg_str or "Fear" in chg_str else "metric-change-pos"
+            
+            # Regra de Cores Fear & Greed: Fear = Vermelho, Neutro = Azul, Greed = Verde
+            if "Fear" in fng_class:
+                change_cls = "metric-change-neg"
+            elif "Greed" in fng_class:
+                change_cls = "metric-change-pos"
+            else:
+                change_cls = "metric-change-neutral"
+
         elif item.get("type") == "global_api":
             sub_k = item.get("sub_key")
             if sub_k == "btc_d":
@@ -649,6 +656,7 @@ with col_right:
             else:
                 chg_str = str(chg_num)
                 change_cls = "metric-change-neutral"
+
         elif item.get("ticker"):
             ticker = item["ticker"]
             data = quotes.get(ticker, {"price": 0.0, "change": 0.0})
@@ -666,7 +674,7 @@ with col_right:
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 6. PAINEL DE ANÁLISE INTEGRADA DAS CATEGORIAS COM CHECKBOXES DE SELEÇÃO
+# 6. PAINEL DE ANÁLISE INTEGRADA COM CHECKBOXES RIGOROSAMENTE À DIREITA
 # -----------------------------------------------------------------------------
 st.subheader(f"📂 Painel de Análise Integrada das Categorias ({modulo})")
 st.caption("Marque/desmarque setores ou ativos específicos para incluir ou excluir do relatório final:")
@@ -682,34 +690,45 @@ if selected_categories:
                 with st.container(border=True):
                     cat_key = f"chk_cat_{cat_name}"
                     
-                    # Cabeçalho do Card: Nome da Categoria + Checkbox de Incluir Setor à direita
-                    c_title, c_check = st.columns([2.2, 1.8])
+                    # Cabeçalho: Título na esquerda, Checkbox do setor alinhado à direita
+                    c_title, c_check = st.columns([2.5, 1.5])
                     with c_title:
                         st.markdown(f"**{cat_name}**")
                     with c_check:
                         cat_enabled = st.checkbox(
-                            "Incluir Setor",
+                            "Incluir",
                             value=st.session_state.get(cat_key, True),
                             key=cat_key
                         )
                     
                     st.divider()
                     
-                    # Checkboxes individuais por ativo da categoria
+                    # Ativos: Texto e preço na esquerda, Checkbox individual alinhado à direita
                     for disp_name, ticker, currency in cat_info["assets"]:
                         q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                         asset_key = f"chk_asset_{cat_name}_{ticker}"
                         
+                        color_style = "color: #3FB950;" if q["change"] >= 0 else "color: #F85149;"
                         price_fmt = f"{currency} {fmt_num(q['price'])}"
                         chg_fmt = fmt_pct(q['change'])
-                        label_text = f"**{disp_name}**: {price_fmt} ({chg_fmt})"
                         
-                        st.checkbox(
-                            label_text,
-                            value=st.session_state.get(asset_key, True),
-                            key=asset_key,
-                            disabled=not cat_enabled
-                        )
+                        cA, cB = st.columns([3.3, 0.7])
+                        with cA:
+                            st.markdown(
+                                f'<div style="font-size: 12px; padding-top: 4px;">'
+                                f'<span style="color: #C9D1D9; font-weight: 500;">{disp_name}:</span> '
+                                f'<b>{price_fmt}</b> <span style="{color_style} font-size: 11px;">({chg_fmt})</span>'
+                                f'</div>',
+                                unsafe_allow_html=True
+                            )
+                        with cB:
+                            st.checkbox(
+                                "",
+                                value=st.session_state.get(asset_key, True),
+                                key=asset_key,
+                                disabled=not cat_enabled,
+                                label_visibility="collapsed"
+                            )
 
 st.markdown("---")
 
