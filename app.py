@@ -285,7 +285,7 @@ CRYPTO_BENCHMARKS = [
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO VIA YAHOO & BRAPI FALLBACK
+# 3. FUNÇÕES DE FORMATAÇÃO, INGESTÃO & FALLBACK BRAPI
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -338,47 +338,37 @@ def fetch_global_crypto_data():
     }
 
 def fetch_brapi_fallback(failed_symbols, token=""):
-    """Busca cirúrgica na BRAPI exclusivamente para ativos B3 não carregados no Yahoo."""
+    """Busca cirúrgica na BRAPI com suporte a mercado fechado e limpeza de token."""
     brapi_quotes = {}
     if not failed_symbols:
         return brapi_quotes
 
-    token_clean = token.strip() if token else ""
-    sym_map = {sym.replace(".SA", "").strip(): sym for sym in failed_symbols}
+    # Higieniza o token removendo prefixos acidentais ou aspas
+    token_clean = token.split("=")[-1].strip().replace('"', '').replace("'", "") if token else ""
+    sym_map = {sym.replace(".SA", "").strip().upper(): sym for sym in failed_symbols}
     clean_symbols = list(sym_map.keys())
-    headers = {"User-Agent": "Mozilla/5.0"}
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Authorization": f"Bearer {token_clean}" if token_clean else ""
+    }
 
     def parse_brapi_item(item):
-        raw_sym = item.get("symbol", "")
+        raw_sym = str(item.get("symbol", "")).upper()
         orig_sym = sym_map.get(raw_sym, raw_sym + ".SA")
-        price = item.get("regularMarketPrice") or item.get("close") or 0.0
+        # Garante a captura do preço mesmo se regularMarketPrice vier null fora do pregão
+        price = item.get("regularMarketPrice") or item.get("regularMarketPreviousClose") or item.get("price") or 0.0
         chg = item.get("regularMarketChangePercent") or item.get("changePercent") or 0.0
         if price and float(price) > 0:
             return orig_sym, {"price": float(price), "change": float(chg)}
         return None, None
 
-    # Tenta chamada em lote na BRAPI
-    tickers_query = ",".join(clean_symbols)
-    url = f"https://brapi.dev/api/quote/{tickers_query}"
+    # Requisições individuais para garantir retorno dos papéis pendentes
     params = {"token": token_clean} if token_clean else {}
-
-    try:
-        res = requests.get(url, params=params, headers=headers, timeout=5)
-        if res.status_code == 200:
-            results = res.json().get("results", [])
-            for item in results:
-                k, v = parse_brapi_item(item)
-                if k:
-                    brapi_quotes[k] = v
-    except Exception:
-        pass
-
-    # Tenta chamadas individuais para os ativos pendentes
-    still_missing = [s for s in clean_symbols if sym_map[s] not in brapi_quotes]
-    for s in still_missing:
+    for s in clean_symbols:
         try:
-            single_url = f"https://brapi.dev/api/quote/{s}"
-            res = requests.get(single_url, params=params, headers=headers, timeout=3)
+            url = f"https://brapi.dev/api/quote/{s}"
+            res = requests.get(url, params=params, headers=headers, timeout=4)
             if res.status_code == 200:
                 results = res.json().get("results", [])
                 if results:
@@ -393,9 +383,6 @@ def fetch_brapi_fallback(failed_symbols, token=""):
 @st.cache_data(ttl=300)
 def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
     quotes = {sym: {"price": 0.0, "change": 0.0} for sym in symbols_tuple}
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-    }
     alias_map = {"UNI-USD": "UNI7083-USD"}
 
     # Passagem 1: Batch Download via YFinance
@@ -415,11 +402,8 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
                     df_clean = df_sym.dropna(subset=["Close"])
                     if len(df_clean) >= 1:
                         p = float(df_clean["Close"].iloc[-1])
-                        if len(df_clean) >= 2:
-                            prev = float(df_clean["Close"].iloc[-2])
-                            c = ((p - prev) / prev) * 100 if prev > 0 else 0.0
-                        else:
-                            c = 0.0
+                        prev = float(df_clean["Close"].iloc[-2]) if len(df_clean) >= 2 else p
+                        c = ((p - prev) / prev) * 100 if prev > 0 else 0.0
                         if p > 0:
                             quotes[orig_sym] = {"price": p, "change": c}
             except Exception:
@@ -427,27 +411,21 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
     except Exception:
         pass
 
-    # Passagem 2: Yahoo Chart API v8 para ativos zerados
+    # Passagem 2: Fallback direto via yf.Ticker fast_info para os que falharam no batch
     missing_symbols = [s for s, v in quotes.items() if v["price"] == 0.0]
     for orig_sym in missing_symbols:
-        actual_sym = alias_map.get(orig_sym, orig_sym)
-        url = f"https://query2.finance.yahoo.com/v8/finance/chart/{actual_sym}?interval=1d&range=2d"
         try:
-            res = requests.get(url, headers=headers, timeout=3)
-            if res.status_code == 200:
-                data = res.json()
-                result = data.get("chart", {}).get("result", [])
-                if result:
-                    meta = result[0].get("meta", {})
-                    price = meta.get("regularMarketPrice", 0.0)
-                    prev_close = meta.get("chartPreviousClose") or meta.get("previousClose") or price
-                    if price and prev_close:
-                        chg = ((price - prev_close) / prev_close) * 100
-                        quotes[orig_sym] = {"price": float(price), "change": float(chg)}
+            t = yf.Ticker(alias_map.get(orig_sym, orig_sym))
+            fast = t.fast_info
+            p = float(fast.last_price or 0.0)
+            prev = float(fast.previous_close or p)
+            if p > 0:
+                c = ((p - prev) / prev) * 100 if prev > 0 else 0.0
+                quotes[orig_sym] = {"price": p, "change": c}
         except Exception:
             pass
 
-    # Passagem 3: Fallback cirúrgico BRAPI para ativos B3 (.SA) não carregados
+    # Passagem 3: Fallback BRAPI para ativos B3 que continuarem zerados
     failed_b3 = [
         sym for sym, val in quotes.items()
         if (val["price"] == 0.0 or pd.isna(val["price"])) and sym.endswith(".SA")
@@ -470,7 +448,16 @@ idioma = st.sidebar.selectbox("🌐 Idioma do Output:", ["Português (BR)", "Eng
 modulo = st.sidebar.radio("📌 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("👤 Nível de Acesso (Tier SaaS)")
+st.sidebar.subheader("🔑 Conectores de API")
+brapi_token = st.sidebar.text_input(
+    "BRAPI API Token:", 
+    value="", 
+    type="password", 
+    help="Chave de API para fallback dos ativos B3 (.SA) fora do horário de pregão ou falhas do YFinance."
+)
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("💎 Nível de Acesso (Tier SaaS)")
 
 tier_selected = st.sidebar.radio(
     "Plano Ativo:",
@@ -489,19 +476,19 @@ elif "Standard" in tier_selected:
     max_free_tickers = 5
     allow_customization = True
     allow_white_label = False
-    st.sidebar.success("✅ Modo Standard: Personalizável + 5 Tickers Livres.")
+    st.sidebar.success("⚡ Modo Standard: Personalizável + 5 Tickers Livres.")
 else:
     max_assets_allowed = 100
     max_free_tickers = 999
     allow_customization = True
     allow_white_label = True
-    st.sidebar.success("👑 Modo Premium: 100+ Ativos + White-Label Habilitado.")
+    st.sidebar.success("🚀 Modo Premium: 100+ Ativos + White-Label Habilitado.")
 
 active_categories = CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI
 active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("⚙️ Calibragem (SaaS Enterprise)")
+st.sidebar.subheader("🛠️ Calibragem (SaaS Enterprise)")
 st.sidebar.caption("Selecione os setores/categorias:")
 
 selected_categories = []
@@ -512,7 +499,7 @@ for key in active_categories.keys():
 custom_tickers = []
 if allow_customization:
     st.sidebar.markdown("---")
-    st.sidebar.subheader("🎯 Injeção de Tickers Livres")
+    st.sidebar.subheader("➕ Injeção de Tickers Livres")
     c_input = st.sidebar.text_input("Tickers extras (ex: WEGE3.SA, PEPE-USD):", value="")
     if c_input:
         custom_tickers = [t.strip().upper() for t in c_input.split(",") if t.strip()]
@@ -521,23 +508,19 @@ if allow_customization:
             custom_tickers = custom_tickers[:max_free_tickers]
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🔑 Configurações de API Extra")
-brapi_token = st.sidebar.text_input("BRAPI Token (Opcional):", type="password")
-
-st.sidebar.markdown("---")
 st.sidebar.subheader("📊 Parâmetros do Engine Preditivo")
 horizonte_pred = st.sidebar.selectbox("Horizonte Temporário:", ["24 Horas", "48 Horas", "7 Dias"], index=1)
 alvo_pct = st.sidebar.slider("Projeção de Resposta (%)", min_value=0.5, max_value=15.0, value=3.0, step=0.5)
 stop_pct = st.sidebar.slider("Zona de Suporte / Defesa (%)", min_value=0.5, max_value=15.0, value=3.0, step=0.5)
 
 st.sidebar.markdown("---")
-formato = st.sidebar.radio(f"📝 Formato ({modulo}):", ["B2B (Relatório)", "B2C (YouTube Auto-Pilot)"], index=0)
+formato = st.sidebar.radio(f"📄 Formato ({modulo}):", ["B2B (Relatório)", "B2C (YouTube Auto-Pilot)"], index=0)
 
 company_name = "OMNIRESEARCH Engine"
 cnpi_code = "CNPI-T 0000"
 if allow_white_label:
     st.sidebar.markdown("---")
-    st.sidebar.subheader("🏢 Personalização White-Label")
+    st.sidebar.subheader("🏛️ Personalização White-Label")
     company_name = st.sidebar.text_input("Nome da Casa/Escritório:", "XP / BTG / Gestora")
     cnpi_code = st.sidebar.text_input("Registro CNPI/Responsável:", "CNPI-T 3421")
 
@@ -552,7 +535,7 @@ for cat_info in active_categories.values():
 
 symbols_to_fetch.extend(custom_tickers)
 
-quotes = fetch_realtime_quotes(tuple(symbols_to_fetch), brapi_token)
+quotes = fetch_realtime_quotes(tuple(symbols_to_fetch), brapi_token=brapi_token)
 fng_val, fng_class = fetch_btc_fng()
 global_crypto_data = fetch_global_crypto_data()
 
@@ -576,7 +559,7 @@ if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.title(f"🏛️ {company_name} — Terminal Quant")
     st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
 else:
-    st.title("⚡ OMNIRESEARCH Engine")
+    st.title("🖥️ OMNIRESEARCH Engine")
     st.caption("Plataforma Integrada de Inteligência Financeira: YouTube Auto/HITL, Relatórios B2B (Crypto) e TradFi (Macro)")
 
 now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
@@ -584,7 +567,7 @@ now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 col_status, col_btn_refresh = st.columns([3.5, 1])
 with col_status:
     st.markdown(
-        f'<div class="status-bar">⚡ <b>Dados consolidados das {now_str}</b> (Cache 5m) | Status API: <span style="color: #3FB950;">🟢 Online</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
+        f'<div class="status-bar">⏱️ <b>Dados consolidados das {now_str}</b> (Cache 5m) | Status API: <span style="color: #3FB950;">🟢 Online</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
         unsafe_allow_html=True
     )
 with col_btn_refresh:
@@ -595,7 +578,7 @@ with col_btn_refresh:
 col_left, col_right = st.columns([1.3, 1])
 
 with col_left:
-    st.subheader(f"📑 Entrega Padrão — {formato}")
+    st.subheader(f"📝 Entrega Padrão — {formato}")
     st.caption("Indicadores e cotações integrados em tempo real via API:")
 
     if "B2B" in formato:
@@ -786,7 +769,7 @@ st.markdown("---")
 # -----------------------------------------------------------------------------
 # 6. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA)
 # -----------------------------------------------------------------------------
-st.subheader(f"🧩 Painel de Análise Integrada das Categorias ({modulo})")
+st.subheader(f"📌 Painel de Análise Integrada das Categorias ({modulo})")
 st.caption("Marque/desmarque setores ou ativos específicos para incluir ou excluir do relatório final:")
 
 if selected_categories:
