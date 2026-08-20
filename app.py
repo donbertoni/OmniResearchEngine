@@ -35,7 +35,7 @@ st.markdown("""<style>
     /* Metrics Cards do Painel Direito */
     .metric-card {
         background-color: #161B22;
-        border: 1px solid #21262D;
+        border: 1px solid #30363D;
         border-radius: 8px;
         padding: 12px 16px;
         margin-bottom: 12px;
@@ -68,31 +68,31 @@ st.markdown("""<style>
     }
     .premium-badge { color: #58A6FF; font-weight: bold; }
 
-    /* FORÇANDO COR DE FUNDO DOS CARDS DAS CATEGORIAS (#161B22) COM ALTA ESPECIFICIDADE */
-    html body .stApp div[data-testid="stVerticalBlockBorderWrapper"],
-    html body .stApp div[data-testid="stVerticalBlockBorderWrapper"] > div,
-    html body .stApp [data-testid="stVerticalBlockBorderWrapper"] {
+    /* FORÇANDO COR DE FUNDO DOS CARDS DAS CATEGORIAS (#161B22) */
+    html body .stApp [data-testid="stVerticalBlockBorderWrapper"],
+    html body .stApp [data-testid="stVerticalBlockBorderWrapper"] > div {
         background-color: #161B22 !important;
         background: #161B22 !important;
-        border-color: #21262D !important;
+        border: 1px solid #30363D !important;
         border-radius: 8px !important;
-        padding: 12px !important;
-        margin-bottom: 12px !important;
     }
 
-    /* ALINHAMENTO MILIMÉTRICO DOS CHECKBOXES À DIREITA */
+    /* RESTAURAÇÃO E ALINHAMENTO MILIMÉTRICO DOS CHECKBOXES À DIREITA */
     div[data-testid="stCheckbox"] {
+        display: flex !important;
+        justify-content: flex-end !important;
+        align-items: center !important;
+        height: 24px !important;
         margin: 0px !important;
         padding: 0px !important;
-        height: 24px !important;
+    }
+    div[data-testid="stCheckbox"] > label {
         display: flex !important;
         align-items: center !important;
         justify-content: flex-end !important;
-    }
-    div[data-testid="stCheckbox"] label {
         margin: 0px !important;
         padding: 0px !important;
-        display: none !important;
+        cursor: pointer !important;
     }
 
     /* AJUSTE DE MÉTRICAS PADRÃO STREAMLIT */
@@ -718,7 +718,7 @@ with col_right:
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 6. PAINEL DE ANÁLISE INTEGRADA (COR DOS CARDS & GRID RIGOROSAMENTE ALINHADO)
+# 6. PAINEL DE ANÁLISE INTEGRADA (COR DOS CARDS & CHECKBOXES ALINHANDOS)
 # -----------------------------------------------------------------------------
 st.subheader(f"📁 Painel de Análise Integrada das Categorias ({modulo})")
 st.caption("Marque/desmarque setores ou ativos específicos para incluir ou excluir do relatório final:")
@@ -734,13 +734,13 @@ if selected_categories:
                 with st.container(border=True):
                     cat_key = f"chk_cat_{cat_name}"
                     
-                    # Cabeçalho do Card: Proporção idêntica de colunas [3.2, 0.8]
+                    # Cabeçalho do Card: Proporção [3.2, 0.8] com "Incluir" alinhado à direita da palavra
                     c_title, c_check = st.columns([3.2, 0.8])
                     with c_title:
                         st.markdown(
                             f'<div style="font-size: 13px; font-weight: 700; color: #F0F6FC; line-height: 24px; min-height: 24px; display: flex; align-items: center; justify-content: space-between;">'
                             f'<span>{cat_name}</span>'
-                            f'<span style="font-size: 11px; color: #8B949E; font-weight: 500; margin-right: 4px;">Incluir</span>'
+                            f'<span style="font-size: 11px; color: #8B949E; font-weight: 500;">Incluir</span>'
                             f'</div>',
                             unsafe_allow_html=True
                         )
@@ -754,7 +754,7 @@ if selected_categories:
                     
                     st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
                     
-                    # Lista de Ativos: Proporção idêntica de colunas [3.2, 0.8]
+                    # Lista de Ativos
                     for disp_name, ticker, currency in cat_info["assets"]:
                         q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                         asset_key = f"chk_asset_{cat_name}_{ticker}"
