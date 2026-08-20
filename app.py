@@ -339,77 +339,56 @@ def fetch_global_crypto_data():
 
 @st.cache_data(ttl=300)
 def fetch_realtime_quotes(symbols_tuple):
-    alias_map = {
-        "UNI-USD": "UNI7083-USD",
-    }
-    fallback_candidates = {
-        "BITF": ["BITF", "BITF.TO"],
-        "BRFS3.SA": ["BRFS3.SA", "BRFS"],
-        "JBSS3.SA": ["JBSS3.SA", "JBSAY"],
-        "EMBR3.SA": ["EMBR3.SA", "ERJ"],
-        "CCRO3.SA": ["CCRO3.SA"],
-    }
-    
-    unique_symbols = list(set(symbols_tuple))
     quotes = {}
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     }
 
-    for orig_sym in unique_symbols:
+    # 1. SEPARA ATIVOS B3 (.SA) DOS ATIVOS GLOBAIS/CRYPTO
+    b3_map = {s: s.replace(".SA", "") for s in symbols_tuple if s.endswith(".SA")}
+    global_tickers = [s for s in symbols_tuple if not s.endswith(".SA")]
+
+    # 2. INGESTÃO DE ATIVOS B3 VIA BRAPI (LIVRE DE BLOQUEIO DE IP)
+    if b3_map:
+        try:
+            b3_symbols_str = ",".join(list(b3_map.values()))
+            url_brapi = f"https://brapi.dev/api/quote/{b3_symbols_str}"
+            res = requests.get(url_brapi, headers=headers, timeout=5)
+            if res.status_code == 200:
+                results = res.json().get("results", [])
+                for item in results:
+                    sym_orig = f"{item.get('symbol')}.SA"
+                    price = item.get("regularMarketPrice", 0.0)
+                    chg = item.get("regularMarketChangePercent", 0.0)
+                    quotes[sym_orig] = {
+                        "price": float(price) if price else 0.0,
+                        "change": float(chg) if chg else 0.0
+                    }
+        except Exception:
+            pass
+
+    # 3. INGESTÃO GLOBAL / CRYPTO / USA (BITF, IBIT, BTC, ETC) VIA FAST_INFO
+    alias_map = {"UNI-USD": "UNI7083-USD"}
+    for orig_sym in global_tickers:
         actual_sym = alias_map.get(orig_sym, orig_sym)
-        cands = fallback_candidates.get(actual_sym, [actual_sym])
-        if actual_sym not in cands:
-            cands.insert(0, actual_sym)
-        
-        got_data = False
-        for cand in cands:
-            try:
-                url = f"https://query1.finance.yahoo.com/v8/finance/chart/{cand}?range=5d&interval=1d"
-                res = requests.get(url, headers=headers, timeout=4)
-                if res.status_code == 200:
-                    chart_res = res.json().get("chart", {}).get("result", [])
-                    if chart_res:
-                        meta = chart_res[0].get("meta", {})
-                        price = meta.get("regularMarketPrice", 0.0)
-                        
-                        indicators = chart_res[0].get("indicators", {}).get("quote", [{}])[0]
-                        closes = [c for c in indicators.get("close", []) if c is not None]
-                        
-                        if closes:
-                            price = closes[-1]
-                            prev_close = closes[-2] if len(closes) >= 2 else meta.get("chartPreviousClose", price)
-                        else:
-                            prev_close = meta.get("chartPreviousClose", price)
-                        
-                        if price and price > 0:
-                            chg = ((price - prev_close) / prev_close * 100) if prev_close and prev_close > 0 else 0.0
-                            quotes[orig_sym] = {"price": float(price), "change": float(chg)}
-                            got_data = True
-                            break
-            except Exception:
-                pass
-        
-        # Fallback via biblioteca yfinance se requisição HTTP falhar
-        if not got_data:
-            for cand in cands:
-                try:
-                    tk = yf.Ticker(cand)
-                    df = tk.history(period="5d")
-                    if not df.empty:
-                        closes = df['Close'].dropna().tolist()
-                        if closes:
-                            price = closes[-1]
-                            prev = closes[-2] if len(closes) >= 2 else price
-                            chg = ((price - prev) / prev * 100) if prev > 0 else 0.0
-                            quotes[orig_sym] = {"price": float(price), "change": float(chg)}
-                            got_data = True
-                            break
-                except Exception:
-                    pass
-        
-        if not got_data:
+        try:
+            tk = yf.Ticker(actual_sym)
+            fast = tk.fast_info
+            price = fast.last_price
+            prev_close = fast.previous_close
+            
+            if price and prev_close:
+                chg = ((price - prev_close) / prev_close) * 100
+                quotes[orig_sym] = {"price": float(price), "change": float(chg)}
+            else:
+                quotes[orig_sym] = {"price": 0.0, "change": 0.0}
+        except Exception:
             quotes[orig_sym] = {"price": 0.0, "change": 0.0}
+
+    # 4. PREENCHIMENTO DE SEGURANÇA SE AINDA HOUVER CHAVE AUSENTE
+    for sym in symbols_tuple:
+        if sym not in quotes:
+            quotes[sym] = {"price": 0.0, "change": 0.0}
 
     return quotes
 
