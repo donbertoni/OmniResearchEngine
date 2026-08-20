@@ -285,7 +285,7 @@ CRYPTO_BENCHMARKS = [
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO, INGESTÃO & FALLBACK MULTI-NÍVEL (YFINANCE + BRAPI LOTE)
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO ROBUSTA (YFINANCE 5D + BRAPI MULTI-KEY)
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -338,7 +338,7 @@ def fetch_global_crypto_data():
     }
 
 def fetch_brapi_fallback(failed_symbols, token=""):
-    """Busca cirúrgica na BRAPI em lote para ativos B3 com falha."""
+    """Fallback cirúrgico via BRAPI verificando múltiplos campos de preço para fora do horário do pregão."""
     brapi_quotes = {}
     if not failed_symbols:
         return brapi_quotes
@@ -354,14 +354,25 @@ def fetch_brapi_fallback(failed_symbols, token=""):
 
     try:
         url = f"https://brapi.dev/api/quote/{clean_symbols_str}"
-        res = requests.get(url, params=params, headers=headers, timeout=5)
+        res = requests.get(url, params=params, headers=headers, timeout=6)
         if res.status_code == 200:
             results = res.json().get("results", [])
             for item in results:
                 raw_sym = str(item.get("symbol", "")).upper()
                 orig_sym = sym_map.get(raw_sym, raw_sym + ".SA")
-                price = item.get("regularMarketPrice") or item.get("regularMarketPreviousClose") or item.get("price") or 0.0
-                chg = item.get("regularMarketChangePercent") or item.get("changePercent") or 0.0
+                
+                # Busca exaustiva de preço (tempo real -> fechamento -> fechamento anterior)
+                price = (
+                    item.get("regularMarketPrice") or 
+                    item.get("close") or 
+                    item.get("regularMarketPreviousClose") or 
+                    item.get("price") or 0.0
+                )
+                chg = (
+                    item.get("regularMarketChangePercent") or 
+                    item.get("changePercent") or 0.0
+                )
+                
                 if price and float(price) > 0:
                     brapi_quotes[orig_sym] = {"price": float(price), "change": float(chg)}
     except Exception:
@@ -374,10 +385,10 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
     quotes = {sym: {"price": 0.0, "change": 0.0} for sym in symbols_tuple}
     alias_map = {"UNI-USD": "UNI7083-USD"}
 
-    # Passagem 1: Batch Download via YFinance
+    # Passagem 1: Batch Download via YFinance com janela expandida (5 dias)
     try:
         download_list = [alias_map.get(s, s) for s in symbols_tuple]
-        df_data = yf.download(download_list, period="2d", interval="1d", group_by="ticker", progress=False)
+        df_data = yf.download(download_list, period="5d", interval="1d", group_by="ticker", progress=False)
         
         for orig_sym in symbols_tuple:
             actual_sym = alias_map.get(orig_sym, orig_sym)
@@ -400,25 +411,25 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
     except Exception:
         pass
 
-    # Passagem 2: Yahoo Direct Chart v8 para os que falharam no batch YFinance
+    # Passagem 2: Resgate direto via yf.Ticker individual para faltantes
     missing_symbols = [s for s, v in quotes.items() if v["price"] == 0.0]
-    headers_y = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     for orig_sym in missing_symbols:
         actual_sym = alias_map.get(orig_sym, orig_sym)
         try:
-            url = f"https://query2.finance.yahoo.com/v8/finance/chart/{actual_sym}?interval=1d&range=2d"
-            res = requests.get(url, headers=headers_y, timeout=3)
-            if res.status_code == 200:
-                meta = res.json().get("chart", {}).get("result", [])[0].get("meta", {})
-                p = float(meta.get("regularMarketPrice", 0.0))
-                prev = float(meta.get("chartPreviousClose") or meta.get("previousClose") or p)
-                if p > 0:
+            t = yf.Ticker(actual_sym)
+            hist = t.history(period="5d")
+            if not hist.empty:
+                df_clean = hist.dropna(subset=["Close"])
+                if len(df_clean) >= 1:
+                    p = float(df_clean["Close"].iloc[-1])
+                    prev = float(df_clean["Close"].iloc[-2]) if len(df_clean) >= 2 else p
                     c = ((p - prev) / prev) * 100 if prev > 0 else 0.0
-                    quotes[orig_sym] = {"price": p, "change": c}
+                    if p > 0:
+                        quotes[orig_sym] = {"price": p, "change": c}
         except Exception:
             pass
 
-    # Passagem 3: Fallback BRAPI em lote para ativos B3 que continuarem zerados
+    # Passagem 3: Fallback BRAPI em lote com verificação multi-campo para B3
     failed_b3 = [
         sym for sym, val in quotes.items()
         if (val["price"] == 0.0 or pd.isna(val["price"])) and sym.endswith(".SA")
