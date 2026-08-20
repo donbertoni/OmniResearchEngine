@@ -85,10 +85,9 @@ st.markdown("""<style>
     }
 
     /* ESTILIZAÇÃO ROBUSTA DE CHECKBOXES (Verde quando checados) */
-    div.row-widget.stCheckbox input[type="checkbox"]:checked + div,
-    div.row-widget.stCheckbox input[type="checkbox"]:checked + div > div,
-    div[data-baseweb="checkbox"] input:checked + div,
-    div[data-baseweb="checkbox"] [aria-checked="true"] {
+    div[data-baseweb="checkbox"] input:checked ~ div,
+    div[data-baseweb="checkbox"] [aria-checked="true"],
+    div.row-widget.stCheckbox input[type="checkbox"]:checked + div {
         background-color: #238636 !important;
         border-color: #2EA043 !important;
     }
@@ -135,21 +134,8 @@ st.markdown("""<style>
         font-size: 12px !important;
         font-weight: 600 !important;
     }
-    
-    /* Container customizado para métricas inferiores */
-    .metric-container-box {
-        background-color: #131B2A;
-        border: 1px solid #1E293B;
-        border-radius: 8px;
-        padding: 16px;
-        margin-top: 10px;
-        margin-bottom: 20px;
-    }
 </style>""", unsafe_allow_html=True)
 
-# -----------------------------------------------------------------------------
-# 2. ACERVO MESTRE DE DADOS & CATEGORIAS (TRADFI & CRYPTO)
-# -----------------------------------------------------------------------------
 CATEGORIES_TRADFI = {
     "1 - Bancos e Seguradoras": {
         "tag": "Banking & Ins.",
@@ -316,9 +302,6 @@ CRYPTO_BENCHMARKS = [
     {"key": "FEAR_GREED", "type": "fng_api", "label": "5. Bitcoin Fear & Greed Index", "badge": "Alternative.me API"}
 ]
 
-# -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO DE DADOS
-# -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
         return "--"
@@ -469,9 +452,6 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
 
     return quotes
 
-# -----------------------------------------------------------------------------
-# 4. SIDEBAR: CONTROLE DE TIERS, CATEGORIAS E PARÂMETROS
-# -----------------------------------------------------------------------------
 st.sidebar.title("⚙️ Configurações OMNI")
 st.sidebar.caption("Controle de geração de roteiros e relatórios")
 
@@ -583,9 +563,6 @@ if custom_tickers:
     if "0 - Tickers Personalizados" not in selected_categories:
         selected_categories.insert(0, "0 - Tickers Personalizados")
 
-# -----------------------------------------------------------------------------
-# 5. CORPO PRINCIPAL & PAINEL DE CONTROLE
-# -----------------------------------------------------------------------------
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.title(f"🏢 {company_name} — Terminal Quant")
     st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
@@ -717,68 +694,65 @@ Powered by OMNIRESEARCH Engine"""
             use_container_width=True
         )
 
-    st.markdown('<div class="metric-container-box">', unsafe_allow_html=True)
-    st.markdown("#### 🎯 Alvos Preditivos & Zonas Operacionais", help="Métricas calculadas dinamicamente com base nos parâmetros quantitativos selecionados.")
-    
-    c1, c2, c3, c4 = st.columns(4)
-    if modulo == "Crypto":
-        main_q = quotes.get("BTC-USD", {"price": 0.0, "change": 0.0})
-        res_calc = main_q['price'] * (1 + (alvo_pct / 100))
-        sup_calc = main_q['price'] * (1 - (stop_pct / 100))
-        target_calc = main_q['price'] * (1 + ((alvo_pct * 0.7) / 100))
+    with st.container(border=True):
+        st.markdown("#### 🎯 Alvos Preditivos & Zonas Operacionais", help="Métricas calculadas dinamicamente com base nos parâmetros quantitativos selecionados.")
         
-        tend_val = "Compradora" if main_q['change'] >= 0 else "Vendedora"
-        tend_cls = "metric-change-pos" if main_q['change'] >= 0 else "metric-change-neg"
-        tend_chg = fmt_pct(main_q['change'])
-        
-        res_val = f"$ {fmt_num(res_calc, dec=0)}"
-        res_chg = f"+{alvo_pct}%"
-        
-        sup_val = f"$ {fmt_num(sup_calc, dec=0)}"
-        sup_chg = f"-{stop_pct}%"
-        
-        prev_val = "Alta Moderada"
-        prev_chg = f"Alvo $ {fmt_num(target_calc, dec=0)}"
-        
-        with c1:
-            st.markdown(f'<div class="metric-card"><div class="metric-title">Tendência (BTC)</div><div class="metric-value">{tend_val}</div><div class="{tend_cls}">{tend_chg}</div></div>', unsafe_allow_html=True)
-        with c2:
-            st.markdown(f'<div class="metric-card"><div class="metric-title">Resistência Alvo</div><div class="metric-value">{res_val}</div><div class="metric-change-pos">{res_chg}</div></div>', unsafe_allow_html=True)
-        with c3:
-            st.markdown(f'<div class="metric-card"><div class="metric-title">Suporte Chave</div><div class="metric-value">{sup_val}</div><div class="metric-change-neg">{sup_chg}</div></div>', unsafe_allow_html=True)
-        with c4:
-            st.markdown(f'<div class="metric-card"><div class="metric-title">Previsão {horizonte_pred}</div><div class="metric-value">{prev_val}</div><div class="metric-change-neutral">{prev_chg}</div></div>', unsafe_allow_html=True)
-    else:
-        main_q = quotes.get("^GSPC", {"price": 0.0, "change": 0.0})
-        res_calc = main_q['price'] * (1 + (alvo_pct / 100))
-        sup_calc = main_q['price'] * (1 - (stop_pct / 100))
-        target_calc = main_q['price'] * (1 + ((alvo_pct * 0.5) / 100))
+        c1, c2, c3, c4 = st.columns(4)
+        if modulo == "Crypto":
+            main_q = quotes.get("BTC-USD", {"price": 0.0, "change": 0.0})
+            res_calc = main_q['price'] * (1 + (alvo_pct / 100))
+            sup_calc = main_q['price'] * (1 - (stop_pct / 100))
+            target_calc = main_q['price'] * (1 + ((alvo_pct * 0.7) / 100))
+            
+            tend_val = "Compradora" if main_q['change'] >= 0 else "Vendedora"
+            tend_cls = "metric-change-pos" if main_q['change'] >= 0 else "metric-change-neg"
+            tend_chg = fmt_pct(main_q['change'])
+            
+            res_val = f"$ {fmt_num(res_calc, dec=0)}"
+            res_chg = f"+{alvo_pct}%"
+            
+            sup_val = f"$ {fmt_num(sup_calc, dec=0)}"
+            sup_chg = f"-{stop_pct}%"
+            
+            prev_val = "Alta Moderada"
+            prev_chg = f"Alvo $ {fmt_num(target_calc, dec=0)}"
+            
+            with c1:
+                st.markdown(f'<div class="metric-card"><div class="metric-title">Tendência (BTC)</div><div class="metric-value">{tend_val}</div><div class="{tend_cls}">{tend_chg}</div></div>', unsafe_allow_html=True)
+            with c2:
+                st.markdown(f'<div class="metric-card"><div class="metric-title">Resistência Alvo</div><div class="metric-value">{res_val}</div><div class="metric-change-pos">{res_chg}</div></div>', unsafe_allow_html=True)
+            with c3:
+                st.markdown(f'<div class="metric-card"><div class="metric-title">Suporte Chave</div><div class="metric-value">{sup_val}</div><div class="metric-change-neg">{sup_chg}</div></div>', unsafe_allow_html=True)
+            with c4:
+                st.markdown(f'<div class="metric-card"><div class="metric-title">Previsão {horizonte_pred}</div><div class="metric-value">{prev_val}</div><div class="metric-change-neutral">{prev_chg}</div></div>', unsafe_allow_html=True)
+        else:
+            main_q = quotes.get("^GSPC", {"price": 0.0, "change": 0.0})
+            res_calc = main_q['price'] * (1 + (alvo_pct / 100))
+            sup_calc = main_q['price'] * (1 - (stop_pct / 100))
+            target_calc = main_q['price'] * (1 + ((alvo_pct * 0.5) / 100))
 
-        tend_val = "Compradora" if main_q['change'] >= 0 else "Vendedora"
-        tend_cls = "metric-change-pos" if main_q['change'] >= 0 else "metric-change-neg"
-        tend_chg = fmt_pct(main_q['change'])
-        
-        res_val = f"{fmt_num(res_calc, dec=0)}"
-        res_chg = f"+{alvo_pct}%"
-        
-        sup_val = f"{fmt_num(sup_calc, dec=0)}"
-        sup_chg = f"-{stop_pct}%"
-        
-        prev_val = "Alta Moderada"
-        prev_chg = f"Alvo {fmt_num(target_calc, dec=0)}"
+            tend_val = "Compradora" if main_q['change'] >= 0 else "Vendedora"
+            tend_cls = "metric-change-pos" if main_q['change'] >= 0 else "metric-change-neg"
+            tend_chg = fmt_pct(main_q['change'])
+            
+            res_val = f"{fmt_num(res_calc, dec=0)}"
+            res_chg = f"+{alvo_pct}%"
+            
+            sup_val = f"{fmt_num(sup_calc, dec=0)}"
+            sup_chg = f"-{stop_pct}%"
+            
+            prev_val = "Alta Moderada"
+            prev_chg = f"Alvo {fmt_num(target_calc, dec=0)}"
 
-        with c1:
-            st.markdown(f'<div class="metric-card"><div class="metric-title">Tendência (Macro)</div><div class="metric-value">{tend_val}</div><div class="{tend_cls}">{tend_chg}</div></div>', unsafe_allow_html=True)
-        with c2:
-            st.markdown(f'<div class="metric-card"><div class="metric-title">Resistência Alvo</div><div class="metric-value">{res_val}</div><div class="metric-change-pos">{res_chg}</div></div>', unsafe_allow_html=True)
-        with c3:
-            st.markdown(f'<div class="metric-card"><div class="metric-title">Suporte Chave</div><div class="metric-value">{sup_val}</div><div class="metric-change-neg">{sup_chg}</div></div>', unsafe_allow_html=True)
-        with c4:
-            st.markdown(f'<div class="metric-card"><div class="metric-title">Previsão {horizonte_pred}</div><div class="metric-value">{prev_val}</div><div class="metric-change-neutral">{prev_chg}</div></div>', unsafe_allow_html=True)
+            with c1:
+                st.markdown(f'<div class="metric-card"><div class="metric-title">Tendência (Macro)</div><div class="metric-value">{tend_val}</div><div class="{tend_cls}">{tend_chg}</div></div>', unsafe_allow_html=True)
+            with c2:
+                st.markdown(f'<div class="metric-card"><div class="metric-title">Resistência Alvo</div><div class="metric-value">{res_val}</div><div class="metric-change-pos">{res_chg}</div></div>', unsafe_allow_html=True)
+            with c3:
+                st.markdown(f'<div class="metric-card"><div class="metric-title">Suporte Chave</div><div class="metric-value">{sup_val}</div><div class="metric-change-neg">{sup_chg}</div></div>', unsafe_allow_html=True)
+            with c4:
+                st.markdown(f'<div class="metric-card"><div class="metric-title">Previsão {horizonte_pred}</div><div class="metric-value">{prev_val}</div><div class="metric-change-neutral">{prev_chg}</div></div>', unsafe_allow_html=True)
 
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# Painel Direito: Métricas Agregadas
 with col_right:
     st.subheader(f"📊 Métricas Agregadas ({modulo})")
     st.caption(f"Atualizado via API / Dados de Mercado às {datetime.now().strftime('%H:%M:%S BRT')}")
@@ -830,9 +804,6 @@ with col_right:
 
 st.markdown("---")
 
-# -----------------------------------------------------------------------------
-# 6. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA)
-# -----------------------------------------------------------------------------
 st.subheader(f"🎛️ Painel de Análise Integrada das Categorias ({modulo})")
 st.caption("Marque/desmarque setores ou ativos específicos para incluir ou excluir do relatório final:")
 
