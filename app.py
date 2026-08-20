@@ -32,7 +32,7 @@ st.markdown("""<style>
         font-size: 13px;
     }
     
-    /* Metrics Cards do Painel Direito e Geral */
+    /* Metrics Cards do Painel Direito e Alvos Preditivos */
     .metric-card {
         background-color: #161B22;
         border: 1px solid #30363D;
@@ -85,9 +85,16 @@ st.markdown("""<style>
     }
 
     /* ESTILIZAÇÃO ROBUSTA DE CHECKBOXES (Verde quando checados) */
-    div.row-widget.stCheckbox input[type="checkbox"]:checked + div div {
+    div.row-widget.stCheckbox input[type="checkbox"]:checked + div,
+    div.row-widget.stCheckbox input[type="checkbox"]:checked + div > div,
+    div[data-baseweb="checkbox"] input:checked + div,
+    div[data-baseweb="checkbox"] [aria-checked="true"] {
         background-color: #238636 !important;
         border-color: #2EA043 !important;
+    }
+    
+    input[type="checkbox"]:checked {
+        accent-color: #238636 !important;
     }
 
     /* ALINHAMENTO DOS CHECKBOXES */
@@ -111,7 +118,7 @@ st.markdown("""<style>
         color: #E6EDF3 !important;
     }
 
-    /* AJUSTE DE MÉTRICAS PADRÃO STREAMLIT PARA EVITAR SOBREPOSIÇÃO */
+    /* AJUSTE DE MÉTRICAS PADRÃO STREAMLIT */
     [data-testid="stMetricValue"] {
         font-size: 16px !important;
         font-weight: 700 !important;
@@ -131,8 +138,8 @@ st.markdown("""<style>
     
     /* Container customizado para métricas inferiores */
     .metric-container-box {
-        background-color: #161B22;
-        border: 1px solid #30363D;
+        background-color: #131B2A;
+        border: 1px solid #1E293B;
         border-radius: 8px;
         padding: 16px;
         margin-top: 10px;
@@ -310,7 +317,7 @@ CRYPTO_BENCHMARKS = [
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO ROBUSTA (YFINANCE 5D + BRAPI MULTI-KEY)
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO DE DADOS
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -463,7 +470,7 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
     return quotes
 
 # -----------------------------------------------------------------------------
-# 4. SIDEBAR: CONTROLE DE TIERS, CATEGORIAS, FORMATOS E PARÂMETROS QUANT
+# 4. SIDEBAR: CONTROLE DE TIERS, CATEGORIAS E PARÂMETROS
 # -----------------------------------------------------------------------------
 st.sidebar.title("⚙️ Configurações OMNI")
 st.sidebar.caption("Controle de geração de roteiros e relatórios")
@@ -477,7 +484,7 @@ brapi_token = st.sidebar.text_input(
     "BRAPI API Token:", 
     value="", 
     type="password", 
-    help="Chave de API para fallback dos ativos B3 (.SA) fora do horário de pregão ou falhas do YFinance."
+    help="Chave de API para fallback dos ativos B3 (.SA)."
 )
 
 st.sidebar.markdown("---")
@@ -494,25 +501,25 @@ if "Free" in tier_selected:
     max_free_tickers = 0
     allow_customization = False
     allow_white_label = False
-    st.sidebar.info("ℹ️ Modo Free: 32 ativos fixos padrão. Sem alteração.")
+    st.sidebar.info("ℹ️ Modo Free: 32 ativos fixos padrão.")
 elif "Standard" in tier_selected:
     max_assets_allowed = 32
     max_free_tickers = 5
     allow_customization = True
     allow_white_label = False
-    st.sidebar.success("✅ Modo Standard: Personalizável + 5 Tickers Livres.")
+    st.sidebar.success("✅ Modo Standard: Personalizável + 5 Tickers.")
 else:
     max_assets_allowed = 100
     max_free_tickers = 999
     allow_customization = True
     allow_white_label = True
-    st.sidebar.success("🚀 Modo Premium: 100+ Ativos + White-Label Habilitado.")
+    st.sidebar.success("🚀 Modo Premium: 100+ Ativos + White-Label.")
 
 active_categories = CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI
 active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🎛️ Calibragem (SaaS Enterprise)")
+st.sidebar.subheader("🎛️ Calibragem de Setores")
 st.sidebar.caption("Selecione os setores/categorias:")
 
 selected_categories = []
@@ -720,28 +727,55 @@ Powered by OMNIRESEARCH Engine"""
         sup_calc = main_q['price'] * (1 - (stop_pct / 100))
         target_calc = main_q['price'] * (1 + ((alvo_pct * 0.7) / 100))
         
+        tend_val = "Compradora" if main_q['change'] >= 0 else "Vendedora"
+        tend_cls = "metric-change-pos" if main_q['change'] >= 0 else "metric-change-neg"
+        tend_chg = fmt_pct(main_q['change'])
+        
+        res_val = f"$ {fmt_num(res_calc, dec=0)}"
+        res_chg = f"+{alvo_pct}%"
+        
+        sup_val = f"$ {fmt_num(sup_calc, dec=0)}"
+        sup_chg = f"-{stop_pct}%"
+        
+        prev_val = "Alta Moderada"
+        prev_chg = f"Alvo $ {fmt_num(target_calc, dec=0)}"
+        
         with c1:
-            st.metric("Tendência (BTC)", "Compradora" if main_q['change'] >= 0 else "Vendedora", f"{fmt_pct(main_q['change'])}")
+            st.markdown(f'<div class="metric-card"><div class="metric-title">Tendência (BTC)</div><div class="metric-value">{tend_val}</div><div class="{tend_cls}">{tend_chg}</div></div>', unsafe_allow_html=True)
         with c2:
-            st.metric("Resistência Alvo", f"$ {fmt_num(res_calc, dec=0)}", f"+{alvo_pct}%")
+            st.markdown(f'<div class="metric-card"><div class="metric-title">Resistência Alvo</div><div class="metric-value">{res_val}</div><div class="metric-change-pos">{res_chg}</div></div>', unsafe_allow_html=True)
         with c3:
-            st.metric("Suporte Chave", f"$ {fmt_num(sup_calc, dec=0)}", f"-{stop_pct}%")
+            st.markdown(f'<div class="metric-card"><div class="metric-title">Suporte Chave</div><div class="metric-value">{sup_val}</div><div class="metric-change-neg">{sup_chg}</div></div>', unsafe_allow_html=True)
         with c4:
-            st.metric(f"Previsão {horizonte_pred}", "Alta Moderada", f"Alvo $ {fmt_num(target_calc, dec=0)}")
+            st.markdown(f'<div class="metric-card"><div class="metric-title">Previsão {horizonte_pred}</div><div class="metric-value">{prev_val}</div><div class="metric-change-neutral">{prev_chg}</div></div>', unsafe_allow_html=True)
     else:
         main_q = quotes.get("^GSPC", {"price": 0.0, "change": 0.0})
         res_calc = main_q['price'] * (1 + (alvo_pct / 100))
         sup_calc = main_q['price'] * (1 - (stop_pct / 100))
         target_calc = main_q['price'] * (1 + ((alvo_pct * 0.5) / 100))
 
+        tend_val = "Compradora" if main_q['change'] >= 0 else "Vendedora"
+        tend_cls = "metric-change-pos" if main_q['change'] >= 0 else "metric-change-neg"
+        tend_chg = fmt_pct(main_q['change'])
+        
+        res_val = f"{fmt_num(res_calc, dec=0)}"
+        res_chg = f"+{alvo_pct}%"
+        
+        sup_val = f"{fmt_num(sup_calc, dec=0)}"
+        sup_chg = f"-{stop_pct}%"
+        
+        prev_val = "Alta Moderada"
+        prev_chg = f"Alvo {fmt_num(target_calc, dec=0)}"
+
         with c1:
-            st.metric("Tendência (Macro)", "Compradora" if main_q['change'] >= 0 else "Vendedora", f"{fmt_pct(main_q['change'])}")
+            st.markdown(f'<div class="metric-card"><div class="metric-title">Tendência (Macro)</div><div class="metric-value">{tend_val}</div><div class="{tend_cls}">{tend_chg}</div></div>', unsafe_allow_html=True)
         with c2:
-            st.metric("Resistência Alvo", f"{fmt_num(res_calc, dec=0)}", f"+{alvo_pct}%")
+            st.markdown(f'<div class="metric-card"><div class="metric-title">Resistência Alvo</div><div class="metric-value">{res_val}</div><div class="metric-change-pos">{res_chg}</div></div>', unsafe_allow_html=True)
         with c3:
-            st.metric("Suporte Chave", f"{fmt_num(sup_calc, dec=0)}", f"-{stop_pct}%")
+            st.markdown(f'<div class="metric-card"><div class="metric-title">Suporte Chave</div><div class="metric-value">{sup_val}</div><div class="metric-change-neg">{sup_chg}</div></div>', unsafe_allow_html=True)
         with c4:
-            st.metric(f"Previsão {horizonte_pred}", "Alta Moderada", f"Alvo {fmt_num(target_calc, dec=0)}")
+            st.markdown(f'<div class="metric-card"><div class="metric-title">Previsão {horizonte_pred}</div><div class="metric-value">{prev_val}</div><div class="metric-change-neutral">{prev_chg}</div></div>', unsafe_allow_html=True)
+
     st.markdown('</div>', unsafe_allow_html=True)
 
 # Painel Direito: Métricas Agregadas
