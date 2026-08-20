@@ -194,11 +194,11 @@ CATEGORIES_TRADFI = {
 }
 
 MACRO_BENCHMARKS = [
-    {"key": "SPX", "ticker": "^GSPC", "label": "1. S&P 500 / SPX", "unit": "pts", "prefix": "", "badge": "yfinance API"},
-    {"key": "IBOV", "ticker": "^BVSP", "label": "2. Ibovespa / IBOV", "unit": "pts", "prefix": "", "badge": "yfinance API"},
-    {"key": "BRENT", "ticker": "BZ=F", "label": "3. Petróleo Brent", "unit": "USD", "prefix": "$ ", "badge": "yfinance API"},
-    {"key": "GOLD", "ticker": "GC=F", "label": "4. Ouro Spot", "unit": "USD", "prefix": "$ ", "badge": "yfinance API"},
-    {"key": "USDBRL", "ticker": "BRL=X", "label": "5. USD / BRL / Dólar Real", "unit": "pts", "prefix": "R$ ", "badge": "yfinance API"}
+    {"key": "SPX", "ticker": "^GSPC", "label": "1. S&P 500 / SPX", "unit": "pts", "prefix": "", "badge": "Direct API"},
+    {"key": "IBOV", "ticker": "^BVSP", "label": "2. Ibovespa / IBOV", "unit": "pts", "prefix": "", "badge": "Direct API"},
+    {"key": "BRENT", "ticker": "BZ=F", "label": "3. Petróleo Brent", "unit": "USD", "prefix": "$ ", "badge": "Direct API"},
+    {"key": "GOLD", "ticker": "GC=F", "label": "4. Ouro Spot", "unit": "USD", "prefix": "$ ", "badge": "Direct API"},
+    {"key": "USDBRL", "ticker": "BRL=X", "label": "5. USD / BRL / Dólar Real", "unit": "pts", "prefix": "R$ ", "badge": "Direct API"}
 ]
 
 CATEGORIES_CRYPTO = {
@@ -277,15 +277,15 @@ CATEGORIES_CRYPTO = {
 }
 
 CRYPTO_BENCHMARKS = [
-    {"key": "BTC", "ticker": "BTC-USD", "label": "1. Bitcoin / BTC", "prefix": "$ ", "badge": "yfinance API"},
-    {"key": "ETH", "ticker": "ETH-USD", "label": "2. Ethereum / ETH", "prefix": "$ ", "badge": "yfinance API"},
+    {"key": "BTC", "ticker": "BTC-USD", "label": "1. Bitcoin / BTC", "prefix": "$ ", "badge": "Direct API"},
+    {"key": "ETH", "ticker": "ETH-USD", "label": "2. Ethereum / ETH", "prefix": "$ ", "badge": "Direct API"},
     {"key": "BTC_D", "type": "global_api", "sub_key": "btc_d", "label": "3. Bitcoin Dominance / BTC.D", "badge": "CoinGecko API"},
     {"key": "USDT_D", "type": "global_api", "sub_key": "usdt_d", "label": "4. Tether Dominance / USDT.D", "badge": "CoinGecko API"},
     {"key": "FEAR_GREED", "type": "fng_api", "label": "5. Bitcoin Fear & Greed Index", "badge": "Alternative.me API"}
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO DE DADOS COM RESILIÊNCIA TOTAL
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO VIA YAHOO V8 DIRECT API
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -341,54 +341,52 @@ def fetch_global_crypto_data():
 def fetch_realtime_quotes(symbols_tuple):
     quotes = {}
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     }
 
-    # 1. SEPARA ATIVOS B3 (.SA) DOS ATIVOS GLOBAIS/CRYPTO
-    b3_map = {s: s.replace(".SA", "") for s in symbols_tuple if s.endswith(".SA")}
-    global_tickers = [s for s in symbols_tuple if not s.endswith(".SA")]
+    alias_map = {"UNI-USD": "UNI7083-USD"}
 
-    # 2. INGESTÃO DE ATIVOS B3 VIA BRAPI (LIVRE DE BLOQUEIO DE IP)
-    if b3_map:
+    def fetch_yahoo_v8(symbol):
+        url = f"https://query2.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=2d"
         try:
-            b3_symbols_str = ",".join(list(b3_map.values()))
-            url_brapi = f"https://brapi.dev/api/quote/{b3_symbols_str}"
-            res = requests.get(url_brapi, headers=headers, timeout=5)
+            res = requests.get(url, headers=headers, timeout=4)
             if res.status_code == 200:
-                results = res.json().get("results", [])
-                for item in results:
-                    sym_orig = f"{item.get('symbol')}.SA"
-                    price = item.get("regularMarketPrice", 0.0)
-                    chg = item.get("regularMarketChangePercent", 0.0)
-                    quotes[sym_orig] = {
-                        "price": float(price) if price else 0.0,
-                        "change": float(chg) if chg else 0.0
-                    }
+                data = res.json()
+                result = data.get("chart", {}).get("result", [])
+                if result:
+                    meta = result[0].get("meta", {})
+                    price = meta.get("regularMarketPrice", 0.0)
+                    prev_close = meta.get("chartPreviousClose") or meta.get("previousClose") or price
+                    if price and prev_close:
+                        chg = ((price - prev_close) / prev_close) * 100
+                        return {"price": float(price), "change": float(chg)}
         except Exception:
             pass
+        return None
 
-    # 3. INGESTÃO GLOBAL / CRYPTO / USA (BITF, IBIT, BTC, ETC) VIA FAST_INFO
-    alias_map = {"UNI-USD": "UNI7083-USD"}
-    for orig_sym in global_tickers:
+    for orig_sym in symbols_tuple:
         actual_sym = alias_map.get(orig_sym, orig_sym)
-        try:
-            tk = yf.Ticker(actual_sym)
-            fast = tk.fast_info
-            price = fast.last_price
-            prev_close = fast.previous_close
-            
-            if price and prev_close:
-                chg = ((price - prev_close) / prev_close) * 100
-                quotes[orig_sym] = {"price": float(price), "change": float(chg)}
-            else:
-                quotes[orig_sym] = {"price": 0.0, "change": 0.0}
-        except Exception:
-            quotes[orig_sym] = {"price": 0.0, "change": 0.0}
+        
+        # 1. Requisição direta Yahoo Chart API v8
+        q_data = fetch_yahoo_v8(actual_sym)
+        
+        # 2. Fallback via yfinance fast_info se a V8 falhar
+        if not q_data or q_data["price"] == 0.0:
+            try:
+                tk = yf.Ticker(actual_sym)
+                fast = tk.fast_info
+                p = fast.last_price
+                prev = fast.previous_close
+                if p and prev:
+                    c = ((p - prev) / prev) * 100
+                    q_data = {"price": float(p), "change": float(c)}
+            except Exception:
+                pass
 
-    # 4. PREENCHIMENTO DE SEGURANÇA SE AINDA HOUVER CHAVE AUSENTE
-    for sym in symbols_tuple:
-        if sym not in quotes:
-            quotes[sym] = {"price": 0.0, "change": 0.0}
+        if q_data and q_data["price"] > 0.0:
+            quotes[orig_sym] = q_data
+        else:
+            quotes[orig_sym] = {"price": 0.0, "change": 0.0}
 
     return quotes
 
@@ -399,7 +397,7 @@ st.sidebar.title("⚙️ Configurações OMNI")
 st.sidebar.caption("Controle de geração de roteiros e relatórios")
 
 idioma = st.sidebar.selectbox("🌐 Idioma do Output:", ["Português (BR)", "English", "Español"])
-modulo = st.sidebar.radio("📌 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=0)
+modulo = st.sidebar.radio("📌 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🔑 Nível de Acesso (Tier SaaS)")
@@ -539,8 +537,8 @@ with col_left:
                 f"Data/Hora: {now_str}",
                 "",
                 "1. PANORAMA & BENCHMARKS CRYPTO (MÉTRICAS AGREGADAS)",
-                f"- 1. Bitcoin (BTC/USD): $ {fmt_num(btc_q['price'])} ({fmt_pct(btc_q['change'])} hoje) [yfinance API]",
-                f"- 2. Ethereum (ETH/USD): $ {fmt_num(eth_q['price'])} ({fmt_pct(eth_q['change'])} hoje) [yfinance API]",
+                f"- 1. Bitcoin (BTC/USD): $ {fmt_num(btc_q['price'])} ({fmt_pct(btc_q['change'])} hoje) [Direct API]",
+                f"- 2. Ethereum (ETH/USD): $ {fmt_num(eth_q['price'])} ({fmt_pct(eth_q['change'])} hoje) [Direct API]",
                 f"- 3. Bitcoin Dominance (BTC.D): {global_crypto_data['btc_d_val']} ({btc_d_chg_str} hoje) [CoinGecko API]",
                 f"- 4. Tether Dominance (USDT.D): {global_crypto_data['usdt_d_val']} ({usdt_d_chg_str} hoje) [CoinGecko API]",
                 f"- 5. Bitcoin Fear & Greed Index: {fng_val} ({fng_class}) [Alternative.me API]",
@@ -558,12 +556,12 @@ with col_left:
                 "=== RELATÓRIO INSTITUCIONAL TRADFI (MACRO) (B2B) ===",
                 f"Data/Hora: {now_str}",
                 "",
-                "1. PANORAMA & BENCHMARKS DE MERCADO (DADOS VIA YFINANCE API)",
-                f"- 1. S&P 500 / SPX: {fmt_num(spx_q['price'])} ({fmt_pct(spx_q['change'])} hoje) [yfinance API]",
-                f"- 2. Ibovespa / IBOV: {fmt_num(ibov_q['price'])} ({fmt_pct(ibov_q['change'])} hoje) [yfinance API]",
-                f"- 3. Petróleo Brent: $ {fmt_num(brent_q['price'])} ({fmt_pct(brent_q['change'])} hoje) [yfinance API]",
-                f"- 4. Ouro Spot: $ {fmt_num(gold_q['price'])} ({fmt_pct(gold_q['change'])} hoje) [yfinance API]",
-                f"- 5. USD / BRL / Dólar Real: R$ {fmt_num(usdbrl_q['price'])} ({fmt_pct(usdbrl_q['change'])} hoje) [yfinance API]",
+                "1. PANORAMA & BENCHMARKS DE MERCADO (DADOS VIA DIRECT API)",
+                f"- 1. S&P 500 / SPX: {fmt_num(spx_q['price'])} ({fmt_pct(spx_q['change'])} hoje) [Direct API]",
+                f"- 2. Ibovespa / IBOV: {fmt_num(ibov_q['price'])} ({fmt_pct(ibov_q['change'])} hoje) [Direct API]",
+                f"- 3. Petróleo Brent: $ {fmt_num(brent_q['price'])} ({fmt_pct(brent_q['change'])} hoje) [Direct API]",
+                f"- 4. Ouro Spot: $ {fmt_num(gold_q['price'])} ({fmt_pct(gold_q['change'])} hoje) [Direct API]",
+                f"- 5. USD / BRL / Dólar Real: R$ {fmt_num(usdbrl_q['price'])} ({fmt_pct(usdbrl_q['change'])} hoje) [Direct API]",
                 "",
                 "2. ANÁLISE INTEGRADA DAS CATEGORIAS SELECIONADAS (DADOS EM TEMPO REAL)"
             ]
