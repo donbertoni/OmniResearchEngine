@@ -15,7 +15,7 @@ st.set_page_config(
 )
 
 st.markdown("""<style>
-    /* Estilo Geral do App */
+    /* Estilo Geral do App (Fundo Preto/Grafite Profundo) */
     .stApp {
         background-color: #0B0E14;
         color: #E2E8F0;
@@ -32,7 +32,7 @@ st.markdown("""<style>
         font-size: 13px;
     }
     
-    /* Metrics Cards do Painel Direito (PADRÃO DE COR DE REFERÊNCIA) */
+    /* Metrics Cards do Painel Direito */
     .metric-card {
         background-color: #161B22;
         border: 1px solid #21262D;
@@ -68,20 +68,20 @@ st.markdown("""<style>
     }
     .premium-badge { color: #58A6FF; font-weight: bold; }
 
-    /* CARDS DAS 8 CATEGORIAS COM CONTRASTE REAL */
-    div[data-testid="stVerticalBlockBorderWrapper"] {
+    /* FIX DEFINITIVO: CARDS DAS 8 CATEGORIAS EM SLATE BLUE (#1E293B) */
+    div[data-testid="stVerticalBlockBorderWrapper"],
+    div[data-testid="stVerticalBlockBorderWrapper"] > div {
         background-color: #1E293B !important;
-        border: 1px solid #334155 !important;
+        border-color: #38465C !important;
         border-radius: 10px !important;
-        padding: 14px !important;
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        border: 1px solid #38465C !important;
+        padding: 10px !important;
         margin-bottom: 12px !important;
     }
-    /* Força transparência nos containers internos do Streamlit */
-    div[data-testid="stVerticalBlockBorderWrapper"] * {
-        background-color: transparent !important;
-    }
 
-    /* ALINHAMENTO VERTICAL 100% PERFEITO DAS CHECKBOXES */
+    /* ALINHAMENTO VERTICAL DAS CHECKBOXES */
     div[data-testid="stCheckbox"] {
         margin-top: 0px !important;
         margin-bottom: 0px !important;
