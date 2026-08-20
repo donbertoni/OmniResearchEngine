@@ -68,12 +68,15 @@ st.markdown("""<style>
     }
     .premium-badge { color: #58A6FF; font-weight: bold; }
 
-    /* Força o fundo cinza escuro institucional nos containers das 8 categorias */
-    [data-testid="stElementContainer"] > div[data-testid="stContainer"] {
+    /* FORÇA FUNDO CINZA INSTITUCIONAL (#161B22) NOS CONTAINERS DAS CATEGORIAS */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
         background-color: #161B22 !important;
-        border: 1px solid #21262D !important;
-        border-radius: 8px !important;
-        padding: 14px !important;
+        border: 1px solid #30363D !important;
+        border-radius: 10px !important;
+        padding: 12px !important;
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"] > div {
+        background-color: #161B22 !important;
     }
 
     [data-testid="stMetricValue"] {
@@ -261,7 +264,7 @@ CRYPTO_BENCHMARKS = [
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO DE DADOS COM FALLBACK
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO DE DADOS COM RESILIÊNCIA E FALLBACK REST
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -313,11 +316,27 @@ def fetch_global_crypto_data():
         "usdt_d_chg": -0.18
     }
 
+def fetch_direct_yahoo_chart(ticker_symbol):
+    """Fallback direto via API Chart v8 do Yahoo Finance para evitar bloqueios de scraping."""
+    try:
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker_symbol}"
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        res = requests.get(url, headers=headers, timeout=5)
+        if res.status_code == 200:
+            result = res.json()["chart"]["result"][0]
+            price = result["meta"].get("regularMarketPrice", 0.0)
+            prev_close = result["meta"].get("chartPreviousClose", price)
+            chg = ((price - prev_close) / prev_close * 100) if prev_close else 0.0
+            if price > 0:
+                return {"price": price, "change": chg}
+    except Exception:
+        pass
+    return None
+
 @st.cache_data(ttl=600)
 def fetch_realtime_quotes(symbols_tuple):
     alias_map = {
         "UNI-USD": "UNI7083-USD",
-        "BITF": "BITF"
     }
     
     unique_symbols = list(set(symbols_tuple))
@@ -326,6 +345,7 @@ def fetch_realtime_quotes(symbols_tuple):
     
     quotes = {}
 
+    # Ingestão em Lote via yfinance
     try:
         data = yf.download(yf_symbols, period="5d", interval="1d", group_by="ticker", progress=False, threads=True)
         for sym in yf_symbols:
@@ -344,18 +364,25 @@ def fetch_realtime_quotes(symbols_tuple):
     except Exception:
         pass
 
-    # Fallback individual caso algum ticker venha vazio ou zerado
+    # Fallback individual robusto (especialmente para Bitfarms e Uniswap)
     for orig_sym in unique_symbols:
         actual_sym = alias_map.get(orig_sym, orig_sym)
         
         if actual_sym not in quotes or quotes[actual_sym]["price"] == 0.0:
             candidates = [actual_sym, orig_sym]
-            if orig_sym == "BITF":
-                candidates.append("BITF.TO")
+            if orig_sym == "BITF" or actual_sym == "BITF":
+                candidates.extend(["BITF", "BITF.TO"])
             if orig_sym in ["UNI-USD", "UNI7083-USD"]:
                 candidates.extend(["UNI7083-USD", "UNI-USD"])
                 
             for cand in candidates:
+                # Tentativa 1: Direct Yahoo REST Query (Mais confiável no Streamlit Cloud)
+                res_direct = fetch_direct_yahoo_chart(cand)
+                if res_direct:
+                    quotes[actual_sym] = res_direct
+                    break
+                
+                # Tentativa 2: Ticker history via yfinance
                 try:
                     t = yf.Ticker(cand)
                     hist = t.history(period="5d")
@@ -373,7 +400,7 @@ def fetch_realtime_quotes(symbols_tuple):
                 except Exception:
                     pass
 
-        # Mapeia o resultado de volta para o nome original solicitado
+        # Mapeamento final
         if actual_sym in quotes:
             quotes[orig_sym] = quotes[actual_sym]
         elif orig_sym not in quotes:
@@ -668,7 +695,6 @@ with col_right:
             val_str = fng_val
             chg_str = fng_class
             
-            # Fear = Vermelho, Neutro = Azul, Greed = Verde
             if "Fear" in fng_class or "Medo" in fng_class:
                 change_cls = "metric-change-neg"
             elif "Greed" in fng_class or "Ganância" in fng_class:
@@ -709,7 +735,7 @@ with col_right:
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 6. PAINEL DE ANÁLISE INTEGRADA COM CARDS CINZAS E SEM LINHAS DIVISÓRIAS
+# 6. PAINEL DE ANÁLISE INTEGRADA COM CARDS CINZAS (#161B22) E RÓTULO "INCLUIR"
 # -----------------------------------------------------------------------------
 st.subheader(f"📂 Painel de Análise Integrada das Categorias ({modulo})")
 st.caption("Marque/desmarque setores ou ativos específicos para incluir ou excluir do relatório final:")
@@ -725,13 +751,13 @@ if selected_categories:
                 with st.container(border=True):
                     cat_key = f"chk_cat_{cat_name}"
                     
-                    # Cabeçalho: Título na esquerda, Checkbox do setor alinhado à direita
-                    c_title, c_check = st.columns([2.6, 1.4])
+                    # Cabeçalho: Título na esquerda, Checkbox "Incluir" alinhado à direita
+                    c_title, c_check = st.columns([2.7, 1.3])
                     with c_title:
                         st.markdown(f"<div style='font-size:13px; font-weight:700; color:#F0F6FC; padding-top:4px;'>{cat_name}</div>", unsafe_allow_html=True)
                     with c_check:
                         cat_enabled = st.checkbox(
-                            "Incluir Setor",
+                            "Incluir",
                             value=st.session_state.get(cat_key, True),
                             key=cat_key
                         )
