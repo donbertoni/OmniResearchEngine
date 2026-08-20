@@ -1,25 +1,27 @@
 import streamlit as st
+import yfinance as yf
 import requests
 from datetime import datetime
 import pandas as pd
-import re
-from concurrent.futures import ThreadPoolExecutor
 
 # -----------------------------------------------------------------------------
 # 1. CONFIGURAÇÃO DA PÁGINA & ESTILIZAÇÃO CSS INSTITUCIONAL
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="OMNIRESEARCH Engine",
-    page_icon="⚡",
+    page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 st.markdown("""<style>
+    /* Estilo Geral do App */
     .stApp {
         background-color: #0B0E14;
         color: #E2E8F0;
     }
+    
+    /* Barra de Status Topo */
     .status-bar {
         background-color: #131B2A;
         padding: 10px 18px;
@@ -29,6 +31,8 @@ st.markdown("""<style>
         color: #94A3B8;
         font-size: 13px;
     }
+    
+    /* Metrics Cards do Painel Direito */
     .metric-card {
         background-color: #161B22;
         border: 1px solid #30363D;
@@ -64,6 +68,7 @@ st.markdown("""<style>
     }
     .premium-badge { color: #58A6FF; font-weight: bold; }
 
+    /* COR DE FUNDO DOS CARDS DAS CATEGORIAS (#161B22) */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background-color: #161B22 !important;
         border: 1px solid #30363D !important;
@@ -76,6 +81,7 @@ st.markdown("""<style>
         border: none !important;
     }
 
+    /* ALINHAMENTO DOS CHECKBOXES */
     div[data-testid="stCheckbox"] {
         display: flex !important;
         justify-content: flex-end !important;
@@ -93,6 +99,7 @@ st.markdown("""<style>
         cursor: pointer !important;
     }
 
+    /* AJUSTE DE MÉTRICAS PADRÃO STREAMLIT */
     [data-testid="stMetricValue"] {
         font-size: 15px !important;
         font-weight: 700 !important;
@@ -187,11 +194,11 @@ CATEGORIES_TRADFI = {
 }
 
 MACRO_BENCHMARKS = [
-    {"key": "SPX", "ticker": "^GSPC", "label": "1. S&P 500 / SPX", "unit": "pts", "prefix": "", "badge": "Yahoo Direct"},
-    {"key": "IBOV", "ticker": "^BVSP", "label": "2. Ibovespa / IBOV", "unit": "pts", "prefix": "", "badge": "Yahoo Direct"},
-    {"key": "BRENT", "ticker": "BZ=F", "label": "3. Petróleo Brent", "unit": "USD", "prefix": "$ ", "badge": "Yahoo Direct"},
-    {"key": "GOLD", "ticker": "GC=F", "label": "4. Ouro Spot", "unit": "USD", "prefix": "$ ", "badge": "Yahoo Direct"},
-    {"key": "USDBRL", "ticker": "BRL=X", "label": "5. USD / BRL / Dólar Real", "unit": "pts", "prefix": "R$ ", "badge": "Yahoo Direct"}
+    {"key": "SPX", "ticker": "^GSPC", "label": "1. S&P 500 / SPX", "unit": "pts", "prefix": "", "badge": "Direct API"},
+    {"key": "IBOV", "ticker": "^BVSP", "label": "2. Ibovespa / IBOV", "unit": "pts", "prefix": "", "badge": "BRAPI / Direct API"},
+    {"key": "BRENT", "ticker": "BZ=F", "label": "3. Petróleo Brent", "unit": "USD", "prefix": "$ ", "badge": "Direct API"},
+    {"key": "GOLD", "ticker": "GC=F", "label": "4. Ouro Spot", "unit": "USD", "prefix": "$ ", "badge": "Direct API"},
+    {"key": "USDBRL", "ticker": "BRL=X", "label": "5. USD / BRL / Dólar Real", "unit": "pts", "prefix": "R$ ", "badge": "Direct API"}
 ]
 
 CATEGORIES_CRYPTO = {
@@ -270,15 +277,15 @@ CATEGORIES_CRYPTO = {
 }
 
 CRYPTO_BENCHMARKS = [
-    {"key": "BTC", "ticker": "BTC-USD", "label": "1. Bitcoin / BTC", "prefix": "$ ", "badge": "Binance / Yahoo"},
-    {"key": "ETH", "ticker": "ETH-USD", "label": "2. Ethereum / ETH", "prefix": "$ ", "badge": "Binance / Yahoo"},
+    {"key": "BTC", "ticker": "BTC-USD", "label": "1. Bitcoin / BTC", "prefix": "$ ", "badge": "Direct API"},
+    {"key": "ETH", "ticker": "ETH-USD", "label": "2. Ethereum / ETH", "prefix": "$ ", "badge": "Direct API"},
     {"key": "BTC_D", "type": "global_api", "sub_key": "btc_d", "label": "3. Bitcoin Dominance / BTC.D", "badge": "CoinGecko API"},
     {"key": "USDT_D", "type": "global_api", "sub_key": "usdt_d", "label": "4. Tether Dominance / USDT.D", "badge": "CoinGecko API"},
     {"key": "FEAR_GREED", "type": "fng_api", "label": "5. Bitcoin Fear & Greed Index", "badge": "Alternative.me API"}
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO PARALELA (THREADPOOL + BRAPI FALLBACK)
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO VIA BRAPI & YAHOO V8 DIRECT API
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -295,7 +302,7 @@ def fmt_pct(val):
 @st.cache_data(ttl=600)
 def fetch_btc_fng():
     try:
-        res = requests.get("https://api.alternative.me/fng/", timeout=4)
+        res = requests.get("https://api.alternative.me/fng/", timeout=3)
         if res.status_code == 200:
             data = res.json()["data"][0]
             val = data.get("value", "62")
@@ -308,127 +315,149 @@ def fetch_btc_fng():
 @st.cache_data(ttl=600)
 def fetch_global_crypto_data():
     try:
-        res = requests.get("https://api.coingecko.com/api/v3/global", timeout=4)
+        res = requests.get("https://api.coingecko.com/api/v3/global", timeout=3)
         if res.status_code == 200:
             data = res.json()["data"]
             btc_d = data.get("market_cap_percentage", {}).get("btc", 56.8)
             usdt_d = data.get("market_cap_percentage", {}).get("usdt", 5.2)
             btc_d_chg = data.get("market_cap_change_percentage_24h_usd", 0.35)
+            usdt_d_chg = -0.18
             return {
                 "btc_d_val": f"{btc_d:.2f}%".replace(".", ","),
                 "btc_d_chg": btc_d_chg,
                 "usdt_d_val": f"{usdt_d:.2f}%".replace(".", ","),
-                "usdt_d_chg": -0.18
+                "usdt_d_chg": usdt_d_chg
             }
     except Exception:
         pass
-    return {"btc_d_val": "56,80%", "btc_d_chg": 0.35, "usdt_d_val": "5,20%", "usdt_d_chg": -0.18}
+    return {
+        "btc_d_val": "56,80%",
+        "btc_d_chg": 0.35,
+        "usdt_d_val": "5,20%",
+        "usdt_d_chg": -0.18
+    }
 
-@st.cache_data(ttl=120)
+@st.cache_data(ttl=300)
+def fetch_brapi_quotes(symbols_list, token=""):
+    """
+    Integração de alta performance para ativos B3 via BRAPI (brapi.dev).
+    """
+    brapi_quotes = {}
+    if not symbols_list:
+        return brapi_quotes
+
+    formatted_symbols = []
+    symbol_map = {}
+    for sym in symbols_list:
+        clean = sym.replace(".SA", "").strip()
+        if clean.startswith("^"):
+            clean = clean.replace("^", "%5E")
+        formatted_symbols.append(clean)
+        symbol_map[clean.replace("%5E", "^")] = sym
+
+    tickers_query = ",".join(formatted_symbols)
+    url = f"https://brapi.dev/api/quote/{tickers_query}"
+    params = {}
+    if token:
+        params["token"] = token
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+
+    try:
+        res = requests.get(url, params=params, headers=headers, timeout=5)
+        if res.status_code == 200:
+            results = res.json().get("results", [])
+            for item in results:
+                raw_sym = item.get("symbol")
+                orig_sym = symbol_map.get(raw_sym, raw_sym + ".SA" if not raw_sym.startswith("^") else raw_sym)
+                price = item.get("regularMarketPrice", 0.0)
+                chg = item.get("regularMarketChangePercent", 0.0)
+                if price and price > 0:
+                    brapi_quotes[orig_sym] = {"price": float(price), "change": float(chg)}
+    except Exception:
+        pass
+
+    return brapi_quotes
+
+@st.cache_data(ttl=300)
 def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
     quotes = {}
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     }
 
-    def fetch_single(item):
-        raw = item.strip().upper()
-        clean = raw.replace(".SA", "")
-        res_data = {"raw": raw, "clean": clean, "price": 0.0, "change": 0.0, "alt_ticker": None}
+    alias_map = {"UNI-USD": "UNI7083-USD"}
 
-        # 1. Criptos via Binance API
-        if "USDT" in raw or "-USD" in raw:
-            try:
-                pair = raw.replace("-USD", "USDT")
-                url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={pair}"
-                res = requests.get(url, timeout=3)
-                if res.status_code == 200:
-                    d = res.json()
-                    res_data["price"] = float(d.get("lastPrice", 0.0))
-                    res_data["change"] = float(d.get("priceChangePercent", 0.0))
-                    res_data["alt_ticker"] = pair
-                    return res_data
-            except Exception:
-                pass
+    # Separate Brazilian / B3 tickers for BRAPI priority
+    b3_symbols = [s for s in symbols_tuple if s.endswith(".SA") or s == "^BVSP"]
+    other_symbols = [s for s in symbols_tuple if s not in b3_symbols]
 
-        # 2. Ações B3, US e Macro via Yahoo Direct Chart v8
-        if re.match(r'^[A-Z]{4}[0-9]{1,2}$', clean):
-            ticker_yf = f"{clean}.SA"
-        else:
-            ticker_yf = raw
+    # 1. Ingestão via BRAPI para ativos B3
+    if b3_symbols:
+        brapi_res = fetch_brapi_quotes(b3_symbols, token=brapi_token)
+        quotes.update(brapi_res)
 
+    def fetch_yahoo_v8(symbol):
+        url = f"https://query2.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=2d"
         try:
-            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker_yf}?interval=1d&range=2d"
             res = requests.get(url, headers=headers, timeout=4)
             if res.status_code == 200:
-                result = res.json().get("chart", {}).get("result", [])
+                data = res.json()
+                result = data.get("chart", {}).get("result", [])
                 if result:
                     meta = result[0].get("meta", {})
-                    price = float(meta.get("regularMarketPrice", 0.0) or 0.0)
-                    prev_close = float(meta.get("chartPreviousClose", price) or price)
-                    change = ((price - prev_close) / prev_close * 100) if prev_close > 0 else 0.0
-                    
-                    res_data["price"] = price
-                    res_data["change"] = change
-                    res_data["alt_ticker"] = ticker_yf
+                    price = meta.get("regularMarketPrice", 0.0)
+                    prev_close = meta.get("chartPreviousClose") or meta.get("previousClose") or price
+                    if price and prev_close:
+                        chg = ((price - prev_close) / prev_close) * 100
+                        return {"price": float(price), "change": float(chg)}
         except Exception:
             pass
+        return None
 
-        # 3. FALLBACK BRAPI.DEV (Para B3 caso o Yahoo zerou/falhou)
-        if res_data["price"] == 0.0 and re.match(r'^[A-Z]{4}[0-9]{1,2}$', clean):
+    # Process pending or failed tickers via Yahoo Direct API / Fallback
+    for orig_sym in symbols_tuple:
+        if orig_sym in quotes and quotes[orig_sym]["price"] > 0.0:
+            continue
+
+        actual_sym = alias_map.get(orig_sym, orig_sym)
+        
+        # 2. Requisição direta Yahoo Chart API v8
+        q_data = fetch_yahoo_v8(actual_sym)
+        
+        # 3. Fallback via yfinance fast_info se a V8 falhar
+        if not q_data or q_data["price"] == 0.0:
             try:
-                token_param = f"?token={brapi_token}" if brapi_token else ""
-                url_brapi = f"https://brapi.dev/api/quote/{clean}{token_param}"
-                res_b = requests.get(url_brapi, timeout=4)
-                if res_b.status_code == 200:
-                    results_b = res_b.json().get("results", [])
-                    if results_b:
-                        data_b = results_b[0]
-                        price_b = float(data_b.get("regularMarketPrice", 0.0) or 0.0)
-                        chg_b = float(data_b.get("regularMarketChangePercent", 0.0) or 0.0)
-                        if price_b > 0:
-                            res_data["price"] = price_b
-                            res_data["change"] = chg_b
+                tk = yf.Ticker(actual_sym)
+                fast = tk.fast_info
+                p = fast.last_price
+                prev = fast.previous_close
+                if p and prev:
+                    c = ((p - prev) / prev) * 100
+                    q_data = {"price": float(p), "change": float(c)}
             except Exception:
                 pass
 
-        return res_data
-
-    unique_symbols = list(set(symbols_tuple))
-    with ThreadPoolExecutor(max_workers=15) as executor:
-        results = list(executor.map(fetch_single, unique_symbols))
-
-    for r in results:
-        q_obj = {"price": r["price"], "change": r["change"]}
-        quotes[r["raw"]] = q_obj
-        quotes[r["clean"]] = q_obj
-        if r["alt_ticker"]:
-            quotes[r["alt_ticker"]] = q_obj
+        if q_data and q_data["price"] > 0.0:
+            quotes[orig_sym] = q_data
+        else:
+            quotes[orig_sym] = {"price": 0.0, "change": 0.0}
 
     return quotes
 
 # -----------------------------------------------------------------------------
-# 4. SIDEBAR: CONTROLE DE TIERS, BRAPI API TOKEN, CATEGORIAS E FORMATOS
+# 4. SIDEBAR: CONTROLE DE TIERS, CATEGORIAS, FORMATOS E PARÂMETROS QUANT
 # -----------------------------------------------------------------------------
 st.sidebar.title("⚙️ Configurações OMNI")
 st.sidebar.caption("Controle de geração de roteiros e relatórios")
 
-# Campo do Token BRAPI
-st.sidebar.markdown("---")
-st.sidebar.subheader("🔑 Chave API B3 (BRAPI.dev)")
-brapi_token_input = st.sidebar.text_input(
-    "Token BRAPI.dev (Fallback B3):",
-    value="",
-    type="password",
-    help="Insira seu token da brapi.dev para garantir cotações 100% ativas da B3."
-)
-
-st.sidebar.markdown("---")
 idioma = st.sidebar.selectbox("🌐 Idioma do Output:", ["Português (BR)", "English", "Español"])
 modulo = st.sidebar.radio("📌 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🔑 Nível de Acesso (Tier SaaS)")
+st.sidebar.subheader("💎 Nível de Acesso (Tier SaaS)")
 
 tier_selected = st.sidebar.radio(
     "Plano Ativo:",
@@ -437,20 +466,23 @@ tier_selected = st.sidebar.radio(
 )
 
 if "Free" in tier_selected:
+    max_assets_allowed = 32
     max_free_tickers = 0
     allow_customization = False
     allow_white_label = False
-    st.sidebar.info("ℹ️ Modo Free: ativos fixos padrão.")
+    st.sidebar.info("ℹ️ Modo Free: 32 ativos fixos padrão. Sem alteração.")
 elif "Standard" in tier_selected:
+    max_assets_allowed = 32
     max_free_tickers = 5
     allow_customization = True
     allow_white_label = False
     st.sidebar.success("⚡ Modo Standard: Personalizável + 5 Tickers Livres.")
 else:
+    max_assets_allowed = 100
     max_free_tickers = 999
     allow_customization = True
     allow_white_label = True
-    st.sidebar.success("👑 Modo Premium: 100+ Ativos + White-Label Habilitado.")
+    st.sidebar.success("🔥 Modo Premium: 100+ Ativos + White-Label Habilitado.")
 
 active_categories = CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI
 active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
@@ -467,13 +499,17 @@ for key in active_categories.keys():
 custom_tickers = []
 if allow_customization:
     st.sidebar.markdown("---")
-    st.sidebar.subheader("📌 Injeção de Tickers Livres")
-    c_input = st.sidebar.text_input("Tickers extras (ex: WEGE3, PETR3, NVDA, BTC-USD):", value="")
+    st.sidebar.subheader("🎯 Injeção de Tickers Livres")
+    c_input = st.sidebar.text_input("Tickers extras (ex: WEGE3.SA, PEPE-USD):", value="")
     if c_input:
         custom_tickers = [t.strip().upper() for t in c_input.split(",") if t.strip()]
         if len(custom_tickers) > max_free_tickers:
             st.sidebar.warning(f"Limite do plano: apenas {max_free_tickers} adicionados.")
             custom_tickers = custom_tickers[:max_free_tickers]
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("🔑 Configurações de API Extra")
+brapi_token_input = st.sidebar.text_input("BRAPI Token (Opcional):", value="", type="password")
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("📊 Parâmetros do Engine Preditivo")
@@ -482,13 +518,13 @@ alvo_pct = st.sidebar.slider("Projeção de Resposta (%)", min_value=0.5, max_va
 stop_pct = st.sidebar.slider("Zona de Suporte / Defesa (%)", min_value=0.5, max_value=15.0, value=3.0, step=0.5)
 
 st.sidebar.markdown("---")
-formato = st.sidebar.radio(f"📄 Formato ({modulo}):", ["B2B (Relatório)", "B2C (YouTube Auto-Pilot)"], index=0)
+formato = st.sidebar.radio(f"📝 Formato ({modulo}):", ["B2B (Relatório)", "B2C (YouTube Auto-Pilot)"], index=0)
 
 company_name = "OMNIRESEARCH Engine"
 cnpi_code = "CNPI-T 0000"
 if allow_white_label:
     st.sidebar.markdown("---")
-    st.sidebar.subheader("💼 Personalização White-Label")
+    st.sidebar.subheader("🏛️ Personalização White-Label")
     company_name = st.sidebar.text_input("Nome da Casa/Escritório:", "XP / BTG / Gestora")
     cnpi_code = st.sidebar.text_input("Registro CNPI/Responsável:", "CNPI-T 3421")
 
@@ -503,7 +539,6 @@ for cat_info in active_categories.values():
 
 symbols_to_fetch.extend(custom_tickers)
 
-# Chamada com o token da BRAPI
 quotes = fetch_realtime_quotes(tuple(symbols_to_fetch), brapi_token=brapi_token_input)
 fng_val, fng_class = fetch_btc_fng()
 global_crypto_data = fetch_global_crypto_data()
@@ -512,7 +547,7 @@ active_display_categories = active_categories.copy()
 if custom_tickers:
     custom_assets = []
     for t in custom_tickers:
-        prefix_curr = "R$" if (t.endswith(".SA") or re.match(r'^[A-Z]{4}[0-9]{1,2}$', t)) else "$"
+        prefix_curr = "R$" if ".SA" in t else "$"
         custom_assets.append((t, t, prefix_curr))
     active_display_categories["0 - Tickers Personalizados"] = {
         "tag": "Custom Feed",
@@ -528,7 +563,7 @@ if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.title(f"🏛️ {company_name} — Terminal Quant")
     st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
 else:
-    st.title("📈 OMNIRESEARCH Engine")
+    st.title("🚀 OMNIRESEARCH Engine")
     st.caption("Plataforma Integrada de Inteligência Financeira: YouTube Auto/HITL, Relatórios B2B (Crypto) e TradFi (Macro)")
 
 now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
@@ -536,7 +571,7 @@ now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 col_status, col_btn_refresh = st.columns([3.5, 1])
 with col_status:
     st.markdown(
-        f'<div class="status-bar">⚡ <b>Dados consolidados às {now_str}</b> | Status API: <span style="color: #3FB950;">🟢 Online (Yahoo + BRAPI Fallback)</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
+        f'<div class="status-bar">⏱️ <b>Dados consolidados das {now_str}</b> (Cache 5m) | Status API: <span style="color: #3FB950;">🟢 Online (BRAPI + Yahoo)</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
         unsafe_allow_html=True
     )
 with col_btn_refresh:
@@ -547,14 +582,14 @@ with col_btn_refresh:
 col_left, col_right = st.columns([1.3, 1])
 
 with col_left:
-    st.subheader(f"📝 Entrega Padrão — {formato}")
-    st.caption("Indicadores e cotações integrados em tempo real via API REST:")
+    st.subheader(f"📄 Entrega Padrão — {formato}")
+    st.caption("Indicadores e cotações integrados em tempo real via API:")
 
     if "B2B" in formato:
         if modulo == "Crypto":
             btc_q = quotes.get("BTC-USD", {"price": 0.0, "change": 0.0})
             eth_q = quotes.get("ETH-USD", {"price": 0.0, "change": 0.0})
-
+            
             btc_d_chg_str = fmt_pct(global_crypto_data['btc_d_chg']) if isinstance(global_crypto_data['btc_d_chg'], (int, float)) else global_crypto_data['btc_d_chg']
             usdt_d_chg_str = fmt_pct(global_crypto_data['usdt_d_chg']) if isinstance(global_crypto_data['usdt_d_chg'], (int, float)) else global_crypto_data['usdt_d_chg']
 
@@ -563,11 +598,11 @@ with col_left:
                 f"Data/Hora: {now_str}",
                 "",
                 "1. PANORAMA & BENCHMARKS CRYPTO (MÉTRICAS AGREGADAS)",
-                f"- 1. Bitcoin (BTC/USD): $ {fmt_num(btc_q['price'])} ({fmt_pct(btc_q['change'])} hoje)",
-                f"- 2. Ethereum (ETH/USD): $ {fmt_num(eth_q['price'])} ({fmt_pct(eth_q['change'])} hoje)",
-                f"- 3. Bitcoin Dominance (BTC.D): {global_crypto_data['btc_d_val']} ({btc_d_chg_str} hoje)",
-                f"- 4. Tether Dominance (USDT.D): {global_crypto_data['usdt_d_val']} ({usdt_d_chg_str} hoje)",
-                f"- 5. Bitcoin Fear & Greed Index: {fng_val} ({fng_class})",
+                f"- 1. Bitcoin (BTC/USD): $ {fmt_num(btc_q['price'])} ({fmt_pct(btc_q['change'])} hoje) [Direct API]",
+                f"- 2. Ethereum (ETH/USD): $ {fmt_num(eth_q['price'])} ({fmt_pct(eth_q['change'])} hoje) [Direct API]",
+                f"- 3. Bitcoin Dominance (BTC.D): {global_crypto_data['btc_d_val']} ({btc_d_chg_str} hoje) [CoinGecko API]",
+                f"- 4. Tether Dominance (USDT.D): {global_crypto_data['usdt_d_val']} ({usdt_d_chg_str} hoje) [CoinGecko API]",
+                f"- 5. Bitcoin Fear & Greed Index: {fng_val} ({fng_class}) [Alternative.me API]",
                 "",
                 "2. ANÁLISE INTEGRADA DAS CATEGORIAS CRYPTO SELECIONADAS"
             ]
@@ -582,28 +617,28 @@ with col_left:
                 "=== RELATÓRIO INSTITUCIONAL TRADFI (MACRO) (B2B) ===",
                 f"Data/Hora: {now_str}",
                 "",
-                "1. PANORAMA & BENCHMARKS DE MERCADO (DADOS EM TEMPO REAL)",
-                f"- 1. S&P 500 / SPX: {fmt_num(spx_q['price'])} ({fmt_pct(spx_q['change'])} hoje)",
-                f"- 2. Ibovespa / IBOV: {fmt_num(ibov_q['price'])} ({fmt_pct(ibov_q['change'])} hoje)",
-                f"- 3. Petróleo Brent: $ {fmt_num(brent_q['price'])} ({fmt_pct(brent_q['change'])} hoje)",
-                f"- 4. Ouro Spot: $ {fmt_num(gold_q['price'])} ({fmt_pct(gold_q['change'])} hoje)",
-                f"- 5. USD / BRL / Dólar Real: R$ {fmt_num(usdbrl_q['price'])} ({fmt_pct(usdbrl_q['change'])} hoje)",
+                "1. PANORAMA & BENCHMARKS DE MERCADO (DADOS VIA BRAPI & DIRECT API)",
+                f"- 1. S&P 500 / SPX: {fmt_num(spx_q['price'])} ({fmt_pct(spx_q['change'])} hoje) [Direct API]",
+                f"- 2. Ibovespa / IBOV: {fmt_num(ibov_q['price'])} ({fmt_pct(ibov_q['change'])} hoje) [BRAPI / Direct API]",
+                f"- 3. Petróleo Brent: $ {fmt_num(brent_q['price'])} ({fmt_pct(brent_q['change'])} hoje) [Direct API]",
+                f"- 4. Ouro Spot: $ {fmt_num(gold_q['price'])} ({fmt_pct(gold_q['change'])} hoje) [Direct API]",
+                f"- 5. USD / BRL / Dólar Real: R$ {fmt_num(usdbrl_q['price'])} ({fmt_pct(usdbrl_q['change'])} hoje) [Direct API]",
                 "",
-                "2. ANÁLISE INTEGRADA DAS CATEGORIAS SELECIONADAS"
+                "2. ANÁLISE INTEGRADA DAS CATEGORIAS SELECIONADAS (DADOS EM TEMPO REAL)"
             ]
 
         for cat_name in selected_categories:
             if cat_name in active_display_categories:
                 cat_info = active_display_categories[cat_name]
                 cat_enabled = st.session_state.get(f"chk_cat_{cat_name}", True)
-
+                
                 if cat_enabled:
                     active_assets = []
                     for disp_name, ticker, currency in cat_info["assets"]:
                         asset_enabled = st.session_state.get(f"chk_asset_{cat_name}_{ticker}", True)
                         if asset_enabled:
                             active_assets.append((disp_name, ticker, currency))
-
+                    
                     if active_assets:
                         report_lines.append(f"\n• {cat_name.upper()} ({cat_info['tag']}):")
                         for disp_name, ticker, currency in active_assets:
@@ -628,19 +663,19 @@ with col_left:
     else:
         main_symbol = "BTC-USD" if modulo == "Crypto" else "^GSPC"
         main_q = quotes.get(main_symbol, {"price": 0.0, "change": 0.0})
-
+        
         script_text = f"""=== ROTEIRO YOUTUBE AUTO-PILOT ({modulo.upper()}) ===
 Data/Hora: {now_str}
 
 [00:00] HOOK DE ABERTURA:
-"O mercado de {modulo} operando com volatilidade! O ativo principal negociado a {fmt_num(main_q['price'])} ({fmt_pct(main_q['change'])} hoje). Sentimento de mercado em {fng_class}. Acompanhe os níveis operacionais!"
+"O mercado de {modulo} operando com forte volatilidade! O ativo principal negociado a {fmt_num(main_q['price'])} ({fmt_pct(main_q['change'])} hoje). O sentimento do mercado marca {fng_class}. Veja os níveis críticos agora!"
 
 [01:30] DESTAQUES SETORIAIS:
 - Categorias Monitoradas: {', '.join(selected_categories[:3])}
-- Projeção de Machine Learning para {horizonte_pred}: Tendência com alvo em {alvo_pct}% e suporte em {stop_pct}%.
+- Projeção de Machine Learning para {horizonte_pred}: Tendência com alvo ajustado em {alvo_pct}% e suporte em {stop_pct}%.
 
 [05:00] FECHAMENTO:
-"Inscreva-se na OMNIRESEARCH Engine para análises em tempo real!"
+"Deixe seu like e se inscreva na OMNIRESEARCH Engine para análises diárias em tempo real!"
 
 Powered by OMNIRESEARCH Engine"""
 
@@ -654,22 +689,34 @@ Powered by OMNIRESEARCH Engine"""
         )
 
     c1, c2, c3, c4 = st.columns(4)
-    main_sym_calc = "BTC-USD" if modulo == "Crypto" else "^GSPC"
-    main_q = quotes.get(main_sym_calc, {"price": 0.0, "change": 0.0})
-    p_curr = main_q['price']
+    if modulo == "Crypto":
+        main_q = quotes.get("BTC-USD", {"price": 0.0, "change": 0.0})
+        res_calc = main_q['price'] * (1 + (alvo_pct / 100))
+        sup_calc = main_q['price'] * (1 - (stop_pct / 100))
+        target_calc = main_q['price'] * (1 + ((alvo_pct * 0.7) / 100))
+        
+        with c1:
+            st.metric("Tendência (BTC)", "Compradora" if main_q['change'] >= 0 else "Vendedora", f"{fmt_pct(main_q['change'])}")
+        with c2:
+            st.metric("Resistência Alvo", f"$ {fmt_num(res_calc, dec=0)}", f"+{alvo_pct}%")
+        with c3:
+            st.metric("Suporte Chave", f"$ {fmt_num(sup_calc, dec=0)}", f"-{stop_pct}%")
+        with c4:
+            st.metric(f"Previsão {horizonte_pred}", "Alta Moderada", f"Alvo $ {fmt_num(target_calc, dec=0)}")
+    else:
+        main_q = quotes.get("^GSPC", {"price": 0.0, "change": 0.0})
+        res_calc = main_q['price'] * (1 + (alvo_pct / 100))
+        sup_calc = main_q['price'] * (1 - (stop_pct / 100))
+        target_calc = main_q['price'] * (1 + ((alvo_pct * 0.5) / 100))
 
-    res_calc = p_curr * (1 + (alvo_pct / 100))
-    sup_calc = p_curr * (1 - (stop_pct / 100))
-    target_calc = p_curr * (1 + ((alvo_pct * 0.7) / 100))
-
-    with c1:
-        st.metric("Tendência", "Compradora" if main_q['change'] >= 0 else "Vendedora", f"{fmt_pct(main_q['change'])}")
-    with c2:
-        st.metric("Resistência Alvo", f"{fmt_num(res_calc, dec=0)}", f"+{alvo_pct}%")
-    with c3:
-        st.metric("Suporte Chave", f"{fmt_num(sup_calc, dec=0)}", f"-{stop_pct}%")
-    with c4:
-        st.metric(f"Previsão {horizonte_pred}", "Alta Moderada", f"Alvo {fmt_num(target_calc, dec=0)}")
+        with c1:
+            st.metric("Tendência (Macro)", "Compradora" if main_q['change'] >= 0 else "Vendedora", f"{fmt_pct(main_q['change'])}")
+        with c2:
+            st.metric("Resistência Alvo", f"{fmt_num(res_calc, dec=0)}", f"+{alvo_pct}%")
+        with c3:
+            st.metric("Suporte Chave", f"{fmt_num(sup_calc, dec=0)}", f"-{stop_pct}%")
+        with c4:
+            st.metric(f"Previsão {horizonte_pred}", "Alta Moderada", f"Alvo {fmt_num(target_calc, dec=0)}")
 
 # Painel Direito: Métricas Agregadas
 with col_right:
@@ -679,11 +726,17 @@ with col_right:
     for item in active_benchmarks:
         label = item["label"]
         badge = item.get("badge", "Data Feed")
-
+        
         if item.get("type") == "fng_api":
             val_str = fng_val
             chg_str = fng_class
-            change_cls = "metric-change-pos" if "Greed" in fng_class else ("metric-change-neg" if "Fear" in fng_class else "metric-change-neutral")
+            
+            if "Fear" in fng_class or "Medo" in fng_class:
+                change_cls = "metric-change-neg"
+            elif "Greed" in fng_class or "Ganância" in fng_class:
+                change_cls = "metric-change-pos"
+            else:
+                change_cls = "metric-change-neutral"
 
         elif item.get("type") == "global_api":
             sub_k = item.get("sub_key")
@@ -693,7 +746,7 @@ with col_right:
             elif sub_k == "usdt_d":
                 val_str = global_crypto_data["usdt_d_val"]
                 chg_num = global_crypto_data["usdt_d_chg"]
-
+            
             if isinstance(chg_num, (int, float)):
                 chg_str = f"{fmt_pct(chg_num)} hoje"
                 change_cls = "metric-change-pos" if chg_num >= 0 else "metric-change-neg"
@@ -720,7 +773,7 @@ st.markdown("---")
 # -----------------------------------------------------------------------------
 # 6. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA)
 # -----------------------------------------------------------------------------
-st.subheader(f"📁 Painel de Análise Integrada das Categorias ({modulo})")
+st.subheader(f"🧩 Painel de Análise Integrada das Categorias ({modulo})")
 st.caption("Marque/desmarque setores ou ativos específicos para incluir ou excluir do relatório final:")
 
 if selected_categories:
@@ -729,11 +782,12 @@ if selected_categories:
         if cat_name in active_display_categories:
             cat_info = active_display_categories[cat_name]
             col = cols[idx % len(cols)]
-
+            
             with col:
                 with st.container(border=True):
                     cat_key = f"chk_cat_{cat_name}"
-
+                    
+                    # Cabeçalho do Card
                     c_title, c_check = st.columns([3.2, 0.8])
                     with c_title:
                         st.markdown(
@@ -750,17 +804,18 @@ if selected_categories:
                             key=cat_key,
                             label_visibility="collapsed"
                         )
-
+                    
                     st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
-
+                    
+                    # Lista de Ativos
                     for disp_name, ticker, currency in cat_info["assets"]:
                         q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                         asset_key = f"chk_asset_{cat_name}_{ticker}"
-
+                        
                         color_style = "color: #3FB950;" if q["change"] >= 0 else "color: #F85149;"
                         price_fmt = f"{currency} {fmt_num(q['price'])}"
                         chg_fmt = fmt_pct(q['change'])
-
+                        
                         cA, cB = st.columns([3.2, 0.8])
                         with cA:
                             st.markdown(
@@ -782,6 +837,7 @@ if selected_categories:
 
 st.markdown("---")
 
+# Rodapé Institucional
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.caption(f"© {datetime.now().year} {company_name}. Todos os direitos reservados. Relatório de uso exclusivo.")
 else:
