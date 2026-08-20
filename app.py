@@ -3,6 +3,7 @@ import yfinance as yf
 import requests
 from datetime import datetime
 import pandas as pd
+import re
 
 # -----------------------------------------------------------------------------
 # 1. CONFIGURAÇÃO DA PÁGINA & ESTILIZAÇÃO CSS INSTITUCIONAL
@@ -285,7 +286,7 @@ CRYPTO_BENCHMARKS = [
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO MULTI-API ISOLADA
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO MULTI-API ISOLADA COM REPETIÇÃO DE SEGURANÇA
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -340,10 +341,8 @@ def fetch_global_crypto_data():
 @st.cache_data(ttl=300)
 def fetch_realtime_quotes(symbols_tuple):
     quotes = {}
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-    }
     alias_map = {"UNI-USD": "UNI7083-USD"}
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
     # 1. API Isolada Binance (Crypto)
     def fetch_binance(sym):
@@ -357,74 +356,82 @@ def fetch_realtime_quotes(symbols_tuple):
         except Exception: pass
         return None
 
-    # 2. API Isolada Brapi (B3 Fallback)
-    def fetch_brapi_single(sym):
+    # 2. Fast-Info Nativo yfinance (Individuais)
+    def fetch_yf_fast(sym):
+        try:
+            t = yf.Ticker(sym)
+            p = float(t.fast_info['lastPrice'])
+            prev = float(t.fast_info['previousClose'])
+            if p > 0:
+                c = ((p - prev) / prev) * 100 if prev > 0 else 0.0
+                return {"price": p, "change": c}
+        except Exception: pass
+        return None
+
+    # 3. Google Finance Scraping Fallback Direct Text Match
+    def fetch_google_finance(sym):
         try:
             clean = sym.replace(".SA", "")
-            res = requests.get(f"https://brapi.dev/api/quote/{clean}", timeout=3)
+            exchange = "BVMF" if ".SA" in sym else "NASDAQ"
+            url = f"https://www.google.com/finance/quote/{clean}:{exchange}"
+            res = requests.get(url, headers=headers, timeout=3)
+            if res.status_code != 200 and exchange != "BVMF":
+                url = f"https://www.google.com/finance/quote/{clean}:NYSE"
+                res = requests.get(url, headers=headers, timeout=3)
             if res.status_code == 200:
-                data = res.json().get("results", [])
-                if data:
-                    p = data[0].get("regularMarketPrice", 0)
-                    c = data[0].get("regularMarketChangePercent", 0)
-                    if p > 0: return {"price": float(p), "change": float(c)}
+                m_price = re.search(r'class="YMlKec fxKbKc">([^<]+)<', res.text)
+                if m_price:
+                    raw_p = m_price.group(1).replace("R$", "").replace("$", "").replace("\xa0", "").strip()
+                    if "," in raw_p: raw_p = raw_p.replace(".", "").replace(",", ".")
+                    p = float(raw_p)
+                    m_chg = re.search(r'aria-label="[^"]*?([0-9]+[,\.][0-9]+)%"', res.text)
+                    c = float(m_chg.group(1).replace(",", ".")) if m_chg else 0.0
+                    if "down" in res.text.lower() and c > 0: c = -c
+                    if p > 0: return {"price": p, "change": c}
         except Exception: pass
         return None
 
-    # 3. API Isolada Yahoo v7 (US Stocks / General Fallback)
-    def fetch_yahoo_v7(sym):
+    # Ingestão em Lote via yfinance.download
+    yf_symbols = [alias_map.get(s, s) for s in symbols_tuple if not ("-USD" in s or s in ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"])]
+    yf_batch_data = {}
+    if yf_symbols:
         try:
-            res = requests.get(f"https://query1.finance.yahoo.com/v7/finance/quote?symbols={sym}", headers=headers, timeout=3)
-            if res.status_code == 200:
-                results = res.json().get("quoteResponse", {}).get("result", [])
-                if results:
-                    p = results[0].get("regularMarketPrice", 0)
-                    c = results[0].get("regularMarketChangePercent", 0)
-                    if p > 0: return {"price": float(p), "change": float(c)}
+            df = yf.download(yf_symbols, period="5d", interval="1d", progress=False)
+            for sym in yf_symbols:
+                try:
+                    if isinstance(df.columns, pd.MultiIndex):
+                        closes = df["Close"][sym].dropna().values if sym in df["Close"] else []
+                    else:
+                        closes = df["Close"].dropna().values if "Close" in df else []
+                    if len(closes) >= 1:
+                        price = float(closes[-1])
+                        prev = float(closes[-2]) if len(closes) >= 2 else price
+                        chg = ((price - prev) / prev) * 100 if prev > 0 else 0.0
+                        if price > 0:
+                            yf_batch_data[sym] = {"price": price, "change": chg}
+                except Exception: pass
         except Exception: pass
-        return None
 
-    # 4. Engine Principal Yahoo v8
-    def fetch_yahoo_v8(sym):
-        try:
-            res = requests.get(f"https://query2.finance.yahoo.com/v8/finance/chart/{sym}?interval=1d&range=2d", headers=headers, timeout=3)
-            if res.status_code == 200:
-                result = res.json().get("chart", {}).get("result", [])
-                if result:
-                    meta = result[0].get("meta", {})
-                    indicators = result[0].get("indicators", {}).get("quote", [{}])[0]
-                    closes = [c for c in indicators.get("close", []) if c is not None]
-
-                    price = meta.get("regularMarketPrice") or (closes[-1] if closes else 0.0)
-                    prev_close = meta.get("chartPreviousClose") or meta.get("previousClose")
-                    if not prev_close and len(closes) > 1:
-                        prev_close = closes[0]
-
-                    if price and prev_close:
-                        chg = ((price - prev_close) / prev_close) * 100
-                        return {"price": float(price), "change": float(chg)}
-        except Exception: pass
-        return None
-
+    # Consolidação final por ativo com cascata de segurança
     for orig_sym in symbols_tuple:
         actual_sym = alias_map.get(orig_sym, orig_sym)
         q_data = None
 
-        # Prioridade 1: Binance para Cryptos nativas
+        # Camada 1: Crypto via Binance
         if "-USD" in actual_sym or actual_sym in ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"]:
             q_data = fetch_binance(actual_sym)
 
-        # Prioridade 2: Yahoo Chart v8
+        # Camada 2: YFinance Download Lote
         if not q_data or q_data["price"] == 0.0:
-            q_data = fetch_yahoo_v8(actual_sym)
+            q_data = yf_batch_data.get(actual_sym)
 
-        # Prioridade 3: Fallback B3 via Brapi
-        if (not q_data or q_data["price"] == 0.0) and ".SA" in actual_sym:
-            q_data = fetch_brapi_single(actual_sym)
-
-        # Prioridade 4: Fallback US via Yahoo Quote v7
+        # Camada 3: YFinance Fast Info Individual
         if not q_data or q_data["price"] == 0.0:
-            q_data = fetch_yahoo_v7(actual_sym)
+            q_data = fetch_yf_fast(actual_sym)
+
+        # Camada 4: Google Finance Direct Scraping
+        if not q_data or q_data["price"] == 0.0:
+            q_data = fetch_google_finance(actual_sym)
 
         quotes[orig_sym] = q_data if q_data else {"price": 0.0, "change": 0.0}
 
