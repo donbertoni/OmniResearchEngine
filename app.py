@@ -9,7 +9,7 @@ import pandas as pd
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="OMNIRESEARCH Engine",
-    page_icon="📌",
+    page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -99,19 +99,27 @@ st.markdown("""<style>
         cursor: pointer !important;
     }
 
-    /* AJUSTE DE CORES DOS CHECKBOXES (VERDE QUANDO MARCADO / CINZA DESMARCADO) */
-    /* BaseWeb Checkbox - Streamlit Interno */
+    /* FORÇAR VERDE EM CHECKBOXES MARCADOS (SOBREPÕE TEMA DO STREAMLIT) */
+    div[data-testid="stCheckbox"] input[type="checkbox"]:checked + div,
+    div[data-baseweb="checkbox"] input:checked + div,
     div[data-baseweb="checkbox"] span[aria-checked="true"] {
         background-color: #2EA043 !important;
         border-color: #2EA043 !important;
     }
+
+    /* FORÇAR COR DA CHECKMARK (VETO) PARA BRANCO */
+    div[data-baseweb="checkbox"] input:checked + div svg,
+    div[data-baseweb="checkbox"] span[aria-checked="true"] svg {
+        color: #FFFFFF !important;
+        fill: #FFFFFF !important;
+    }
+
+    /* MANTÉM CINZA DISCRETO QUANDO DESMARCADO */
+    div[data-testid="stCheckbox"] input[type="checkbox"]:not(:checked) + div,
+    div[data-baseweb="checkbox"] input:not(:checked) + div,
     div[data-baseweb="checkbox"] span[aria-checked="false"] {
         background-color: #161B22 !important;
         border-color: #484F58 !important;
-    }
-    /* Estilo para navegadores padrão / input nativo */
-    input[type="checkbox"]:checked {
-        accent-color: #2EA043 !important;
     }
 
     /* AJUSTE DE MÉTRICAS PADRÃO STREAMLIT */
@@ -467,7 +475,7 @@ idioma = st.sidebar.selectbox("🌐 Idioma do Output:", ["Português (BR)", "Eng
 modulo = st.sidebar.radio("📌 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🔑 Conectores de API")
+st.sidebar.subheader("🔌 Conectores de API")
 brapi_token = st.sidebar.text_input(
     "BRAPI API Token:", 
     value="", 
@@ -495,13 +503,13 @@ elif "Standard" in tier_selected:
     max_free_tickers = 5
     allow_customization = True
     allow_white_label = False
-    st.sidebar.success("⚡ Modo Standard: Personalizável + 5 Tickers Livres.")
+    st.sidebar.success("✅ Modo Standard: Personalizável + 5 Tickers Livres.")
 else:
     max_assets_allowed = 100
     max_free_tickers = 999
     allow_customization = True
     allow_white_label = True
-    st.sidebar.success("💎 Modo Premium: 100+ Ativos + White-Label Habilitado.")
+    st.sidebar.success("🚀 Modo Premium: 100+ Ativos + White-Label Habilitado.")
 
 active_categories = CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI
 active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
@@ -518,7 +526,7 @@ for key in active_categories.keys():
 custom_tickers = []
 if allow_customization:
     st.sidebar.markdown("---")
-    st.sidebar.subheader("➕ Injeção de Tickers Livres")
+    st.sidebar.subheader("🎯 Injeção de Tickers Livres")
     c_input = st.sidebar.text_input("Tickers extras (ex: WEGE3.SA, PEPE-USD):", value="")
     if c_input:
         custom_tickers = [t.strip().upper() for t in c_input.split(",") if t.strip()]
@@ -578,7 +586,7 @@ if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.title(f"🏛️ {company_name} — Terminal Quant")
     st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
 else:
-    st.title("📌 OMNIRESEARCH Engine")
+    st.title("🖥️ OMNIRESEARCH Engine")
     st.caption("Plataforma Integrada de Inteligência Financeira: YouTube Auto/HITL, Relatórios B2B (Crypto) e TradFi (Macro)")
 
 now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
@@ -856,4 +864,4 @@ st.markdown("---")
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.caption(f"© {datetime.now().year} {company_name}. Todos os direitos reservados. Relatório de uso exclusivo.")
 else:
-    st.caption("⚡ Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
+    st.caption("🚀 Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
