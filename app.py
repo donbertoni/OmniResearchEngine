@@ -4,6 +4,9 @@ import requests
 from datetime import datetime
 import pandas as pd
 
+# -----------------------------------------------------------------------------
+# 1. CONFIGURAÇÃO DA PÁGINA & ESTILIZAÇÃO CSS INSTITUCIONAL
+# -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="OMNIRESEARCH Engine",
     page_icon="⚡",
@@ -18,6 +21,14 @@ st.markdown("""<style>
         color: #E2E8F0;
     }
     
+    /* Sincronização de Altura dos Cabeçalhos das Colunas Principais (Alinhamento Milimétrico Superior) */
+    .col-header-sync {
+        min-height: 64px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+    }
+
     /* Barra de Status Topo */
     .status-bar {
         background-color: #131B2A;
@@ -29,27 +40,24 @@ st.markdown("""<style>
         font-size: 13px;
     }
     
-    /* Metrics Cards */
+    /* Metrics Cards do Painel Direito */
     .metric-card {
         background-color: #161B22;
         border: 1px solid #30363D;
         border-radius: 8px;
-        padding: 14px 16px;
+        padding: 12px 16px;
         margin-bottom: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
     .metric-title {
         font-size: 12px;
         color: #8B949E;
         font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
     }
     .metric-value {
         font-size: 18px;
         font-weight: 700;
         color: #F0F6FC;
-        margin: 6px 0;
+        margin: 4px 0;
     }
     .metric-change-pos {
         font-size: 12px;
@@ -68,6 +76,35 @@ st.markdown("""<style>
     }
     .premium-badge { color: #58A6FF; font-weight: bold; }
 
+    /* Alvos Preditivos & Zonas Operacionais (Boxes Padronizadas e Fontes Redimensionadas) */
+    .pred-card {
+        background-color: #161B22;
+        border: 1px solid #30363D;
+        border-radius: 8px;
+        padding: 10px 14px;
+        height: 85px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .pred-title {
+        font-size: 11px;
+        color: #8B949E;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .pred-value {
+        font-size: 15px;
+        font-weight: 700;
+        color: #F0F6FC;
+    }
+    .pred-sub {
+        font-size: 11px;
+        font-weight: 600;
+    }
+
     /* COR DE FUNDO DOS CARDS DAS CATEGORIAS (#161B22) */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background-color: #161B22 !important;
@@ -81,19 +118,7 @@ st.markdown("""<style>
         border: none !important;
     }
 
-    /* ESTILIZAÇÃO DE CHECKBOXES */
-    div[data-baseweb="checkbox"] input:checked ~ div,
-    div[data-baseweb="checkbox"] [aria-checked="true"],
-    div.row-widget.stCheckbox input[type="checkbox"]:checked + div {
-        background-color: #238636 !important;
-        border-color: #2EA043 !important;
-    }
-    
-    input[type="checkbox"]:checked {
-        accent-color: #238636 !important;
-    }
-
-    /* ALINHAMENTO DOS CHECKBOXES */
+    /* ESTILIZAÇÃO E ALINHAMENTO DOS CHECKBOXES EM VERDE */
     div[data-testid="stCheckbox"] {
         display: flex !important;
         justify-content: flex-end !important;
@@ -110,31 +135,18 @@ st.markdown("""<style>
         padding: 0px !important;
         cursor: pointer !important;
     }
-    div.stCheckbox label span {
-        color: #E6EDF3 !important;
-    }
-
-    /* AJUSTE DE TABS */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: #131B2A;
-        padding: 8px;
-        border-radius: 8px;
-        border: 1px solid #1E293B;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background-color: #161B22;
-        border-radius: 6px;
-        color: #8B949E;
-        font-weight: 600;
-        padding: 8px 16px;
-    }
-    .stTabs [aria-selected="true"] {
+    div[data-baseweb="checkbox"] input:checked + div {
         background-color: #238636 !important;
-        color: #FFFFFF !important;
+        border-color: #238636 !important;
+    }
+    input[type="checkbox"]:checked {
+        accent-color: #238636 !important;
     }
 </style>""", unsafe_allow_html=True)
 
+# -----------------------------------------------------------------------------
+# 2. ACERVO MESTRE DE DADOS & CATEGORIAS (TRADFI & CRYPTO)
+# -----------------------------------------------------------------------------
 CATEGORIES_TRADFI = {
     "1 - Bancos e Seguradoras": {
         "tag": "Banking & Ins.",
@@ -301,6 +313,9 @@ CRYPTO_BENCHMARKS = [
     {"key": "FEAR_GREED", "type": "fng_api", "label": "5. Bitcoin Fear & Greed Index", "badge": "Alternative.me API"}
 ]
 
+# -----------------------------------------------------------------------------
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO ROBUSTA
+# -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
         return "--"
@@ -451,6 +466,9 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
 
     return quotes
 
+# -----------------------------------------------------------------------------
+# 4. SIDEBAR: CONTROLE DE TIERS, CATEGORIAS, FORMATOS E PARÂMETROS QUANT
+# -----------------------------------------------------------------------------
 st.sidebar.title("⚙️ Configurações OMNI")
 st.sidebar.caption("Controle de geração de roteiros e relatórios")
 
@@ -463,7 +481,7 @@ brapi_token = st.sidebar.text_input(
     "BRAPI API Token:", 
     value="", 
     type="password", 
-    help="Chave de API para fallback dos ativos B3 (.SA)."
+    help="Chave de API para fallback dos ativos B3 (.SA) fora do horário de pregão ou falhas do YFinance."
 )
 
 st.sidebar.markdown("---")
@@ -480,25 +498,25 @@ if "Free" in tier_selected:
     max_free_tickers = 0
     allow_customization = False
     allow_white_label = False
-    st.sidebar.info("ℹ️ Modo Free: 32 ativos fixos padrão.")
+    st.sidebar.info("🔒 Modo Free: 32 ativos fixos padrão. Sem alteração.")
 elif "Standard" in tier_selected:
     max_assets_allowed = 32
     max_free_tickers = 5
     allow_customization = True
     allow_white_label = False
-    st.sidebar.success("✅ Modo Standard: Personalizável + 5 Tickers.")
+    st.sidebar.success("✅ Modo Standard: Personalizável + 5 Tickers Livres.")
 else:
     max_assets_allowed = 100
     max_free_tickers = 999
     allow_customization = True
     allow_white_label = True
-    st.sidebar.success("🚀 Modo Premium: 100+ Ativos + White-Label.")
+    st.sidebar.success("⭐ Modo Premium: 100+ Ativos + White-Label Habilitado.")
 
 active_categories = CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI
 active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🎛️ Calibragem de Setores")
+st.sidebar.subheader("🎛️ Calibragem (SaaS Enterprise)")
 st.sidebar.caption("Selecione os setores/categorias:")
 
 selected_categories = []
@@ -522,6 +540,9 @@ st.sidebar.subheader("📈 Parâmetros do Engine Preditivo")
 horizonte_pred = st.sidebar.selectbox("Horizonte Temporário:", ["24 Horas", "48 Horas", "7 Dias"], index=1)
 alvo_pct = st.sidebar.slider("Projeção de Resposta (%)", min_value=0.5, max_value=15.0, value=3.0, step=0.5)
 stop_pct = st.sidebar.slider("Zona de Suporte / Defesa (%)", min_value=0.5, max_value=15.0, value=3.0, step=0.5)
+
+st.sidebar.markdown("---")
+formato = st.sidebar.radio(f"📋 Formato ({modulo}):", ["B2B (Relatório)", "B2C (YouTube Auto-Pilot)"], index=0)
 
 company_name = "OMNIRESEARCH Engine"
 cnpi_code = "CNPI-T 0000"
@@ -559,6 +580,9 @@ if custom_tickers:
     if "0 - Tickers Personalizados" not in selected_categories:
         selected_categories.insert(0, "0 - Tickers Personalizados")
 
+# -----------------------------------------------------------------------------
+# 5. CORPO PRINCIPAL & LAYOUT ORIGINAL DE DUAS COLUNAS
+# -----------------------------------------------------------------------------
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.title(f"🏢 {company_name} — Terminal Quant")
     st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
@@ -575,119 +599,24 @@ with col_status:
         unsafe_allow_html=True
     )
 with col_btn_refresh:
-    if st.button("🔄 Atualizar Cotações", use_container_width=True):
+    if st.button("🔄 Atualizar Cotações"):
         st.cache_data.clear()
         st.rerun()
 
-tab_dashboard, tab_report, tab_engine = st.tabs([
-    "📊 Monitor de Mercado & Setores", 
-    "📄 Gerador de Relatórios & YouTube", 
-    "🎯 Engine Preditivo & Alvos"
-])
+# Layout Principal: Esquerda (Relatórios + Alvos Preditivos) e Direita (Métricas Agregadas)
+col_left, col_right = st.columns([1.3, 1])
 
-with tab_dashboard:
-    st.subheader(f"📊 Benchmarks & Indicadores Chave ({modulo})")
-    st.caption(f"Atualizado em tempo real às {datetime.now().strftime('%H:%M:%S BRT')}")
-    
-    b_cols = st.columns(len(active_benchmarks))
-    for idx, item in enumerate(active_benchmarks):
-        label = item["label"].split(". ")[-1]
-        badge = item.get("badge", "Data Feed")
-        
-        if item.get("type") == "fng_api":
-            val_str = fng_val
-            chg_str = fng_class
-            change_cls = "metric-change-pos" if "Greed" in fng_class else "metric-change-neg"
-        elif item.get("type") == "global_api":
-            sub_k = item.get("sub_key")
-            val_str = global_crypto_data["btc_d_val"] if sub_k == "btc_d" else global_crypto_data["usdt_d_val"]
-            chg_num = global_crypto_data["btc_d_chg"] if sub_k == "btc_d" else global_crypto_data["usdt_d_chg"]
-            chg_str = f"{fmt_pct(chg_num)} hoje"
-            change_cls = "metric-change-pos" if chg_num >= 0 else "metric-change-neg"
-        elif item.get("ticker"):
-            ticker = item["ticker"]
-            data = quotes.get(ticker, {"price": 0.0, "change": 0.0})
-            prefix = item.get("prefix", "")
-            suffix = item.get("suffix", "")
-            val_str = f"{prefix}{fmt_num(data['price'])}{suffix}"
-            chg_str = f"{fmt_pct(data['change'])} hoje"
-            change_cls = "metric-change-pos" if data["change"] >= 0 else "metric-change-neg"
-        
-        with b_cols[idx]:
-            st.markdown(
-                f'<div class="metric-card"><div class="metric-title">{label}</div><div class="metric-value">{val_str}</div><div class="{change_cls}">{chg_str}</div></div>',
-                unsafe_allow_html=True
-            )
+with col_left:
+    st.markdown('<div class="col-header-sync">', unsafe_allow_html=True)
+    st.subheader(f"📄 Entrega Padrão — {formato}")
+    st.caption("Indicadores e cotações integrados em tempo real via API:")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("---")
-    st.subheader(f"🎛️ Painel de Análise Setorial ({modulo})")
-    st.caption("Acompanhe os ativos em tempo real por categoria:")
-
-    if selected_categories:
-        for i in range(0, len(selected_categories), 3):
-            row_cats = selected_categories[i:i+3]
-            r_cols = st.columns(len(row_cats))
-            
-            for r_idx, cat_name in enumerate(row_cats):
-                if cat_name in active_display_categories:
-                    cat_info = active_display_categories[cat_name]
-                    with r_cols[r_idx]:
-                        with st.container(border=True):
-                            cat_key = f"chk_cat_{cat_name}"
-                            
-                            c_title, c_check = st.columns([3.0, 1.0])
-                            with c_title:
-                                st.markdown(
-                                    f'<div style="font-size: 13px; font-weight: 700; color: #F0F6FC; line-height: 24px;">{cat_name}</div>',
-                                    unsafe_allow_html=True
-                                )
-                            with c_check:
-                                cat_enabled = st.checkbox(
-                                    "Incluir",
-                                    value=st.session_state.get(cat_key, True),
-                                    key=cat_key,
-                                    label_visibility="collapsed"
-                                )
-                            
-                            st.markdown("<div style='margin-bottom: 6px;'></div>", unsafe_allow_html=True)
-                            
-                            for disp_name, ticker, currency in cat_info["assets"]:
-                                q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
-                                asset_key = f"chk_asset_{cat_name}_{ticker}"
-                                
-                                color_style = "color: #3FB950;" if q["change"] >= 0 else "color: #F85149;"
-                                price_fmt = f"{currency} {fmt_num(q['price'])}"
-                                chg_fmt = fmt_pct(q['change'])
-                                
-                                cA, cB = st.columns([3.2, 0.8])
-                                with cA:
-                                    st.markdown(
-                                        f'<div style="font-size: 12px; line-height: 24px; display: flex; align-items: center; justify-content: space-between;">'
-                                        f'<span style="color: #8B949E; font-weight: 500;">{disp_name}</span>'
-                                        f'<div><b style="color: #F0F6FC; margin-right: 4px;">{price_fmt}</b>'
-                                        f'<span style="{color_style} font-size: 11px; font-weight: 600;">({chg_fmt})</span></div>'
-                                        f'</div>',
-                                        unsafe_allow_html=True
-                                    )
-                                with cB:
-                                    st.checkbox(
-                                        "",
-                                        value=st.session_state.get(asset_key, True),
-                                        key=asset_key,
-                                        disabled=not cat_enabled,
-                                        label_visibility="collapsed"
-                                    )
-
-with tab_report:
-    st.subheader("📄 Central de Geração de Relatórios & Roteiros")
-    st.caption("Selecione o formato desejado na barra lateral e baixe o material pronto para publicação:")
-
-    formato_rel = st.radio("Selecione o Formato da Entrega:", ["B2B (Relatório Institucional)", "B2C (YouTube Auto-Pilot)"], horizontal=True)
-
-    if "B2B" in formato_rel:
+    if "B2B" in formato:
         if modulo == "Crypto":
             btc_q = quotes.get("BTC-USD", {"price": 0.0, "change": 0.0})
             eth_q = quotes.get("ETH-USD", {"price": 0.0, "change": 0.0})
+            
             btc_d_chg_str = fmt_pct(global_crypto_data['btc_d_chg']) if isinstance(global_crypto_data['btc_d_chg'], (int, float)) else global_crypto_data['btc_d_chg']
             usdt_d_chg_str = fmt_pct(global_crypto_data['usdt_d_chg']) if isinstance(global_crypto_data['usdt_d_chg'], (int, float)) else global_crypto_data['usdt_d_chg']
 
@@ -695,14 +624,14 @@ with tab_report:
                 "=== RELATÓRIO INSTITUCIONAL CRYPTO (B2B) ===",
                 f"Data/Hora: {now_str}",
                 "",
-                "1. PANORAMA & BENCHMARKS CRYPTO",
-                f"- Bitcoin (BTC/USD): $ {fmt_num(btc_q['price'])} ({fmt_pct(btc_q['change'])} hoje)",
-                f"- Ethereum (ETH/USD): $ {fmt_num(eth_q['price'])} ({fmt_pct(eth_q['change'])} hoje)",
-                f"- Bitcoin Dominance (BTC.D): {global_crypto_data['btc_d_val']} ({btc_d_chg_str})",
-                f"- Tether Dominance (USDT.D): {global_crypto_data['usdt_d_val']} ({usdt_d_chg_str})",
-                f"- Fear & Greed Index: {fng_val} ({fng_class})",
+                "1. PANORAMA & BENCHMARKS CRYPTO (MÉTRICAS AGREGADAS)",
+                f"- 1. Bitcoin (BTC/USD): $ {fmt_num(btc_q['price'])} ({fmt_pct(btc_q['change'])} hoje) [Direct API]",
+                f"- 2. Ethereum (ETH/USD): $ {fmt_num(eth_q['price'])} ({fmt_pct(eth_q['change'])} hoje) [Direct API]",
+                f"- 3. Bitcoin Dominance (BTC.D): {global_crypto_data['btc_d_val']} ({btc_d_chg_str} hoje) [CoinGecko API]",
+                f"- 4. Tether Dominance (USDT.D): {global_crypto_data['usdt_d_val']} ({usdt_d_chg_str} hoje) [CoinGecko API]",
+                f"- 5. Bitcoin Fear & Greed Index: {fng_val} ({fng_class}) [Alternative.me API]",
                 "",
-                "2. SETORES MONITORADOS"
+                "2. ANÁLISE INTEGRADA DAS CATEGORIAS CRYPTO SELECIONADAS"
             ]
         else:
             brent_q = quotes.get("BZ=F", {"price": 0.0, "change": 0.0})
@@ -715,21 +644,28 @@ with tab_report:
                 "=== RELATÓRIO INSTITUCIONAL TRADFI (MACRO) (B2B) ===",
                 f"Data/Hora: {now_str}",
                 "",
-                "1. PANORAMA & BENCHMARKS DE MERCADO",
-                f"- S&P 500 / SPX: {fmt_num(spx_q['price'])} ({fmt_pct(spx_q['change'])} hoje)",
-                f"- Ibovespa / IBOV: {fmt_num(ibov_q['price'])} ({fmt_pct(ibov_q['change'])} hoje)",
-                f"- Petróleo Brent: $ {fmt_num(brent_q['price'])} ({fmt_pct(brent_q['change'])} hoje)",
-                f"- Ouro Spot: $ {fmt_num(gold_q['price'])} ({fmt_pct(gold_q['change'])} hoje)",
-                f"- USD / BRL: R$ {fmt_num(usdbrl_q['price'])} ({fmt_pct(usdbrl_q['change'])} hoje)",
+                "1. PANORAMA & BENCHMARKS DE MERCADO (DADOS VIA DIRECT API)",
+                f"- 1. S&P 500 / SPX: {fmt_num(spx_q['price'])} ({fmt_pct(spx_q['change'])} hoje) [Direct API]",
+                f"- 2. Ibovespa / IBOV: {fmt_num(ibov_q['price'])} ({fmt_pct(ibov_q['change'])} hoje) [Direct API]",
+                f"- 3. Petróleo Brent: $ {fmt_num(brent_q['price'])} ({fmt_pct(brent_q['change'])} hoje) [Direct API]",
+                f"- 4. Ouro Spot: $ {fmt_num(gold_q['price'])} ({fmt_pct(gold_q['change'])} hoje) [Direct API]",
+                f"- 5. USD / BRL / Dólar Real: R$ {fmt_num(usdbrl_q['price'])} ({fmt_pct(usdbrl_q['change'])} hoje) [Direct API]",
                 "",
-                "2. SETORES MONITORADOS"
+                "2. ANÁLISE INTEGRADA DAS CATEGORIAS SELECIONADAS (DADOS EM TEMPO REAL)"
             ]
 
         for cat_name in selected_categories:
             if cat_name in active_display_categories:
                 cat_info = active_display_categories[cat_name]
-                if st.session_state.get(f"chk_cat_{cat_name}", True):
-                    active_assets = [(d, t, c) for d, t, c in cat_info["assets"] if st.session_state.get(f"chk_asset_{cat_name}_{t}", True)]
+                cat_enabled = st.session_state.get(f"chk_cat_{cat_name}", True)
+                
+                if cat_enabled:
+                    active_assets = []
+                    for disp_name, ticker, currency in cat_info["assets"]:
+                        asset_enabled = st.session_state.get(f"chk_asset_{cat_name}_{ticker}", True)
+                        if asset_enabled:
+                            active_assets.append((disp_name, ticker, currency))
+                    
                     if active_assets:
                         report_lines.append(f"\n• {cat_name.upper()} ({cat_info['tag']}):")
                         for disp_name, ticker, currency in active_assets:
@@ -742,15 +678,15 @@ with tab_report:
             report_lines.append("\nPowered by OMNIRESEARCH Engine")
 
         output_content = "\n".join(report_lines)
-        st.text_area("Pré-visualização do Relatório:", value=output_content, height=320)
+        st.text_area("", value=output_content, height=350)
 
         st.download_button(
-            label="💾 Baixar Relatório Completo (TXT)",
+            label="💾 Baixar Relatório (TXT)",
             data=output_content,
             file_name=f"OMNI_Relatorio_{modulo}_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-            mime="text/plain",
-            use_container_width=True
+            mime="text/plain"
         )
+
     else:
         main_symbol = "BTC-USD" if modulo == "Crypto" else "^GSPC"
         main_q = quotes.get(main_symbol, {"price": 0.0, "change": 0.0})
@@ -770,19 +706,17 @@ Data/Hora: {now_str}
 
 Powered by OMNIRESEARCH Engine"""
 
-        st.text_area("Pré-visualização do Roteiro YouTube:", value=script_text, height=320)
+        st.text_area("", value=script_text, height=350)
 
         st.download_button(
             label="💾 Baixar Roteiro YouTube (TXT)",
             data=script_text,
             file_name=f"OMNI_Roteiro_YouTube_{modulo}_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-            mime="text/plain",
-            use_container_width=True
+            mime="text/plain"
         )
 
-with tab_engine:
-    st.subheader("🎯 Alvos Preditivos & Zonas Operacionais")
-    st.caption(f"Cálculos quantitativos baseados no horizonte de {horizonte_pred} com alvo de {alvo_pct}% e suporte de {stop_pct}%")
+    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+    st.markdown("### 🎯 Alvos Preditivos & Zonas Operacionais")
 
     c1, c2, c3, c4 = st.columns(4)
     if modulo == "Crypto":
@@ -791,47 +725,207 @@ with tab_engine:
         sup_calc = main_q['price'] * (1 - (stop_pct / 100))
         target_calc = main_q['price'] * (1 + ((alvo_pct * 0.7) / 100))
         
-        tend_val = "Compradora" if main_q['change'] >= 0 else "Vendedora"
-        tend_cls = "metric-change-pos" if main_q['change'] >= 0 else "metric-change-neg"
-        tend_chg = fmt_pct(main_q['change'])
+        t_val = "Compradora" if main_q['change'] >= 0 else "Vendedora"
+        t_cls = "metric-change-pos" if main_q['change'] >= 0 else "metric-change-neg"
+        t_chg = fmt_pct(main_q['change'])
         
-        res_val = f"$ {fmt_num(res_calc, dec=0)}"
-        res_chg = f"+{alvo_pct}%"
-        
-        sup_val = f"$ {fmt_num(sup_calc, dec=0)}"
-        sup_chg = f"-{stop_pct}%"
-        
-        prev_val = "Alta Moderada"
-        prev_chg = f"Alvo $ {fmt_num(target_calc, dec=0)}"
+        with c1:
+            st.markdown(f'''
+            <div class="pred-card">
+                <div class="pred-title">Tendência (BTC)</div>
+                <div class="pred-value">{t_val}</div>
+                <div class="{t_cls} pred-sub">{t_chg}</div>
+            </div>
+            ''', unsafe_allow_html=True)
+        with c2:
+            st.markdown(f'''
+            <div class="pred-card">
+                <div class="pred-title">Resistência Alvo</div>
+                <div class="pred-value">$ {fmt_num(res_calc, dec=0)}</div>
+                <div class="metric-change-pos pred-sub">+{alvo_pct}%</div>
+            </div>
+            ''', unsafe_allow_html=True)
+        with c3:
+            st.markdown(f'''
+            <div class="pred-card">
+                <div class="pred-title">Suporte Chave</div>
+                <div class="pred-value">$ {fmt_num(sup_calc, dec=0)}</div>
+                <div class="metric-change-neg pred-sub">-{stop_pct}%</div>
+            </div>
+            ''', unsafe_allow_html=True)
+        with c4:
+            st.markdown(f'''
+            <div class="pred-card">
+                <div class="pred-title">Previsão {horizonte_pred}</div>
+                <div class="pred-value" style="font-size: 13px; line-height: 1.2;">Alta Moderada</div>
+                <div class="metric-change-pos pred-sub">Alvo $ {fmt_num(target_calc, dec=0)}</div>
+            </div>
+            ''', unsafe_allow_html=True)
     else:
         main_q = quotes.get("^GSPC", {"price": 0.0, "change": 0.0})
         res_calc = main_q['price'] * (1 + (alvo_pct / 100))
         sup_calc = main_q['price'] * (1 - (stop_pct / 100))
         target_calc = main_q['price'] * (1 + ((alvo_pct * 0.5) / 100))
 
-        tend_val = "Compradora" if main_q['change'] >= 0 else "Vendedora"
-        tend_cls = "metric-change-pos" if main_q['change'] >= 0 else "metric-change-neg"
-        tend_chg = fmt_pct(main_q['change'])
-        
-        res_val = f"{fmt_num(res_calc, dec=0)}"
-        res_chg = f"+{alvo_pct}%"
-        
-        sup_val = f"{fmt_num(sup_calc, dec=0)}"
-        sup_chg = f"-{stop_pct}%"
-        
-        prev_val = "Alta Moderada"
-        prev_chg = f"Alvo {fmt_num(target_calc, dec=0)}"
+        t_val = "Compradora" if main_q['change'] >= 0 else "Vendedora"
+        t_cls = "metric-change-pos" if main_q['change'] >= 0 else "metric-change-neg"
+        t_chg = fmt_pct(main_q['change'])
 
-    with c1:
-        st.markdown(f'<div class="metric-card"><div class="metric-title">Tendência Ativa</div><div class="metric-value">{tend_val}</div><div class="{tend_cls}">{tend_chg}</div></div>', unsafe_allow_html=True)
-    with c2:
-        st.markdown(f'<div class="metric-card"><div class="metric-title">Resistência Alvo</div><div class="metric-value">{res_val}</div><div class="metric-change-pos">{res_chg}</div></div>', unsafe_allow_html=True)
-    with c3:
-        st.markdown(f'<div class="metric-card"><div class="metric-title">Suporte Chave</div><div class="metric-value">{sup_val}</div><div class="metric-change-neg">{sup_chg}</div></div>', unsafe_allow_html=True)
-    with c4:
-        st.markdown(f'<div class="metric-card"><div class="metric-title">Previsão {horizonte_pred}</div><div class="metric-value">{prev_val}</div><div class="metric-change-neutral">{prev_chg}</div></div>', unsafe_allow_html=True)
+        with c1:
+            st.markdown(f'''
+            <div class="pred-card">
+                <div class="pred-title">Tendência (Macro)</div>
+                <div class="pred-value">{t_val}</div>
+                <div class="{t_cls} pred-sub">{t_chg}</div>
+            </div>
+            ''', unsafe_allow_html=True)
+        with c2:
+            st.markdown(f'''
+            <div class="pred-card">
+                <div class="pred-title">Resistência Alvo</div>
+                <div class="pred-value">{fmt_num(res_calc, dec=0)}</div>
+                <div class="metric-change-pos pred-sub">+{alvo_pct}%</div>
+            </div>
+            ''', unsafe_allow_html=True)
+        with c3:
+            st.markdown(f'''
+            <div class="pred-card">
+                <div class="pred-title">Suporte Chave</div>
+                <div class="pred-value">{fmt_num(sup_calc, dec=0)}</div>
+                <div class="metric-change-neg pred-sub">-{stop_pct}%</div>
+            </div>
+            ''', unsafe_allow_html=True)
+        with c4:
+            st.markdown(f'''
+            <div class="pred-card">
+                <div class="pred-title">Previsão {horizonte_pred}</div>
+                <div class="pred-value" style="font-size: 13px; line-height: 1.2;">Alta Moderada</div>
+                <div class="metric-change-pos pred-sub">Alvo {fmt_num(target_calc, dec=0)}</div>
+            </div>
+            ''', unsafe_allow_html=True)
+
+# Painel Direito: Métricas Agregadas
+with col_right:
+    st.markdown('<div class="col-header-sync">', unsafe_allow_html=True)
+    st.subheader(f"📊 Métricas Agregadas ({modulo})")
+    st.caption(f"Atualizado via API / Dados de Mercado às {datetime.now().strftime('%H:%M:%S BRT')}")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    for item in active_benchmarks:
+        label = item["label"]
+        badge = item.get("badge", "Data Feed")
+        
+        if item.get("type") == "fng_api":
+            val_str = fng_val
+            chg_str = fng_class
+            
+            if "Fear" in fng_class or "Medo" in fng_class:
+                change_cls = "metric-change-neg"
+            elif "Greed" in fng_class or "Ganância" in fng_class:
+                change_cls = "metric-change-pos"
+            else:
+                change_cls = "metric-change-neutral"
+
+        elif item.get("type") == "global_api":
+            sub_k = item.get("sub_key")
+            if sub_k == "btc_d":
+                val_str = global_crypto_data["btc_d_val"]
+                chg_num = global_crypto_data["btc_d_chg"]
+            elif sub_k == "usdt_d":
+                val_str = global_crypto_data["usdt_d_val"]
+                chg_num = global_crypto_data["usdt_d_chg"]
+            
+            if isinstance(chg_num, (int, float)):
+                chg_str = f"{fmt_pct(chg_num)} hoje"
+                change_cls = "metric-change-pos" if chg_num >= 0 else "metric-change-neg"
+            else:
+                chg_str = str(chg_num)
+                change_cls = "metric-change-neutral"
+
+        elif item.get("ticker"):
+            ticker = item["ticker"]
+            data = quotes.get(ticker, {"price": 0.0, "change": 0.0})
+            prefix = item.get("prefix", "")
+            suffix = item.get("suffix", "")
+            val_str = f"{prefix}{fmt_num(data['price'])}{suffix}"
+            chg_str = f"{fmt_pct(data['change'])} hoje"
+            change_cls = "metric-change-pos" if data["change"] >= 0 else "metric-change-neg"
+
+        st.markdown(
+            f'<div class="metric-card"><div class="metric-title">{label} <span style="font-size:10px; opacity:0.6;">[{badge}]</span></div><div class="metric-value">{val_str}</div><div class="{change_cls}">{chg_str}</div></div>',
+            unsafe_allow_html=True
+        )
 
 st.markdown("---")
+
+# -----------------------------------------------------------------------------
+# 6. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA)
+# -----------------------------------------------------------------------------
+st.subheader(f"🎛️ Painel de Análise Integrada das Categorias ({modulo})")
+st.caption("Marque/desmarque setores ou ativos específicos para incluir ou excluir do relatório final:")
+
+if selected_categories:
+    cols = st.columns(min(len(selected_categories), 4))
+    for idx, cat_name in enumerate(selected_categories):
+        if cat_name in active_display_categories:
+            cat_info = active_display_categories[cat_name]
+            col = cols[idx % len(cols)]
+            
+            with col:
+                with st.container(border=True):
+                    cat_key = f"chk_cat_{cat_name}"
+                    
+                    # Cabeçalho do Card
+                    c_title, c_check = st.columns([3.2, 0.8])
+                    with c_title:
+                        st.markdown(
+                            f'<div style="font-size: 13px; font-weight: 700; color: #F0F6FC; line-height: 24px; min-height: 24px; display: flex; align-items: center; justify-content: space-between;">'
+                            f'<span>{cat_name}</span>'
+                            f'<span style="font-size: 11px; color: #8B949E; font-weight: 500;">Incluir</span>'
+                            f'</div>',
+                            unsafe_allow_html=True
+                        )
+                    with c_check:
+                        cat_enabled = st.checkbox(
+                            "",
+                            value=st.session_state.get(cat_key, True),
+                            key=cat_key,
+                            label_visibility="collapsed"
+                        )
+                    
+                    st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
+                    
+                    # Lista de Ativos
+                    for disp_name, ticker, currency in cat_info["assets"]:
+                        q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
+                        asset_key = f"chk_asset_{cat_name}_{ticker}"
+                        
+                        color_style = "color: #3FB950;" if q["change"] >= 0 else "color: #F85149;"
+                        price_fmt = f"{currency} {fmt_num(q['price'])}"
+                        chg_fmt = fmt_pct(q['change'])
+                        
+                        cA, cB = st.columns([3.2, 0.8])
+                        with cA:
+                            st.markdown(
+                                f'<div style="font-size: 12px; line-height: 24px; min-height: 24px; display: flex; align-items: center; overflow: hidden; white-space: nowrap;">'
+                                f'<span style="color: #8B949E; font-weight: 500; margin-right: 4px;">{disp_name}:</span> '
+                                f'<b style="color: #F0F6FC; font-weight: 700; margin-right: 4px;">{price_fmt}</b> '
+                                f'<span style="{color_style} font-size: 11px; font-weight: 600;">({chg_fmt})</span>'
+                                f'</div>',
+                                unsafe_allow_html=True
+                            )
+                        with cB:
+                            st.checkbox(
+                                "",
+                                value=st.session_state.get(asset_key, True),
+                                key=asset_key,
+                                disabled=not cat_enabled,
+                                label_visibility="collapsed"
+                            )
+
+st.markdown("---")
+
+# Rodapé Institucional
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.caption(f"© {datetime.now().year} {company_name}. Todos os direitos reservados. Relatório de uso exclusivo.")
 else:
