@@ -84,7 +84,7 @@ st.markdown("""<style>
         border: none !important;
     }
 
-    /* ESTILIZAÇÃO ROBUSTA DE CHECKBOXES (Verde quando checados) */
+    /* ESTILIZAÇÃO ROBUSTA DE CHECKBOXES */
     div[data-baseweb="checkbox"] input:checked ~ div,
     div[data-baseweb="checkbox"] [aria-checked="true"],
     div.row-widget.stCheckbox input[type="checkbox"]:checked + div {
@@ -136,6 +136,9 @@ st.markdown("""<style>
     }
 </style>""", unsafe_allow_html=True)
 
+# -----------------------------------------------------------------------------
+# 2. ACERVO MESTRE DE DADOS & CATEGORIAS (TRADFI & CRYPTO)
+# -----------------------------------------------------------------------------
 CATEGORIES_TRADFI = {
     "1 - Bancos e Seguradoras": {
         "tag": "Banking & Ins.",
@@ -302,6 +305,9 @@ CRYPTO_BENCHMARKS = [
     {"key": "FEAR_GREED", "type": "fng_api", "label": "5. Bitcoin Fear & Greed Index", "badge": "Alternative.me API"}
 ]
 
+# -----------------------------------------------------------------------------
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO DE DADOS (YFINANCE + BRAPI FALLBACK)
+# -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
         return "--"
@@ -452,6 +458,9 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
 
     return quotes
 
+# -----------------------------------------------------------------------------
+# 4. SIDEBAR & CONFIGURAÇÕES SAAS
+# -----------------------------------------------------------------------------
 st.sidebar.title("⚙️ Configurações OMNI")
 st.sidebar.caption("Controle de geração de roteiros e relatórios")
 
@@ -563,6 +572,9 @@ if custom_tickers:
     if "0 - Tickers Personalizados" not in selected_categories:
         selected_categories.insert(0, "0 - Tickers Personalizados")
 
+# -----------------------------------------------------------------------------
+# 5. CORPO PRINCIPAL & PAINEL DE CONTROLE
+# -----------------------------------------------------------------------------
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.title(f"🏢 {company_name} — Terminal Quant")
     st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
