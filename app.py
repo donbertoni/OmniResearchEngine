@@ -9,7 +9,7 @@ import pandas as pd
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="OMNIRESEARCH Engine",
-    page_icon="📈",
+    page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -32,7 +32,7 @@ st.markdown("""<style>
         font-size: 13px;
     }
     
-    /* Metrics Cards do Painel Direito (PADRÃO DE COR DE REFERÊNCIA) */
+    /* Metrics Cards do Painel Direito */
     .metric-card {
         background-color: #161B22;
         border: 1px solid #21262D;
@@ -68,25 +68,24 @@ st.markdown("""<style>
     }
     .premium-badge { color: #58A6FF; font-weight: bold; }
 
-    /* CARDS DAS 8 CATEGORIAS COM CONTRASTE REAL */
+    /* COR DE FUNDO DOS CARDS DAS CATEGORIAS (#161B22) */
+    div[data-testid="stVerticalBlockBorderWrapper"],
+    div[data-testid="stVerticalBlockBorderWrapper"] > div,
+    div[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stVerticalBlock"] {
+        background-color: #161B22 !important;
+        border-color: #21262D !important;
+    }
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        background-color: #1E293B !important;
-        border: 1px solid #334155 !important;
-        border-radius: 10px !important;
-        padding: 14px !important;
+        border: 1px solid #21262D !important;
+        border-radius: 8px !important;
+        padding: 12px !important;
         margin-bottom: 12px !important;
     }
-    /* Força transparência nos containers internos do Streamlit */
-    div[data-testid="stVerticalBlockBorderWrapper"] * {
-        background-color: transparent !important;
-    }
 
-    /* ALINHAMENTO VERTICAL 100% PERFEITO DAS CHECKBOXES */
+    /* ALINHAMENTO MILIMÉTRICO DOS CHECKBOXES À DIREITA */
     div[data-testid="stCheckbox"] {
-        margin-top: 0px !important;
-        margin-bottom: 0px !important;
-        padding-top: 0px !important;
-        padding-bottom: 0px !important;
+        margin: 0px !important;
+        padding: 0px !important;
         height: 24px !important;
         display: flex !important;
         align-items: center !important;
@@ -95,10 +94,7 @@ st.markdown("""<style>
     div[data-testid="stCheckbox"] label {
         margin: 0px !important;
         padding: 0px !important;
-        font-size: 11px !important;
-        color: #8B949E !important;
-        display: flex !important;
-        align-items: center !important;
+        display: none !important;
     }
 
     /* AJUSTE DE MÉTRICAS PADRÃO STREAMLIT */
@@ -724,7 +720,7 @@ with col_right:
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 6. PAINEL DE ANÁLISE INTEGRADA (DIAGRAMAÇÃO E CORES ALINHADAS)
+# 6. PAINEL DE ANÁLISE INTEGRADA (COR DOS CARDS & GRID RIGOROSAMENTE ALINHADO)
 # -----------------------------------------------------------------------------
 st.subheader(f"📁 Painel de Análise Integrada das Categorias ({modulo})")
 st.caption("Marque/desmarque setores ou ativos específicos para incluir ou excluir do relatório final:")
@@ -740,23 +736,27 @@ if selected_categories:
                 with st.container(border=True):
                     cat_key = f"chk_cat_{cat_name}"
                     
-                    # Cabeçalho do Card: Título + Checkbox "Incluir" Alinhados na Mesma Linha
-                    c_title, c_check = st.columns([2.6, 1.4])
+                    # Cabeçalho do Card: Proporção idêntica de colunas [3.2, 0.8]
+                    c_title, c_check = st.columns([3.2, 0.8])
                     with c_title:
                         st.markdown(
-                            f'<div style="font-size: 13px; font-weight: 700; color: #F0F6FC; line-height: 24px; min-height: 24px; display: flex; align-items: center;">{cat_name}</div>',
+                            f'<div style="font-size: 13px; font-weight: 700; color: #F0F6FC; line-height: 24px; min-height: 24px; display: flex; align-items: center; justify-content: space-between;">'
+                            f'<span>{cat_name}</span>'
+                            f'<span style="font-size: 11px; color: #8B949E; font-weight: 500; margin-right: 4px;">Incluir</span>'
+                            f'</div>',
                             unsafe_allow_html=True
                         )
                     with c_check:
                         cat_enabled = st.checkbox(
-                            "Incluir",
+                            "",
                             value=st.session_state.get(cat_key, True),
-                            key=cat_key
+                            key=cat_key,
+                            label_visibility="collapsed"
                         )
                     
                     st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
                     
-                    # Lista de Ativos: Texto e Checkbox perfeitamente pareados a 24px
+                    # Lista de Ativos: Proporção idêntica de colunas [3.2, 0.8]
                     for disp_name, ticker, currency in cat_info["assets"]:
                         q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                         asset_key = f"chk_asset_{cat_name}_{ticker}"
@@ -765,7 +765,7 @@ if selected_categories:
                         price_fmt = f"{currency} {fmt_num(q['price'])}"
                         chg_fmt = fmt_pct(q['change'])
                         
-                        cA, cB = st.columns([3.4, 0.6])
+                        cA, cB = st.columns([3.2, 0.8])
                         with cA:
                             st.markdown(
                                 f'<div style="font-size: 12px; line-height: 24px; min-height: 24px; display: flex; align-items: center; overflow: hidden; white-space: nowrap;">'
