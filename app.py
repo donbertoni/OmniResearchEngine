@@ -68,16 +68,17 @@ st.markdown("""<style>
     }
     .premium-badge { color: #58A6FF; font-weight: bold; }
 
-    /* UNIFORMIZAÇÃO EXATA DOS CARDS DAS 8 CATEGORIAS COM OS CARDS DE CIMA */
+    /* CARDS DAS 8 CATEGORIAS COM CONTRASTE REAL */
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        background-color: #161B22 !important;
-        border: 1px solid #21262D !important;
-        border-radius: 8px !important;
+        background-color: #1E293B !important;
+        border: 1px solid #334155 !important;
+        border-radius: 10px !important;
         padding: 14px !important;
         margin-bottom: 12px !important;
     }
-    div[data-testid="stVerticalBlockBorderWrapper"] > div {
-        background-color: #161B22 !important;
+    /* Força transparência nos containers internos do Streamlit */
+    div[data-testid="stVerticalBlockBorderWrapper"] * {
+        background-color: transparent !important;
     }
 
     /* ALINHAMENTO VERTICAL 100% PERFEITO DAS CHECKBOXES */
