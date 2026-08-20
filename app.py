@@ -3,6 +3,7 @@ import requests
 from datetime import datetime
 import pandas as pd
 import re
+import yfinance as yf
 
 # -----------------------------------------------------------------------------
 # 1. CONFIGURAÇÃO DA PÁGINA & ESTILIZAÇÃO CSS INSTITUCIONAL
@@ -186,11 +187,11 @@ CATEGORIES_TRADFI = {
 }
 
 MACRO_BENCHMARKS = [
-    {"key": "SPX", "ticker": "^GSPC", "label": "1. S&P 500 / SPX", "unit": "pts", "prefix": "", "badge": "Chart API"},
-    {"key": "IBOV", "ticker": "^BVSP", "label": "2. Ibovespa / IBOV", "unit": "pts", "prefix": "", "badge": "Chart API"},
-    {"key": "BRENT", "ticker": "BZ=F", "label": "3. Petróleo Brent", "unit": "USD", "prefix": "$ ", "badge": "Chart API"},
-    {"key": "GOLD", "ticker": "GC=F", "label": "4. Ouro Spot", "unit": "USD", "prefix": "$ ", "badge": "Chart API"},
-    {"key": "USDBRL", "ticker": "BRL=X", "label": "5. USD / BRL / Dólar Real", "unit": "pts", "prefix": "R$ ", "badge": "Chart API"}
+    {"key": "SPX", "ticker": "^GSPC", "label": "1. S&P 500 / SPX", "unit": "pts", "prefix": "", "badge": "yFinance"},
+    {"key": "IBOV", "ticker": "^BVSP", "label": "2. Ibovespa / IBOV", "unit": "pts", "prefix": "", "badge": "yFinance"},
+    {"key": "BRENT", "ticker": "BZ=F", "label": "3. Petróleo Brent", "unit": "USD", "prefix": "$ ", "badge": "yFinance"},
+    {"key": "GOLD", "ticker": "GC=F", "label": "4. Ouro Spot", "unit": "USD", "prefix": "$ ", "badge": "yFinance"},
+    {"key": "USDBRL", "ticker": "BRL=X", "label": "5. USD / BRL / Dólar Real", "unit": "pts", "prefix": "R$ ", "badge": "yFinance"}
 ]
 
 CATEGORIES_CRYPTO = {
@@ -269,15 +270,15 @@ CATEGORIES_CRYPTO = {
 }
 
 CRYPTO_BENCHMARKS = [
-    {"key": "BTC", "ticker": "BTC-USD", "label": "1. Bitcoin / BTC", "prefix": "$ ", "badge": "Chart API"},
-    {"key": "ETH", "ticker": "ETH-USD", "label": "2. Ethereum / ETH", "prefix": "$ ", "badge": "Chart API"},
+    {"key": "BTC", "ticker": "BTC-USD", "label": "1. Bitcoin / BTC", "prefix": "$ ", "badge": "yFinance"},
+    {"key": "ETH", "ticker": "ETH-USD", "label": "2. Ethereum / ETH", "prefix": "$ ", "badge": "yFinance"},
     {"key": "BTC_D", "type": "global_api", "sub_key": "btc_d", "label": "3. Bitcoin Dominance / BTC.D", "badge": "CoinGecko API"},
     {"key": "USDT_D", "type": "global_api", "sub_key": "usdt_d", "label": "4. Tether Dominance / USDT.D", "badge": "CoinGecko API"},
     {"key": "FEAR_GREED", "type": "fng_api", "label": "5. Bitcoin Fear & Greed Index", "badge": "Alternative.me API"}
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO UNIVERSAL VIA YAHOO V8 CHART ENDPOINT
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO ROBUSTA VIA YFINANCE BATCH
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -323,89 +324,67 @@ def fetch_global_crypto_data():
         pass
     return {"btc_d_val": "56,80%", "btc_d_chg": 0.35, "usdt_d_val": "5,20%", "usdt_d_chg": -0.18}
 
-@st.cache_data(ttl=120)
+@st.cache_data(ttl=180)
 def fetch_realtime_quotes(symbols_tuple):
     quotes = {}
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-    }
+    for s in symbols_tuple:
+        clean = s.strip().upper()
+        quotes[clean] = {"price": 0.0, "change": 0.0}
 
-    for raw_sym in symbols_tuple:
-        clean = raw_sym.strip().upper()
-        
-        # Formatação adequada para o Yahoo Chart Endpoint
+    y_symbols = []
+    mapping = {}
+    for s in symbols_tuple:
+        clean = s.strip().upper()
         if re.match(r'^[A-Z]{4}[0-9]{1,2}$', clean):
-            query_sym = f"{clean}.SA"
+            y_sym = f"{clean}.SA"
         elif clean in ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"]:
-            query_sym = clean.replace("USDT", "-USD")
+            y_sym = clean.replace("USDT", "-USD")
         else:
-            query_sym = clean
+            y_sym = clean
+        y_symbols.append(y_sym)
+        mapping[y_sym] = clean
 
-        price = 0.0
-        change = 0.0
+    try:
+        # Baixa histórico de 5 dias em lote usando a biblioteca oficial yfinance
+        df = yf.download(tickers=y_symbols, period="5d", interval="1d", progress=False, threads=True)
+        if not df.empty and 'Close' in df:
+            close_df = df['Close']
+            for y_sym in y_symbols:
+                clean = mapping[y_sym]
+                try:
+                    if len(y_symbols) == 1:
+                        series = close_df.dropna()
+                    else:
+                        series = close_df[y_sym].dropna()
 
-        # Tentar query1 e query2 do Yahoo com profundidade de 5 dias
-        for host in ["query1.finance.yahoo.com", "query2.finance.yahoo.com"]:
-            if price > 0:
-                break
-            try:
-                url = f"https://{host}/v8/finance/chart/{query_sym}?interval=1d&range=5d"
-                res = requests.get(url, headers=headers, timeout=4)
-                if res.status_code == 200:
-                    chart_data = res.json().get("chart", {}).get("result", [])
-                    if chart_data:
-                        result_obj = chart_data[0]
-                        meta = result_obj.get("meta", {})
-                        
-                        # 1. Tenta regularMarketPrice
-                        raw_price = meta.get("regularMarketPrice")
-                        
-                        # 2. Se for None/0 (comum em CCRO3, EMBR3, BRFS3, JBSS3), pega o último valor do array de fechamento
-                        if not raw_price or raw_price == 0.0:
-                            quotes_arr = result_obj.get("indicators", {}).get("quote", [{}])[0].get("close", [])
-                            valid_closes = [c for c in quotes_arr if c is not None and c > 0]
-                            if valid_closes:
-                                raw_price = valid_closes[-1]
+                    if len(series) >= 1:
+                        price = float(series.iloc[-1])
+                        prev_price = float(series.iloc[-2]) if len(series) >= 2 else price
+                        change = ((price - prev_price) / prev_price) * 100 if prev_price > 0 else 0.0
 
-                        # 3. Fallback adicional para previousClose
-                        if not raw_price or raw_price == 0.0:
-                            raw_price = meta.get("chartPreviousClose") or meta.get("previousClose") or 0.0
+                        d_info = {"price": price, "change": change}
+                        quotes[clean] = d_info
+                        quotes[y_sym] = d_info
+                        if y_sym.endswith(".SA"):
+                            quotes[y_sym.replace(".SA", "")] = d_info
+                except Exception:
+                    continue
+    except Exception:
+        pass
 
-                        price = float(raw_price or 0.0)
-
-                        # Cálculo seguro de variação percentual (%)
-                        prev_close = meta.get("chartPreviousClose") or meta.get("previousClose") or 0.0
-                        quotes_arr = result_obj.get("indicators", {}).get("quote", [{}])[0].get("close", [])
-                        valid_closes = [c for c in quotes_arr if c is not None and c > 0]
-                        
-                        if not prev_close or prev_close == 0.0:
-                            if len(valid_closes) >= 2:
-                                prev_close = valid_closes[-2]
-
-                        prev_close = float(prev_close or 0.0)
-
-                        if price > 0 and prev_close > 0:
-                            change = ((price - prev_close) / prev_close) * 100
-            except Exception:
-                pass
-
-        # Fallback Binance para Crypto
-        if price == 0.0 and ("-USD" in query_sym or "USDT" in clean):
+    # Fallback da Binance para Cripto em caso de falha de conexão
+    for s in symbols_tuple:
+        clean = s.strip().upper()
+        if quotes.get(clean, {}).get("price", 0.0) == 0.0 and ("-USD" in clean or "USDT" in clean):
             try:
                 pair = clean.replace("-USD", "USDT")
                 res = requests.get(f"https://api.binance.com/api/v3/ticker/24hr?symbol={pair}", timeout=3)
                 if res.status_code == 200:
-                    data = res.json()
-                    price = float(data.get("lastPrice", 0.0))
-                    change = float(data.get("priceChangePercent", 0.0))
+                    d = res.json()
+                    d_info = {"price": float(d.get("lastPrice", 0.0)), "change": float(d.get("priceChangePercent", 0.0))}
+                    quotes[clean] = d_info
             except Exception:
                 pass
-
-        data_dict = {"price": price, "change": change}
-        quotes[clean] = data_dict
-        quotes[query_sym] = data_dict
-        if query_sym.endswith(".SA"):
-            quotes[query_sym.replace(".SA", "")] = data_dict
 
     return quotes
 
@@ -526,7 +505,7 @@ now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 col_status, col_btn_refresh = st.columns([3.5, 1])
 with col_status:
     st.markdown(
-        f'<div class="status-bar">⚡ <b>Dados consolidados às {now_str}</b> | Status API: <span style="color: #3FB950;">🟢 Online (Yahoo Chart v8 Multi-Fallback)</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
+        f'<div class="status-bar">⚡ <b>Dados consolidados às {now_str}</b> | Status API: <span style="color: #3FB950;">🟢 Online (Native yFinance Batch Engine)</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
         unsafe_allow_html=True
     )
 with col_btn_refresh:
@@ -544,7 +523,7 @@ with col_left:
         if modulo == "Crypto":
             btc_q = quotes.get("BTC-USD", {"price": 0.0, "change": 0.0})
             eth_q = quotes.get("ETH-USD", {"price": 0.0, "change": 0.0})
-            
+
             btc_d_chg_str = fmt_pct(global_crypto_data['btc_d_chg']) if isinstance(global_crypto_data['btc_d_chg'], (int, float)) else global_crypto_data['btc_d_chg']
             usdt_d_chg_str = fmt_pct(global_crypto_data['usdt_d_chg']) if isinstance(global_crypto_data['usdt_d_chg'], (int, float)) else global_crypto_data['usdt_d_chg']
 
@@ -586,14 +565,14 @@ with col_left:
             if cat_name in active_display_categories:
                 cat_info = active_display_categories[cat_name]
                 cat_enabled = st.session_state.get(f"chk_cat_{cat_name}", True)
-                
+
                 if cat_enabled:
                     active_assets = []
                     for disp_name, ticker, currency in cat_info["assets"]:
                         asset_enabled = st.session_state.get(f"chk_asset_{cat_name}_{ticker}", True)
                         if asset_enabled:
                             active_assets.append((disp_name, ticker, currency))
-                    
+
                     if active_assets:
                         report_lines.append(f"\n• {cat_name.upper()} ({cat_info['tag']}):")
                         for disp_name, ticker, currency in active_assets:
@@ -618,7 +597,7 @@ with col_left:
     else:
         main_symbol = "BTC-USD" if modulo == "Crypto" else "^GSPC"
         main_q = quotes.get(main_symbol, {"price": 0.0, "change": 0.0})
-        
+
         script_text = f"""=== ROTEIRO YOUTUBE AUTO-PILOT ({modulo.upper()}) ===
 Data/Hora: {now_str}
 
@@ -647,11 +626,11 @@ Powered by OMNIRESEARCH Engine"""
     main_sym_calc = "BTC-USD" if modulo == "Crypto" else "^GSPC"
     main_q = quotes.get(main_sym_calc, {"price": 0.0, "change": 0.0})
     p_curr = main_q['price']
-    
+
     res_calc = p_curr * (1 + (alvo_pct / 100))
     sup_calc = p_curr * (1 - (stop_pct / 100))
     target_calc = p_curr * (1 + ((alvo_pct * 0.7) / 100))
-    
+
     with c1:
         st.metric("Tendência", "Compradora" if main_q['change'] >= 0 else "Vendedora", f"{fmt_pct(main_q['change'])}")
     with c2:
@@ -669,7 +648,7 @@ with col_right:
     for item in active_benchmarks:
         label = item["label"]
         badge = item.get("badge", "Data Feed")
-        
+
         if item.get("type") == "fng_api":
             val_str = fng_val
             chg_str = fng_class
@@ -683,7 +662,7 @@ with col_right:
             elif sub_k == "usdt_d":
                 val_str = global_crypto_data["usdt_d_val"]
                 chg_num = global_crypto_data["usdt_d_chg"]
-            
+
             if isinstance(chg_num, (int, float)):
                 chg_str = f"{fmt_pct(chg_num)} hoje"
                 change_cls = "metric-change-pos" if chg_num >= 0 else "metric-change-neg"
@@ -719,11 +698,11 @@ if selected_categories:
         if cat_name in active_display_categories:
             cat_info = active_display_categories[cat_name]
             col = cols[idx % len(cols)]
-            
+
             with col:
                 with st.container(border=True):
                     cat_key = f"chk_cat_{cat_name}"
-                    
+
                     c_title, c_check = st.columns([3.2, 0.8])
                     with c_title:
                         st.markdown(
@@ -740,17 +719,17 @@ if selected_categories:
                             key=cat_key,
                             label_visibility="collapsed"
                         )
-                    
+
                     st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
-                    
+
                     for disp_name, ticker, currency in cat_info["assets"]:
                         q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                         asset_key = f"chk_asset_{cat_name}_{ticker}"
-                        
+
                         color_style = "color: #3FB950;" if q["change"] >= 0 else "color: #F85149;"
                         price_fmt = f"{currency} {fmt_num(q['price'])}"
                         chg_fmt = fmt_pct(q['change'])
-                        
+
                         cA, cB = st.columns([3.2, 0.8])
                         with cA:
                             st.markdown(
