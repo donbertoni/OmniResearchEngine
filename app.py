@@ -3,7 +3,6 @@ import requests
 from datetime import datetime
 import pandas as pd
 import re
-import yfinance as yf
 
 # -----------------------------------------------------------------------------
 # 1. CONFIGURAÇÃO DA PÁGINA & ESTILIZAÇÃO CSS INSTITUCIONAL
@@ -187,11 +186,11 @@ CATEGORIES_TRADFI = {
 }
 
 MACRO_BENCHMARKS = [
-    {"key": "SPX", "ticker": "^GSPC", "label": "1. S&P 500 / SPX", "unit": "pts", "prefix": "", "badge": "yFinance"},
-    {"key": "IBOV", "ticker": "^BVSP", "label": "2. Ibovespa / IBOV", "unit": "pts", "prefix": "", "badge": "yFinance"},
-    {"key": "BRENT", "ticker": "BZ=F", "label": "3. Petróleo Brent", "unit": "USD", "prefix": "$ ", "badge": "yFinance"},
-    {"key": "GOLD", "ticker": "GC=F", "label": "4. Ouro Spot", "unit": "USD", "prefix": "$ ", "badge": "yFinance"},
-    {"key": "USDBRL", "ticker": "BRL=X", "label": "5. USD / BRL / Dólar Real", "unit": "pts", "prefix": "R$ ", "badge": "yFinance"}
+    {"key": "SPX", "ticker": "^GSPC", "label": "1. S&P 500 / SPX", "unit": "pts", "prefix": "", "badge": "Yahoo Direct"},
+    {"key": "IBOV", "ticker": "^BVSP", "label": "2. Ibovespa / IBOV", "unit": "pts", "prefix": "", "badge": "Yahoo Direct"},
+    {"key": "BRENT", "ticker": "BZ=F", "label": "3. Petróleo Brent", "unit": "USD", "prefix": "$ ", "badge": "Yahoo Direct"},
+    {"key": "GOLD", "ticker": "GC=F", "label": "4. Ouro Spot", "unit": "USD", "prefix": "$ ", "badge": "Yahoo Direct"},
+    {"key": "USDBRL", "ticker": "BRL=X", "label": "5. USD / BRL / Dólar Real", "unit": "pts", "prefix": "R$ ", "badge": "Yahoo Direct"}
 ]
 
 CATEGORIES_CRYPTO = {
@@ -270,15 +269,15 @@ CATEGORIES_CRYPTO = {
 }
 
 CRYPTO_BENCHMARKS = [
-    {"key": "BTC", "ticker": "BTC-USD", "label": "1. Bitcoin / BTC", "prefix": "$ ", "badge": "yFinance"},
-    {"key": "ETH", "ticker": "ETH-USD", "label": "2. Ethereum / ETH", "prefix": "$ ", "badge": "yFinance"},
+    {"key": "BTC", "ticker": "BTC-USD", "label": "1. Bitcoin / BTC", "prefix": "$ ", "badge": "Binance / Yahoo"},
+    {"key": "ETH", "ticker": "ETH-USD", "label": "2. Ethereum / ETH", "prefix": "$ ", "badge": "Binance / Yahoo"},
     {"key": "BTC_D", "type": "global_api", "sub_key": "btc_d", "label": "3. Bitcoin Dominance / BTC.D", "badge": "CoinGecko API"},
     {"key": "USDT_D", "type": "global_api", "sub_key": "usdt_d", "label": "4. Tether Dominance / USDT.D", "badge": "CoinGecko API"},
     {"key": "FEAR_GREED", "type": "fng_api", "label": "5. Bitcoin Fear & Greed Index", "badge": "Alternative.me API"}
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO ROBUSTA VIA YFINANCE BATCH
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO ROBUSTA VIA YAHOO V8 + BINANCE
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -324,65 +323,60 @@ def fetch_global_crypto_data():
         pass
     return {"btc_d_val": "56,80%", "btc_d_chg": 0.35, "usdt_d_val": "5,20%", "usdt_d_chg": -0.18}
 
-@st.cache_data(ttl=180)
+@st.cache_data(ttl=120)
 def fetch_realtime_quotes(symbols_tuple):
     quotes = {}
-    for s in symbols_tuple:
-        clean = s.strip().upper()
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+
+    for item in symbols_tuple:
+        raw = item.strip().upper()
+        clean = raw.replace(".SA", "")
+        
         quotes[clean] = {"price": 0.0, "change": 0.0}
+        quotes[f"{clean}.SA"] = {"price": 0.0, "change": 0.0}
+        quotes[raw] = {"price": 0.0, "change": 0.0}
 
-    y_symbols = []
-    mapping = {}
-    for s in symbols_tuple:
-        clean = s.strip().upper()
-        if re.match(r'^[A-Z]{4}[0-9]{1,2}$', clean):
-            y_sym = f"{clean}.SA"
-        elif clean in ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"]:
-            y_sym = clean.replace("USDT", "-USD")
-        else:
-            y_sym = clean
-        y_symbols.append(y_sym)
-        mapping[y_sym] = clean
-
-    try:
-        # Baixa histórico de 5 dias em lote usando a biblioteca oficial yfinance
-        df = yf.download(tickers=y_symbols, period="5d", interval="1d", progress=False, threads=True)
-        if not df.empty and 'Close' in df:
-            close_df = df['Close']
-            for y_sym in y_symbols:
-                clean = mapping[y_sym]
-                try:
-                    if len(y_symbols) == 1:
-                        series = close_df.dropna()
-                    else:
-                        series = close_df[y_sym].dropna()
-
-                    if len(series) >= 1:
-                        price = float(series.iloc[-1])
-                        prev_price = float(series.iloc[-2]) if len(series) >= 2 else price
-                        change = ((price - prev_price) / prev_price) * 100 if prev_price > 0 else 0.0
-
-                        d_info = {"price": price, "change": change}
-                        quotes[clean] = d_info
-                        quotes[y_sym] = d_info
-                        if y_sym.endswith(".SA"):
-                            quotes[y_sym.replace(".SA", "")] = d_info
-                except Exception:
-                    continue
-    except Exception:
-        pass
-
-    # Fallback da Binance para Cripto em caso de falha de conexão
-    for s in symbols_tuple:
-        clean = s.strip().upper()
-        if quotes.get(clean, {}).get("price", 0.0) == 0.0 and ("-USD" in clean or "USDT" in clean):
+        # 1. Criptos via Binance API
+        if "USDT" in raw or "-USD" in raw:
             try:
-                pair = clean.replace("-USD", "USDT")
-                res = requests.get(f"https://api.binance.com/api/v3/ticker/24hr?symbol={pair}", timeout=3)
+                pair = raw.replace("-USD", "USDT")
+                url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={pair}"
+                res = requests.get(url, timeout=3)
                 if res.status_code == 200:
                     d = res.json()
-                    d_info = {"price": float(d.get("lastPrice", 0.0)), "change": float(d.get("priceChangePercent", 0.0))}
-                    quotes[clean] = d_info
+                    q_data = {
+                        "price": float(d.get("lastPrice", 0.0)),
+                        "change": float(d.get("priceChangePercent", 0.0))
+                    }
+                    quotes[raw] = q_data
+                    quotes[clean] = q_data
+            except Exception:
+                pass
+
+        # 2. Ações B3, US e Macro via Yahoo Direct Chart v8
+        else:
+            if re.match(r'^[A-Z]{4}[0-9]{1,2}$', clean):
+                ticker_yf = f"{clean}.SA"
+            else:
+                ticker_yf = raw
+
+            try:
+                url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker_yf}?interval=1d&range=2d"
+                res = requests.get(url, headers=headers, timeout=4)
+                if res.status_code == 200:
+                    result = res.json().get("chart", {}).get("result", [])
+                    if result:
+                        meta = result[0].get("meta", {})
+                        price = float(meta.get("regularMarketPrice", 0.0) or 0.0)
+                        prev_close = float(meta.get("chartPreviousClose", price) or price)
+                        change = ((price - prev_close) / prev_close * 100) if prev_close > 0 else 0.0
+                        
+                        q_data = {"price": price, "change": change}
+                        quotes[clean] = q_data
+                        quotes[ticker_yf] = q_data
+                        quotes[raw] = q_data
             except Exception:
                 pass
 
@@ -505,7 +499,7 @@ now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 col_status, col_btn_refresh = st.columns([3.5, 1])
 with col_status:
     st.markdown(
-        f'<div class="status-bar">⚡ <b>Dados consolidados às {now_str}</b> | Status API: <span style="color: #3FB950;">🟢 Online (Native yFinance Batch Engine)</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
+        f'<div class="status-bar">⚡ <b>Dados consolidados às {now_str}</b> | Status API: <span style="color: #3FB950;">🟢 Online (Direct Yahoo/Binance Engine)</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
         unsafe_allow_html=True
     )
 with col_btn_refresh:
