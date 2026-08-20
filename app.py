@@ -9,7 +9,7 @@ import pandas as pd
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="OMNIRESEARCH Engine",
-    page_icon="⚡",
+    page_icon="📌",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -97,6 +97,21 @@ st.markdown("""<style>
         margin: 0px !important;
         padding: 0px !important;
         cursor: pointer !important;
+    }
+
+    /* AJUSTE DE CORES DOS CHECKBOXES (VERDE QUANDO MARCADO / CINZA DESMARCADO) */
+    /* BaseWeb Checkbox - Streamlit Interno */
+    div[data-baseweb="checkbox"] span[aria-checked="true"] {
+        background-color: #2EA043 !important;
+        border-color: #2EA043 !important;
+    }
+    div[data-baseweb="checkbox"] span[aria-checked="false"] {
+        background-color: #161B22 !important;
+        border-color: #484F58 !important;
+    }
+    /* Estilo para navegadores padrão / input nativo */
+    input[type="checkbox"]:checked {
+        accent-color: #2EA043 !important;
     }
 
     /* AJUSTE DE MÉTRICAS PADRÃO STREAMLIT */
@@ -486,7 +501,7 @@ else:
     max_free_tickers = 999
     allow_customization = True
     allow_white_label = True
-    st.sidebar.success("🚀 Modo Premium: 100+ Ativos + White-Label Habilitado.")
+    st.sidebar.success("💎 Modo Premium: 100+ Ativos + White-Label Habilitado.")
 
 active_categories = CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI
 active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
@@ -524,7 +539,7 @@ company_name = "OMNIRESEARCH Engine"
 cnpi_code = "CNPI-T 0000"
 if allow_white_label:
     st.sidebar.markdown("---")
-    st.sidebar.subheader("🏛️ Personalização White-Label")
+    st.sidebar.subheader("🏷️ Personalização White-Label")
     company_name = st.sidebar.text_input("Nome da Casa/Escritório:", "XP / BTG / Gestora")
     cnpi_code = st.sidebar.text_input("Registro CNPI/Responsável:", "CNPI-T 3421")
 
@@ -563,7 +578,7 @@ if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.title(f"🏛️ {company_name} — Terminal Quant")
     st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
 else:
-    st.title("🖥️ OMNIRESEARCH Engine")
+    st.title("📌 OMNIRESEARCH Engine")
     st.caption("Plataforma Integrada de Inteligência Financeira: YouTube Auto/HITL, Relatórios B2B (Crypto) e TradFi (Macro)")
 
 now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
@@ -571,7 +586,7 @@ now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 col_status, col_btn_refresh = st.columns([3.5, 1])
 with col_status:
     st.markdown(
-        f'<div class="status-bar">⏱️ <b>Dados consolidados das {now_str}</b> (Cache 5m) | Status API: <span style="color: #3FB950;">🟢 Online</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
+        f'<div class="status-bar">⚡ <b>Dados consolidados das {now_str}</b> (Cache 5m) | Status API: <span style="color: #3FB950;">🟢 Online</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
         unsafe_allow_html=True
     )
 with col_btn_refresh:
