@@ -15,10 +15,13 @@ st.set_page_config(
 )
 
 st.markdown("""<style>
+    /* Estilo Geral do App */
     .stApp {
         background-color: #0B0E14;
         color: #E2E8F0;
     }
+    
+    /* Barra de Status Topo */
     .status-bar {
         background-color: #131B2A;
         padding: 10px 18px;
@@ -28,6 +31,8 @@ st.markdown("""<style>
         color: #94A3B8;
         font-size: 13px;
     }
+    
+    /* Metrics Cards do Painel Direito */
     .metric-card {
         background-color: #161B22;
         border: 1px solid #21262D;
@@ -62,6 +67,14 @@ st.markdown("""<style>
         font-weight: 600;
     }
     .premium-badge { color: #58A6FF; font-weight: bold; }
+
+    /* Força o fundo cinza escuro institucional nos containers das 8 categorias */
+    [data-testid="stElementContainer"] > div[data-testid="stContainer"] {
+        background-color: #161B22 !important;
+        border: 1px solid #21262D !important;
+        border-radius: 8px !important;
+        padding: 14px !important;
+    }
 
     [data-testid="stMetricValue"] {
         font-size: 15px !important;
@@ -222,7 +235,7 @@ CATEGORIES_CRYPTO = {
     "7 - DeFi e Layer 1s": {
         "tag": "DeFi & L1",
         "assets": [
-            ("UNI (Uniswap)", "UNI-USD", "$"),
+            ("UNI (Uniswap)", "UNI7083-USD", "$"),
             ("AAVE (Aave)", "AAVE-USD", "$"),
             ("LINK (Chainlink)", "LINK-USD", "$"),
             ("AVAX (Avalanche)", "AVAX-USD", "$"),
@@ -248,7 +261,7 @@ CRYPTO_BENCHMARKS = [
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO DE DADOS (CACHE 10 MIN)
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO DE DADOS COM FALLBACK
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -283,10 +296,8 @@ def fetch_global_crypto_data():
             data = res.json()["data"]
             btc_d = data.get("market_cap_percentage", {}).get("btc", 56.8)
             usdt_d = data.get("market_cap_percentage", {}).get("usdt", 5.2)
-            
             btc_d_chg = data.get("market_cap_change_percentage_24h_usd", 0.35)
             usdt_d_chg = -0.18
-            
             return {
                 "btc_d_val": f"{btc_d:.2f}%".replace(".", ","),
                 "btc_d_chg": btc_d_chg,
@@ -304,16 +315,22 @@ def fetch_global_crypto_data():
 
 @st.cache_data(ttl=600)
 def fetch_realtime_quotes(symbols_tuple):
+    alias_map = {
+        "UNI-USD": "UNI7083-USD",
+        "BITF": "BITF"
+    }
+    
     unique_symbols = list(set(symbols_tuple))
+    yf_symbols = [alias_map.get(s, s) for s in unique_symbols]
+    yf_symbols = list(set(yf_symbols))
+    
     quotes = {}
-    if not unique_symbols:
-        return quotes
 
     try:
-        data = yf.download(unique_symbols, period="5d", interval="1d", group_by="ticker", progress=False, threads=True)
-        for sym in unique_symbols:
+        data = yf.download(yf_symbols, period="5d", interval="1d", group_by="ticker", progress=False, threads=True)
+        for sym in yf_symbols:
             try:
-                sub_df = data if len(unique_symbols) == 1 else data[sym]
+                sub_df = data if len(yf_symbols) == 1 else data[sym]
                 sub_df = sub_df.dropna(subset=['Close'])
                 if len(sub_df) >= 2:
                     curr = float(sub_df['Close'].iloc[-1])
@@ -327,22 +344,40 @@ def fetch_realtime_quotes(symbols_tuple):
     except Exception:
         pass
 
-    for sym in unique_symbols:
-        if sym not in quotes or quotes[sym]["price"] == 0.0:
-            try:
-                t = yf.Ticker(sym)
-                hist = t.history(period="5d")
-                if not hist.empty:
-                    hist = hist.dropna(subset=['Close'])
-                    if len(hist) >= 2:
-                        curr = float(hist['Close'].iloc[-1])
-                        prev = float(hist['Close'].iloc[-2])
-                        chg = float(((curr - prev) / prev) * 100)
-                        quotes[sym] = {"price": curr, "change": chg}
-                    elif len(hist) == 1:
-                        quotes[sym] = {"price": float(hist['Close'].iloc[-1]), "change": 0.0}
-            except Exception:
-                quotes[sym] = {"price": 0.0, "change": 0.0}
+    # Fallback individual caso algum ticker venha vazio ou zerado
+    for orig_sym in unique_symbols:
+        actual_sym = alias_map.get(orig_sym, orig_sym)
+        
+        if actual_sym not in quotes or quotes[actual_sym]["price"] == 0.0:
+            candidates = [actual_sym, orig_sym]
+            if orig_sym == "BITF":
+                candidates.append("BITF.TO")
+            if orig_sym in ["UNI-USD", "UNI7083-USD"]:
+                candidates.extend(["UNI7083-USD", "UNI-USD"])
+                
+            for cand in candidates:
+                try:
+                    t = yf.Ticker(cand)
+                    hist = t.history(period="5d")
+                    if not hist.empty:
+                        hist = hist.dropna(subset=['Close'])
+                        if len(hist) >= 2:
+                            curr = float(hist['Close'].iloc[-1])
+                            prev = float(hist['Close'].iloc[-2])
+                            chg = float(((curr - prev) / prev) * 100)
+                            quotes[actual_sym] = {"price": curr, "change": chg}
+                            break
+                        elif len(hist) == 1:
+                            quotes[actual_sym] = {"price": float(hist['Close'].iloc[-1]), "change": 0.0}
+                            break
+                except Exception:
+                    pass
+
+        # Mapeia o resultado de volta para o nome original solicitado
+        if actual_sym in quotes:
+            quotes[orig_sym] = quotes[actual_sym]
+        elif orig_sym not in quotes:
+            quotes[orig_sym] = {"price": 0.0, "change": 0.0}
 
     return quotes
 
@@ -633,10 +668,10 @@ with col_right:
             val_str = fng_val
             chg_str = fng_class
             
-            # Regra de Cores Fear & Greed: Fear = Vermelho, Neutro = Azul, Greed = Verde
-            if "Fear" in fng_class:
+            # Fear = Vermelho, Neutro = Azul, Greed = Verde
+            if "Fear" in fng_class or "Medo" in fng_class:
                 change_cls = "metric-change-neg"
-            elif "Greed" in fng_class:
+            elif "Greed" in fng_class or "Ganância" in fng_class:
                 change_cls = "metric-change-pos"
             else:
                 change_cls = "metric-change-neutral"
@@ -674,7 +709,7 @@ with col_right:
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 6. PAINEL DE ANÁLISE INTEGRADA COM CHECKBOXES RIGOROSAMENTE À DIREITA
+# 6. PAINEL DE ANÁLISE INTEGRADA COM CARDS CINZAS E SEM LINHAS DIVISÓRIAS
 # -----------------------------------------------------------------------------
 st.subheader(f"📂 Painel de Análise Integrada das Categorias ({modulo})")
 st.caption("Marque/desmarque setores ou ativos específicos para incluir ou excluir do relatório final:")
@@ -691,19 +726,20 @@ if selected_categories:
                     cat_key = f"chk_cat_{cat_name}"
                     
                     # Cabeçalho: Título na esquerda, Checkbox do setor alinhado à direita
-                    c_title, c_check = st.columns([2.5, 1.5])
+                    c_title, c_check = st.columns([2.6, 1.4])
                     with c_title:
-                        st.markdown(f"**{cat_name}**")
+                        st.markdown(f"<div style='font-size:13px; font-weight:700; color:#F0F6FC; padding-top:4px;'>{cat_name}</div>", unsafe_allow_html=True)
                     with c_check:
                         cat_enabled = st.checkbox(
-                            "Incluir",
+                            "Incluir Setor",
                             value=st.session_state.get(cat_key, True),
                             key=cat_key
                         )
                     
-                    st.divider()
+                    # Espaçamento limpo sem linhas divisórias
+                    st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
                     
-                    # Ativos: Texto e preço na esquerda, Checkbox individual alinhado à direita
+                    # Ativos: Nome e preço na esquerda, Checkbox alinhado à direita
                     for disp_name, ticker, currency in cat_info["assets"]:
                         q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                         asset_key = f"chk_asset_{cat_name}_{ticker}"
@@ -715,9 +751,9 @@ if selected_categories:
                         cA, cB = st.columns([3.3, 0.7])
                         with cA:
                             st.markdown(
-                                f'<div style="font-size: 12px; padding-top: 4px;">'
+                                f'<div style="font-size: 12px; padding: 2px 0;">'
                                 f'<span style="color: #C9D1D9; font-weight: 500;">{disp_name}:</span> '
-                                f'<b>{price_fmt}</b> <span style="{color_style} font-size: 11px;">({chg_fmt})</span>'
+                                f'<b style="color: #F0F6FC;">{price_fmt}</b> <span style="{color_style} font-size: 11px;">({chg_fmt})</span>'
                                 f'</div>',
                                 unsafe_allow_html=True
                             )
