@@ -3,6 +3,7 @@ import requests
 from datetime import datetime
 import pandas as pd
 import re
+from concurrent.futures import ThreadPoolExecutor
 
 # -----------------------------------------------------------------------------
 # 1. CONFIGURAÇÃO DA PÁGINA & ESTILIZAÇÃO CSS INSTITUCIONAL
@@ -277,7 +278,7 @@ CRYPTO_BENCHMARKS = [
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO ROBUSTA VIA YAHOO V8 + BINANCE
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO PARALELA (THREADPOOL)
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -330,13 +331,10 @@ def fetch_realtime_quotes(symbols_tuple):
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
 
-    for item in symbols_tuple:
+    def fetch_single(item):
         raw = item.strip().upper()
         clean = raw.replace(".SA", "")
-        
-        quotes[clean] = {"price": 0.0, "change": 0.0}
-        quotes[f"{clean}.SA"] = {"price": 0.0, "change": 0.0}
-        quotes[raw] = {"price": 0.0, "change": 0.0}
+        res_data = {"raw": raw, "clean": clean, "price": 0.0, "change": 0.0, "alt_ticker": None}
 
         # 1. Criptos via Binance API
         if "USDT" in raw or "-USD" in raw:
@@ -346,39 +344,49 @@ def fetch_realtime_quotes(symbols_tuple):
                 res = requests.get(url, timeout=3)
                 if res.status_code == 200:
                     d = res.json()
-                    q_data = {
-                        "price": float(d.get("lastPrice", 0.0)),
-                        "change": float(d.get("priceChangePercent", 0.0))
-                    }
-                    quotes[raw] = q_data
-                    quotes[clean] = q_data
+                    res_data["price"] = float(d.get("lastPrice", 0.0))
+                    res_data["change"] = float(d.get("priceChangePercent", 0.0))
+                    res_data["alt_ticker"] = pair
+                    return res_data
             except Exception:
                 pass
 
         # 2. Ações B3, US e Macro via Yahoo Direct Chart v8
+        if re.match(r'^[A-Z]{4}[0-9]{1,2}$', clean):
+            ticker_yf = f"{clean}.SA"
         else:
-            if re.match(r'^[A-Z]{4}[0-9]{1,2}$', clean):
-                ticker_yf = f"{clean}.SA"
-            else:
-                ticker_yf = raw
+            ticker_yf = raw
 
-            try:
-                url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker_yf}?interval=1d&range=2d"
-                res = requests.get(url, headers=headers, timeout=4)
-                if res.status_code == 200:
-                    result = res.json().get("chart", {}).get("result", [])
-                    if result:
-                        meta = result[0].get("meta", {})
-                        price = float(meta.get("regularMarketPrice", 0.0) or 0.0)
-                        prev_close = float(meta.get("chartPreviousClose", price) or price)
-                        change = ((price - prev_close) / prev_close * 100) if prev_close > 0 else 0.0
-                        
-                        q_data = {"price": price, "change": change}
-                        quotes[clean] = q_data
-                        quotes[ticker_yf] = q_data
-                        quotes[raw] = q_data
-            except Exception:
-                pass
+        try:
+            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker_yf}?interval=1d&range=2d"
+            res = requests.get(url, headers=headers, timeout=4)
+            if res.status_code == 200:
+                result = res.json().get("chart", {}).get("result", [])
+                if result:
+                    meta = result[0].get("meta", {})
+                    price = float(meta.get("regularMarketPrice", 0.0) or 0.0)
+                    prev_close = float(meta.get("chartPreviousClose", price) or price)
+                    change = ((price - prev_close) / prev_close * 100) if prev_close > 0 else 0.0
+                    
+                    res_data["price"] = price
+                    res_data["change"] = change
+                    res_data["alt_ticker"] = ticker_yf
+        except Exception:
+            pass
+
+        return res_data
+
+    # Execução concorrente em até 15 threads paralelas para evitar timeout no Streamlit Cloud
+    unique_symbols = list(set(symbols_tuple))
+    with ThreadPoolExecutor(max_workers=15) as executor:
+        results = list(executor.map(fetch_single, unique_symbols))
+
+    for r in results:
+        q_obj = {"price": r["price"], "change": r["change"]}
+        quotes[r["raw"]] = q_obj
+        quotes[r["clean"]] = q_obj
+        if r["alt_ticker"]:
+            quotes[r["alt_ticker"]] = q_obj
 
     return quotes
 
@@ -499,7 +507,7 @@ now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 col_status, col_btn_refresh = st.columns([3.5, 1])
 with col_status:
     st.markdown(
-        f'<div class="status-bar">⚡ <b>Dados consolidados às {now_str}</b> | Status API: <span style="color: #3FB950;">🟢 Online (Direct Yahoo/Binance Engine)</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
+        f'<div class="status-bar">⚡ <b>Dados consolidados às {now_str}</b> | Status API: <span style="color: #3FB950;">🟢 Online (Parallel Fetch Engine)</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
         unsafe_allow_html=True
     )
 with col_btn_refresh:
