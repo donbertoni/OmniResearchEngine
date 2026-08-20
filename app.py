@@ -99,27 +99,11 @@ st.markdown("""<style>
         cursor: pointer !important;
     }
 
-    /* FORÇAR VERDE EM CHECKBOXES MARCADOS (SOBREPÕE TEMA DO STREAMLIT) */
-    div[data-testid="stCheckbox"] input[type="checkbox"]:checked + div,
-    div[data-baseweb="checkbox"] input:checked + div,
-    div[data-baseweb="checkbox"] span[aria-checked="true"] {
-        background-color: #2EA043 !important;
-        border-color: #2EA043 !important;
-    }
-
-    /* FORÇAR COR DA CHECKMARK (VETO) PARA BRANCO */
+    /* FORÇAR COR DA CHECKMARK PARA BRANCO */
     div[data-baseweb="checkbox"] input:checked + div svg,
     div[data-baseweb="checkbox"] span[aria-checked="true"] svg {
         color: #FFFFFF !important;
         fill: #FFFFFF !important;
-    }
-
-    /* MANTÉM CINZA DISCRETO QUANDO DESMARCADO */
-    div[data-testid="stCheckbox"] input[type="checkbox"]:not(:checked) + div,
-    div[data-baseweb="checkbox"] input:not(:checked) + div,
-    div[data-baseweb="checkbox"] span[aria-checked="false"] {
-        background-color: #161B22 !important;
-        border-color: #484F58 !important;
     }
 
     /* AJUSTE DE MÉTRICAS PADRÃO STREAMLIT */
@@ -308,7 +292,7 @@ CRYPTO_BENCHMARKS = [
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO ROBUSTA (YFINANCE 5D + BRAPI MULTI-KEY)
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO ROBUSTA
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -361,7 +345,6 @@ def fetch_global_crypto_data():
     }
 
 def fetch_brapi_fallback(failed_symbols, token=""):
-    """Fallback cirúrgico via BRAPI verificando múltiplos campos de preço para fora do horário do pregão."""
     brapi_quotes = {}
     if not failed_symbols:
         return brapi_quotes
@@ -384,7 +367,6 @@ def fetch_brapi_fallback(failed_symbols, token=""):
                 raw_sym = str(item.get("symbol", "")).upper()
                 orig_sym = sym_map.get(raw_sym, raw_sym + ".SA")
                 
-                # Busca exaustiva de preço (tempo real -> fechamento -> fechamento anterior)
                 price = (
                     item.get("regularMarketPrice") or 
                     item.get("close") or 
@@ -408,7 +390,6 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
     quotes = {sym: {"price": 0.0, "change": 0.0} for sym in symbols_tuple}
     alias_map = {"UNI-USD": "UNI7083-USD"}
 
-    # Passagem 1: Batch Download via YFinance com janela expandida (5 dias)
     try:
         download_list = [alias_map.get(s, s) for s in symbols_tuple]
         df_data = yf.download(download_list, period="5d", interval="1d", group_by="ticker", progress=False)
@@ -434,7 +415,6 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
     except Exception:
         pass
 
-    # Passagem 2: Resgate direto via yf.Ticker individual para faltantes
     missing_symbols = [s for s, v in quotes.items() if v["price"] == 0.0]
     for orig_sym in missing_symbols:
         actual_sym = alias_map.get(orig_sym, orig_sym)
@@ -452,7 +432,6 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
         except Exception:
             pass
 
-    # Passagem 3: Fallback BRAPI em lote com verificação multi-campo para B3
     failed_b3 = [
         sym for sym, val in quotes.items()
         if (val["price"] == 0.0 or pd.isna(val["price"])) and sym.endswith(".SA")
@@ -466,7 +445,7 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
     return quotes
 
 # -----------------------------------------------------------------------------
-# 4. SIDEBAR: CONTROLE DE TIERS, CATEGORIAS, FORMATOS E PARÂMETROS QUANT
+# 4. SIDEBAR: CONTROLE DE TIERS, CATEGORIAS E PARÂMETROS
 # -----------------------------------------------------------------------------
 st.sidebar.title("⚙️ Configurações OMNI")
 st.sidebar.caption("Controle de geração de roteiros e relatórios")
@@ -480,7 +459,7 @@ brapi_token = st.sidebar.text_input(
     "BRAPI API Token:", 
     value="", 
     type="password", 
-    help="Chave de API para fallback dos ativos B3 (.SA) fora do horário de pregão ou falhas do YFinance."
+    help="Chave de API para fallback dos ativos B3 (.SA) fora do horário de pregão."
 )
 
 st.sidebar.markdown("---")
@@ -497,7 +476,7 @@ if "Free" in tier_selected:
     max_free_tickers = 0
     allow_customization = False
     allow_white_label = False
-    st.sidebar.info("ℹ️ Modo Free: 32 ativos fixos padrão. Sem alteração.")
+    st.sidebar.info("ℹ️ Modo Free: 32 ativos fixos padrão.")
 elif "Standard" in tier_selected:
     max_assets_allowed = 32
     max_free_tickers = 5
@@ -810,7 +789,6 @@ if selected_categories:
                 with st.container(border=True):
                     cat_key = f"chk_cat_{cat_name}"
                     
-                    # Cabeçalho do Card
                     c_title, c_check = st.columns([3.2, 0.8])
                     with c_title:
                         st.markdown(
@@ -830,7 +808,6 @@ if selected_categories:
                     
                     st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
                     
-                    # Lista de Ativos
                     for disp_name, ticker, currency in cat_info["assets"]:
                         q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                         asset_key = f"chk_asset_{cat_name}_{ticker}"
@@ -860,7 +837,6 @@ if selected_categories:
 
 st.markdown("---")
 
-# Rodapé Institucional
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.caption(f"© {datetime.now().year} {company_name}. Todos os direitos reservados. Relatório de uso exclusivo.")
 else:
