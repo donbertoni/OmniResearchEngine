@@ -319,7 +319,6 @@ def fetch_btc_fng():
 
 @st.cache_data(ttl=600)
 def fetch_global_crypto_data():
-    """Upgrade 1: Obtém BTC Dominance e Total Market Cap em tempo real."""
     try:
         res = requests.get("https://api.coingecko.com/api/v3/global", timeout=5)
         if res.status_code == 200:
@@ -447,7 +446,7 @@ if allow_customization:
             st.sidebar.warning(f"Limite do plano: apenas {max_free_tickers} adicionados.")
             custom_tickers = custom_tickers[:max_free_tickers]
 
-# Upgrade 4: Controles de Parâmetros do Engine Preditivo
+# Controles de Parâmetros do Engine Preditivo
 st.sidebar.markdown("---")
 st.sidebar.subheader("⚙️ Parâmetros do Engine Preditivo")
 horizonte_pred = st.sidebar.selectbox("Horizonte Temporário:", ["24 Horas", "48 Horas", "7 Dias"], index=1)
@@ -481,7 +480,7 @@ quotes = fetch_realtime_quotes(tuple(symbols_to_fetch))
 fng_val, fng_class = fetch_btc_fng()
 global_crypto_data = fetch_global_crypto_data()
 
-# Upgrade 2: Montagem de Categoria Exclusiva de Tickers Customizados se existirem
+# Montagem de Categoria Exclusiva de Tickers Customizados
 active_display_categories = active_categories.copy()
 if custom_tickers:
     custom_assets = []
@@ -580,7 +579,6 @@ with col_left:
         output_content = "\n".join(report_lines)
         st.text_area("", value=output_content, height=350)
 
-        # Upgrade 3: Botão de Download do Relatório B2B
         st.download_button(
             label="📥 Baixar Relatório (TXT)",
             data=output_content,
@@ -609,7 +607,6 @@ Powered by OMNIRESEARCH Engine"""
 
         st.text_area("", value=script_text, height=350)
 
-        # Upgrade 3: Botão de Download do Roteiro B2C
         st.download_button(
             label="📥 Baixar Roteiro YouTube (TXT)",
             data=script_text,
@@ -617,7 +614,7 @@ Powered by OMNIRESEARCH Engine"""
             mime="text/plain"
         )
 
-    # Cards Preditivos Dinâmicos com Parâmetros Calibráveis
+    # Cards Preditivos Dinâmicos
     c1, c2, c3, c4 = st.columns(4)
     if modulo == "Crypto":
         main_q = quotes.get("BTC-USD", {"price": 0.0, "change": 0.0})
@@ -648,7 +645,7 @@ Powered by OMNIRESEARCH Engine"""
         with c4:
             st.metric(f"Previsão {horizonte_pred}", "Alta Moderada", f"Alvo {fmt_num(target_calc, dec=0)}")
 
-# Painel Direito: Métricas Agregadas Estilizadas (Cards HTML)
+# Painel Direito: Métricas Agregadas Estilizadas
 with col_right:
     st.subheader(f"📊 Métricas Agregadas ({modulo})")
     st.caption(f"Atualizado via API / Dados de Mercado às {datetime.now().strftime('%H:%M:%S BRT')}")
