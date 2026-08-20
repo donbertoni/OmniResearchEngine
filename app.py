@@ -4,7 +4,9 @@ import requests
 from datetime import datetime
 import pandas as pd
 
-# Configuração da página Streamlit
+# -----------------------------------------------------------------------------
+# 1. CONFIGURAÇÃO DA PÁGINA & ESTILIZAÇÃO CSS INSTITUCIONAL
+# -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="OMNIRESEARCH Engine",
     page_icon="⚡",
@@ -12,7 +14,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilização CSS customizada para visual escuro institucional
 st.markdown("""<style>
     .stApp {
         background-color: #0B0E14;
@@ -102,7 +103,19 @@ st.markdown("""<style>
         color: #C9D1D9;
         font-weight: 500;
     }
-    /* Estilização de métricas e abas preditivas para evitar estourar container */
+    .report-box {
+        background-color: #161B22;
+        border: 1px solid #21262D;
+        border-radius: 8px;
+        padding: 15px;
+        font-family: monospace;
+        color: #C9D1D9;
+    }
+    .free-badge { color: #8B949E; font-weight: bold; }
+    .standard-badge { color: #D29922; font-weight: bold; }
+    .premium-badge { color: #58A6FF; font-weight: bold; }
+
+    /* Ajustes para evitar que métricas estourem container */
     [data-testid="stMetricValue"] {
         font-size: 15px !important;
         font-weight: 700 !important;
@@ -118,7 +131,9 @@ st.markdown("""<style>
     }
 </style>""", unsafe_allow_html=True)
 
-# Estrutura de dados para TradFi / Macro (8 categorias)
+# -----------------------------------------------------------------------------
+# 2. ACERVO MESTRE DE DADOS & CATEGORIAS (TRADFI & CRYPTO)
+# -----------------------------------------------------------------------------
 CATEGORIES_TRADFI = {
     "1 - Bancos e Seguradoras": {
         "tag": "Banking & Ins.",
@@ -194,7 +209,6 @@ CATEGORIES_TRADFI = {
     }
 }
 
-# Benchmarks TradFi: Petróleo Brent e Ouro Spot
 MACRO_BENCHMARKS = [
     {"key": "SPX", "ticker": "^GSPC", "label": "1. S&P 500 / SPX", "unit": "pts", "prefix": "", "badge": "yfinance API"},
     {"key": "IBOV", "ticker": "^BVSP", "label": "2. Ibovespa / IBOV", "unit": "pts", "prefix": "", "badge": "yfinance API"},
@@ -203,7 +217,6 @@ MACRO_BENCHMARKS = [
     {"key": "USDBRL", "ticker": "BRL=X", "label": "5. USD / BRL / Dólar Real", "unit": "pts", "prefix": "R$ ", "badge": "yfinance API"}
 ]
 
-# Estrutura de 8 categorias para Crypto
 CATEGORIES_CRYPTO = {
     "1 - ETFs": {
         "tag": "ETFs",
@@ -280,47 +293,29 @@ CATEGORIES_CRYPTO = {
 }
 
 CRYPTO_BENCHMARKS = [
-    {
-        "key": "BTC",
-        "ticker": "BTC-USD",
-        "label": "1. Bitcoin / BTC",
-        "prefix": "$ ",
-        "badge": "yfinance API"
-    },
-    {
-        "key": "ETH",
-        "ticker": "ETH-USD",
-        "label": "2. Ethereum / ETH",
-        "prefix": "$ ",
-        "badge": "yfinance API"
-    },
-    {
-        "key": "BTC_D",
-        "ticker": None,
-        "label": "3. Bitcoin Dominance / BTC.D",
-        "static_val": "56,80%",
-        "static_chg": "+0,35% hoje",
-        "badge": "On-Chain Data"
-    },
-    {
-        "key": "TOTAL_MCAP",
-        "ticker": None,
-        "label": "4. Total Crypto Market Cap",
-        "static_val": "$ 2,28 T",
-        "static_chg": "+1,12% hoje",
-        "badge": "Global Crypto"
-    },
-    {
-        "key": "FEAR_GREED",
-        "ticker": None,
-        "type": "fng_api",
-        "label": "5. Bitcoin Fear & Greed Index",
-        "badge": "Alternative.me API"
-    }
+    {"key": "BTC", "ticker": "BTC-USD", "label": "1. Bitcoin / BTC", "prefix": "$ ", "badge": "yfinance API"},
+    {"key": "ETH", "ticker": "ETH-USD", "label": "2. Ethereum / ETH", "prefix": "$ ", "badge": "yfinance API"},
+    {"key": "BTC_D", "ticker": None, "label": "3. Bitcoin Dominance / BTC.D", "static_val": "56,80%", "static_chg": "+0,35% hoje", "badge": "On-Chain Data"},
+    {"key": "TOTAL_MCAP", "ticker": None, "label": "4. Total Crypto Market Cap", "static_val": "$ 2,28 T", "static_chg": "+1,12% hoje", "badge": "Global Crypto"},
+    {"key": "FEAR_GREED", "ticker": None, "type": "fng_api", "label": "5. Bitcoin Fear & Greed Index", "badge": "Alternative.me API"}
 ]
 
-# Função para buscar Bitcoin Fear & Greed Index via API em tempo real
-@st.cache_data(ttl=300)
+# -----------------------------------------------------------------------------
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO DE DADOS (CACHE 10 MIN)
+# -----------------------------------------------------------------------------
+def fmt_num(val, dec=2):
+    if val is None or pd.isna(val) or val == 0.0:
+        return "--"
+    s = f"{val:,.{dec}f}"
+    return s.replace(",", "X").replace(".", ",").replace("X", ".")
+
+def fmt_pct(val):
+    if val is None or pd.isna(val):
+        return "0,00%"
+    sign = "+" if val > 0 else ""
+    return f"{sign}{val:.2f}%".replace(".", ",")
+
+@st.cache_data(ttl=600)
 def fetch_btc_fng():
     try:
         res = requests.get("https://api.alternative.me/fng/", timeout=5)
@@ -333,29 +328,13 @@ def fetch_btc_fng():
         pass
     return "62 / 100", "Greed"
 
-# Função com cache de 60s para buscar cotações em tempo real com fallback
-@st.cache_data(ttl=60)
-def fetch_realtime_quotes():
-    all_symbols = []
-    
-    for item in MACRO_BENCHMARKS:
-        if item.get("ticker"):
-            all_symbols.append(item["ticker"])
-    for item in CRYPTO_BENCHMARKS:
-        if item.get("ticker"):
-            all_symbols.append(item["ticker"])
-
-    for cat in CATEGORIES_TRADFI.values():
-        for _, ticker, _ in cat["assets"]:
-            all_symbols.append(ticker)
-    for cat in CATEGORIES_CRYPTO.values():
-        for _, ticker, _ in cat["assets"]:
-            all_symbols.append(ticker)
-
-    unique_symbols = list(set(all_symbols))
+@st.cache_data(ttl=600)
+def fetch_realtime_quotes(symbols_tuple):
+    unique_symbols = list(set(symbols_tuple))
     quotes = {}
+    if not unique_symbols:
+        return quotes
 
-    # Download em lote
     try:
         data = yf.download(unique_symbols, period="5d", interval="1d", group_by="ticker", progress=False, threads=True)
         for sym in unique_symbols:
@@ -374,7 +353,7 @@ def fetch_realtime_quotes():
     except Exception:
         pass
 
-    # Fallback individual para ativos que falharam
+    # Fallback individual para ativos que falharam no download em lote
     for sym in unique_symbols:
         if sym not in quotes or quotes[sym]["price"] == 0.0:
             try:
@@ -394,34 +373,46 @@ def fetch_realtime_quotes():
 
     return quotes
 
-def fmt_num(val, dec=2):
-    if val is None or pd.isna(val) or val == 0.0:
-        return "--"
-    s = f"{val:,.{dec}f}"
-    return s.replace(",", "X").replace(".", ",").replace("X", ".")
-
-def fmt_pct(val):
-    if val is None or pd.isna(val):
-        return "0,00%"
-    sign = "+" if val > 0 else ""
-    return f"{sign}{val:.2f}%".replace(".", ",")
-
-quotes = fetch_realtime_quotes()
-fng_val, fng_class = fetch_btc_fng()
-
-# --- SIDEBAR: Configurações ---
+# -----------------------------------------------------------------------------
+# 4. SIDEBAR: CONTROLE DE TIERS, CATEGORIAS E FORMATOS
+# -----------------------------------------------------------------------------
 st.sidebar.title("⚡ Configurações OMNI")
 st.sidebar.caption("Controle de geração de roteiros e relatórios")
 
 idioma = st.sidebar.selectbox("🌐 Idioma do Output:", ["Português (BR)", "English", "Español"])
 modulo = st.sidebar.radio("💡 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=0)
 
-if modulo == "Crypto":
-    active_categories = CATEGORIES_CRYPTO
-    active_benchmarks = CRYPTO_BENCHMARKS
+st.sidebar.markdown("---")
+st.sidebar.subheader("🎛️ Nível de Acesso (Tier SaaS)")
+
+tier_selected = st.sidebar.radio(
+    "Plano Ativo:",
+    options=["Free (Lead Magnet)", "Standard (B2C Trader)", "Premium (B2B White-Label)"],
+    index=1
+)
+
+# Definição das Regras por Tier
+if "Free" in tier_selected:
+    max_assets_allowed = 32
+    max_free_tickers = 0
+    allow_customization = False
+    allow_white_label = False
+    st.sidebar.info("🔒 Modo Free: 32 ativos fixos padrão. Sem alteração.")
+elif "Standard" in tier_selected:
+    max_assets_allowed = 32
+    max_free_tickers = 5
+    allow_customization = True
+    allow_white_label = False
+    st.sidebar.success("⚡ Modo Standard: Personalizável + 5 Tickers Livres.")
 else:
-    active_categories = CATEGORIES_TRADFI
-    active_benchmarks = MACRO_BENCHMARKS
+    max_assets_allowed = 100
+    max_free_tickers = 999
+    allow_customization = True
+    allow_white_label = True
+    st.sidebar.success("🚀 Modo Premium: 100+ Ativos + White-Label Habilitado.")
+
+active_categories = CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI
+active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🎛️ Calibragem (SaaS Enterprise)")
@@ -432,76 +423,149 @@ for key in active_categories.keys():
     if st.sidebar.checkbox(key, value=True):
         selected_categories.append(key)
 
+# Injeção de Tickers Livres (Conforme permissão do Tier)
+custom_tickers = []
+if allow_customization:
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("🔍 Injeção de Tickers Livres")
+    c_input = st.sidebar.text_input("Tickers extras (ex: WEGE3.SA, PEPE-USD):", value="")
+    if c_input:
+        custom_tickers = [t.strip().upper() for t in c_input.split(",") if t.strip()]
+        if len(custom_tickers) > max_free_tickers:
+            st.sidebar.warning(f"Limite do plano: apenas {max_free_tickers} adicionados.")
+            custom_tickers = custom_tickers[:max_free_tickers]
+
 st.sidebar.markdown("---")
-formato = st.sidebar.radio(f"🎯 Formato ({modulo}):", ["B2B (Relatório)", "B2C (YouTube)"], index=0)
+formato = st.sidebar.radio(f"🎯 Formato ({modulo}):", ["B2B (Relatório)", "B2C (YouTube Auto-Pilot)"], index=0)
 
-st.sidebar.info("💡 O modo Auto-Pilot está disponível exclusivamente para entregáveis B2C (YouTube).")
+# Personalização White-Label (Apenas Premium)
+company_name = "OMNIRESEARCH Engine"
+cnpi_code = "CNPI-T 0000"
+if allow_white_label:
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("🎨 Personalização White-Label")
+    company_name = st.sidebar.text_input("Nome da Casa/Escritório:", "XP / BTG / Gestora")
+    cnpi_code = st.sidebar.text_input("Registro CNPI/Responsável:", "CNPI-T 3421")
 
-# --- CORPO PRINCIPAL ---
-st.title("⚡ OMNIRESEARCH Engine")
-st.caption("Plataforma Integrada de Inteligência Financeira: YouTube Auto/HITL, Relatórios B2B (Crypto) e TradFi (Macro)")
+# Compilando Lista Única de Tickers para Download
+symbols_to_fetch = []
+for item in MACRO_BENCHMARKS + CRYPTO_BENCHMARKS:
+    if item.get("ticker"):
+        symbols_to_fetch.append(item["ticker"])
+
+for cat_info in active_categories.values():
+    for _, ticker, _ in cat_info["assets"]:
+        symbols_to_fetch.append(ticker)
+
+symbols_to_fetch.extend(custom_tickers)
+
+quotes = fetch_realtime_quotes(tuple(symbols_to_fetch))
+fng_val, fng_class = fetch_btc_fng()
+
+# -----------------------------------------------------------------------------
+# 5. CORPO PRINCIPAL & PAINEL DE CONTROLE
+# -----------------------------------------------------------------------------
+if allow_white_label and company_name != "OMNIRESEARCH Engine":
+    st.title(f"🏛️ {company_name} — Terminal Quant")
+    st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
+else:
+    st.title("⚡ OMNIRESEARCH Engine")
+    st.caption("Plataforma Integrada de Inteligência Financeira: YouTube Auto/HITL, Relatórios B2B (Crypto) e TradFi (Macro)")
 
 now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
-st.markdown(
-    f'<div class="status-bar">🕒 <b>Dados consolidados das {now_str}</b> | Status da API: <span style="color: #10B981;">● Online (yfinance & Alternative.me)</span> | <b>Módulo Ativo:</b> {modulo}</div>',
-    unsafe_allow_html=True
-)
+
+col_status, col_btn_refresh = st.columns([3.5, 1])
+with col_status:
+    st.markdown(
+        f'<div class="status-bar">🕒 <b>Dados consolidados das {now_str}</b> (Cache 10m) | Status API: <span style="color: #3FB950;">● Online</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
+        unsafe_allow_html=True
+    )
+with col_btn_refresh:
+    if st.button("🔄 Atualizar Cotações Agora"):
+        st.cache_data.clear()
+        st.rerun()
 
 col_left, col_right = st.columns([1.3, 1])
 
-# Painel Esquerdo: Relatório B2B em Tempo Real
+# Painel Esquerdo: Relatório B2B ou Roteiro B2C
 with col_left:
-    st.subheader(f"📄 Relatório B2B ({modulo})")
-    st.caption("Relatório com indicadores integrados em tempo real via API:")
+    st.subheader(f"📄 Entrega Padrão — {formato}")
+    st.caption("Indicadores e cotações integrados em tempo real via API:")
 
-    if modulo == "Crypto":
-        btc_q = quotes.get("BTC-USD", {"price": 0.0, "change": 0.0})
-        eth_q = quotes.get("ETH-USD", {"price": 0.0, "change": 0.0})
+    if "B2B" in formato:
+        if modulo == "Crypto":
+            btc_q = quotes.get("BTC-USD", {"price": 0.0, "change": 0.0})
+            eth_q = quotes.get("ETH-USD", {"price": 0.0, "change": 0.0})
 
-        report_lines = [
-            "=== RELATÓRIO INSTITUCIONAL CRYPTO (B2B) ===",
-            f"Data/Hora: {now_str}",
-            "",
-            "1. PANORAMA & BENCHMARKS CRYPTO (MÉTRICAS AGREGADAS)",
-            f"- 1. Bitcoin (BTC/USD): $ {fmt_num(btc_q['price'])} ({fmt_pct(btc_q['change'])} hoje) [yfinance API]",
-            f"- 2. Ethereum (ETH/USD): $ {fmt_num(eth_q['price'])} ({fmt_pct(eth_q['change'])} hoje) [yfinance API]",
-            "- 3. Bitcoin Dominance (BTC.D): 56,80% (+0,35% hoje) [On-Chain Data]",
-            "- 4. Total Crypto Market Cap: $ 2,28 T (+1,12% hoje) [Global Crypto]",
-            f"- 5. Bitcoin Fear & Greed Index: {fng_val} ({fng_class}) [Alternative.me API]",
-            "",
-            "2. ANÁLISE INTEGRADA DAS CATEGORIAS CRYPTO SELECIONADAS"
-        ]
-    else:
-        brent_q = quotes.get("BZ=F", {"price": 0.0, "change": 0.0})
-        gold_q = quotes.get("GC=F", {"price": 0.0, "change": 0.0})
-        spx_q = quotes.get("^GSPC", {"price": 0.0, "change": 0.0})
-        ibov_q = quotes.get("^BVSP", {"price": 0.0, "change": 0.0})
-        usdbrl_q = quotes.get("BRL=X", {"price": 0.0, "change": 0.0})
+            report_lines = [
+                "=== RELATÓRIO INSTITUCIONAL CRYPTO (B2B) ===",
+                f"Data/Hora: {now_str}",
+                "",
+                "1. PANORAMA & BENCHMARKS CRYPTO (MÉTRICAS AGREGADAS)",
+                f"- 1. Bitcoin (BTC/USD): $ {fmt_num(btc_q['price'])} ({fmt_pct(btc_q['change'])} hoje) [yfinance API]",
+                f"- 2. Ethereum (ETH/USD): $ {fmt_num(eth_q['price'])} ({fmt_pct(eth_q['change'])} hoje) [yfinance API]",
+                "- 3. Bitcoin Dominance (BTC.D): 56,80% (+0,35% hoje) [On-Chain Data]",
+                "- 4. Total Crypto Market Cap: $ 2,28 T (+1,12% hoje) [Global Crypto]",
+                f"- 5. Bitcoin Fear & Greed Index: {fng_val} ({fng_class}) [Alternative.me API]",
+                "",
+                "2. ANÁLISE INTEGRADA DAS CATEGORIAS CRYPTO SELECIONADAS"
+            ]
+        else:
+            brent_q = quotes.get("BZ=F", {"price": 0.0, "change": 0.0})
+            gold_q = quotes.get("GC=F", {"price": 0.0, "change": 0.0})
+            spx_q = quotes.get("^GSPC", {"price": 0.0, "change": 0.0})
+            ibov_q = quotes.get("^BVSP", {"price": 0.0, "change": 0.0})
+            usdbrl_q = quotes.get("BRL=X", {"price": 0.0, "change": 0.0})
 
-        report_lines = [
-            "=== RELATÓRIO INSTITUCIONAL TRADFI (MACRO) (B2B) ===",
-            f"Data/Hora: {now_str}",
-            "",
-            "1. PANORAMA & BENCHMARKS DE MERCADO (DADOS VIA YFINANCE API)",
-            f"- 1. S&P 500 / SPX: {fmt_num(spx_q['price'])} ({fmt_pct(spx_q['change'])} hoje) [yfinance API]",
-            f"- 2. Ibovespa / IBOV: {fmt_num(ibov_q['price'])} ({fmt_pct(ibov_q['change'])} hoje) [yfinance API]",
-            f"- 3. Petróleo Brent: $ {fmt_num(brent_q['price'])} ({fmt_pct(brent_q['change'])} hoje) [yfinance API]",
-            f"- 4. Ouro Spot: $ {fmt_num(gold_q['price'])} ({fmt_pct(gold_q['change'])} hoje) [yfinance API]",
-            f"- 5. USD / BRL / Dólar Real: R$ {fmt_num(usdbrl_q['price'])} ({fmt_pct(usdbrl_q['change'])} hoje) [yfinance API]",
-            "",
-            "2. ANÁLISE INTEGRADA DAS CATEGORIAS SELECIONADAS (DADOS EM TEMPO REAL)"
-        ]
+            report_lines = [
+                "=== RELATÓRIO INSTITUCIONAL TRADFI (MACRO) (B2B) ===",
+                f"Data/Hora: {now_str}",
+                "",
+                "1. PANORAMA & BENCHMARKS DE MERCADO (DADOS VIA YFINANCE API)",
+                f"- 1. S&P 500 / SPX: {fmt_num(spx_q['price'])} ({fmt_pct(spx_q['change'])} hoje) [yfinance API]",
+                f"- 2. Ibovespa / IBOV: {fmt_num(ibov_q['price'])} ({fmt_pct(ibov_q['change'])} hoje) [yfinance API]",
+                f"- 3. Petróleo Brent: $ {fmt_num(brent_q['price'])} ({fmt_pct(brent_q['change'])} hoje) [yfinance API]",
+                f"- 4. Ouro Spot: $ {fmt_num(gold_q['price'])} ({fmt_pct(gold_q['change'])} hoje) [yfinance API]",
+                f"- 5. USD / BRL / Dólar Real: R$ {fmt_num(usdbrl_q['price'])} ({fmt_pct(usdbrl_q['change'])} hoje) [yfinance API]",
+                "",
+                "2. ANÁLISE INTEGRADA DAS CATEGORIAS SELECIONADAS (DADOS EM TEMPO REAL)"
+            ]
 
-    for cat_name in selected_categories:
-        cat_info = active_categories[cat_name]
-        report_lines.append(f"\n• {cat_name.upper()} ({cat_info['tag']}):")
-        for disp_name, ticker, currency in cat_info["assets"]:
-            q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
-            report_lines.append(f"  - {disp_name}: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
+        for cat_name in selected_categories:
+            cat_info = active_categories[cat_name]
+            report_lines.append(f"\n• {cat_name.upper()} ({cat_info['tag']}):")
+            for disp_name, ticker, currency in cat_info["assets"]:
+                q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
+                report_lines.append(f"  - {disp_name}: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
 
-    st.text_area("", value="\n".join(report_lines), height=380)
+        if allow_white_label and company_name != "OMNIRESEARCH Engine":
+            report_lines.append(f"\nDocumento emitido exclusivamente por {company_name} | Responsável: {cnpi_code}")
+        else:
+            report_lines.append("\nPowered by OMNIRESEARCH Engine")
 
-    # Cards técnicos preditivos com formatação otimizada
+        st.text_area("", value="\n".join(report_lines), height=380)
+
+    else: # Modo B2C Auto-Pilot (YouTube)
+        main_symbol = "BTC-USD" if modulo == "Crypto" else "^GSPC"
+        main_q = quotes.get(main_symbol, {"price": 0.0, "change": 0.0})
+        
+        script_text = f"""=== ROTEIRO YOUTUBE AUTO-PILOT ({modulo.upper()}) ===
+Data/Hora: {now_str}
+
+[00:00] HOOK DE ABERTURA:
+"O mercado de {modulo} operando com forte volatilidade! O ativo principal negociado a {fmt_num(main_q['price'])} ({fmt_pct(main_q['change'])} hoje). O sentimento do mercado marca {fng_class}. Veja os níveis críticos agora!"
+
+[01:30] DESTAQUES SETORIAIS:
+- Categorias Monitoradas: {', '.join(selected_categories[:3])}
+- Projeção de Machine Learning para 48h: Tendência Moderada com alvo dinâmico ajustado nas resistências.
+
+[05:00] FECHAMENTO:
+"Deixe seu like e se inscreva na OMNIRESEARCH Engine para análises diárias em tempo real!"
+\nPowered by OMNIRESEARCH Engine"""
+
+        st.text_area("", value=script_text, height=380)
+
+    # Cards Preditivos Dinâmicos Calculados em Tempo Real
     c1, c2, c3, c4 = st.columns(4)
     if modulo == "Crypto":
         main_q = quotes.get("BTC-USD", {"price": 0.0, "change": 0.0})
@@ -524,7 +588,7 @@ with col_left:
         with c4:
             st.metric("Previsão 48h", "Alta Moderada", f"Alvo {fmt_num(main_q['price'] * 1.01, dec=0)}")
 
-# Painel Direito: Métricas Agregadas Dinâmicas
+# Painel Direito: Métricas Agregadas Estilizadas (Cards HTML)
 with col_right:
     st.subheader(f"📊 Métricas Agregadas ({modulo})")
     st.caption(f"Atualizado via API / Dados de Mercado às {datetime.now().strftime('%H:%M:%S BRT')}")
@@ -557,7 +621,9 @@ with col_right:
 
 st.markdown("---")
 
-# Painel de Análise das Categorias Ativas
+# -----------------------------------------------------------------------------
+# 6. PAINEL DE ANÁLISE INTEGRADA DAS CATEGORIAS (GRID CARDS HTML)
+# -----------------------------------------------------------------------------
 st.subheader(f"📂 Painel de Análise Integrada das Categorias ({modulo})")
 st.caption("Visão detalhada dos setores selecionados no painel lateral com cotações automáticas:")
 
@@ -578,3 +644,11 @@ if selected_categories:
         
         with col:
             st.markdown(card_html, unsafe_allow_html=True)
+
+st.markdown("---")
+
+# Rodapé Institucional
+if allow_white_label and company_name != "OMNIRESEARCH Engine":
+    st.caption(f"© {datetime.now().year} {company_name}. Todos os direitos reservados. Relatório de uso exclusivo.")
+else:
+    st.caption("⚡ Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
