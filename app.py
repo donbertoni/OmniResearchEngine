@@ -9,7 +9,7 @@ import pandas as pd
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="OMNIRESEARCH Engine",
-    page_icon="📈",
+    page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -195,7 +195,7 @@ CATEGORIES_TRADFI = {
 
 MACRO_BENCHMARKS = [
     {"key": "SPX", "ticker": "^GSPC", "label": "1. S&P 500 / SPX", "unit": "pts", "prefix": "", "badge": "Direct API"},
-    {"key": "IBOV", "ticker": "^BVSP", "label": "2. Ibovespa / IBOV", "unit": "pts", "prefix": "", "badge": "BRAPI / Direct API"},
+    {"key": "IBOV", "ticker": "^BVSP", "label": "2. Ibovespa / IBOV", "unit": "pts", "prefix": "", "badge": "Direct API"},
     {"key": "BRENT", "ticker": "BZ=F", "label": "3. Petróleo Brent", "unit": "USD", "prefix": "$ ", "badge": "Direct API"},
     {"key": "GOLD", "ticker": "GC=F", "label": "4. Ouro Spot", "unit": "USD", "prefix": "$ ", "badge": "Direct API"},
     {"key": "USDBRL", "ticker": "BRL=X", "label": "5. USD / BRL / Dólar Real", "unit": "pts", "prefix": "R$ ", "badge": "Direct API"}
@@ -285,7 +285,7 @@ CRYPTO_BENCHMARKS = [
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO VIA BRAPI & YAHOO V8 DIRECT API
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO DE DADOS (YAHOO + BRAPI FALLBACK)
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -337,33 +337,24 @@ def fetch_global_crypto_data():
         "usdt_d_chg": -0.18
     }
 
-@st.cache_data(ttl=300)
-def fetch_brapi_quotes(symbols_list, token=""):
-    """
-    Integração de alta performance para ativos B3 via BRAPI (brapi.dev).
-    """
+def fetch_brapi_fallback(failed_symbols, token=""):
+    """Busca cirúrgica para ativos B3 falhos no YFinance."""
     brapi_quotes = {}
-    if not symbols_list:
+    if not failed_symbols:
         return brapi_quotes
 
     formatted_symbols = []
     symbol_map = {}
-    for sym in symbols_list:
+
+    for sym in failed_symbols:
         clean = sym.replace(".SA", "").strip()
-        if clean.startswith("^"):
-            clean = clean.replace("^", "%5E")
         formatted_symbols.append(clean)
-        symbol_map[clean.replace("%5E", "^")] = sym
+        symbol_map[clean] = sym
 
     tickers_query = ",".join(formatted_symbols)
     url = f"https://brapi.dev/api/quote/{tickers_query}"
-    params = {}
-    if token:
-        params["token"] = token
-
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-    }
+    params = {"token": token} if token else {}
+    headers = {"User-Agent": "Mozilla/5.0"}
 
     try:
         res = requests.get(url, params=params, headers=headers, timeout=5)
@@ -371,7 +362,7 @@ def fetch_brapi_quotes(symbols_list, token=""):
             results = res.json().get("results", [])
             for item in results:
                 raw_sym = item.get("symbol")
-                orig_sym = symbol_map.get(raw_sym, raw_sym + ".SA" if not raw_sym.startswith("^") else raw_sym)
+                orig_sym = symbol_map.get(raw_sym, raw_sym + ".SA")
                 price = item.get("regularMarketPrice", 0.0)
                 chg = item.get("regularMarketChangePercent", 0.0)
                 if price and price > 0:
@@ -389,15 +380,6 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
     }
 
     alias_map = {"UNI-USD": "UNI7083-USD"}
-
-    # Separate Brazilian / B3 tickers for BRAPI priority
-    b3_symbols = [s for s in symbols_tuple if s.endswith(".SA") or s == "^BVSP"]
-    other_symbols = [s for s in symbols_tuple if s not in b3_symbols]
-
-    # 1. Ingestão via BRAPI para ativos B3
-    if b3_symbols:
-        brapi_res = fetch_brapi_quotes(b3_symbols, token=brapi_token)
-        quotes.update(brapi_res)
 
     def fetch_yahoo_v8(symbol):
         url = f"https://query2.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=2d"
@@ -417,17 +399,12 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
             pass
         return None
 
-    # Process pending or failed tickers via Yahoo Direct API / Fallback
+    # Passagem 1: Yahoo V8 API e yfinance fast_info
     for orig_sym in symbols_tuple:
-        if orig_sym in quotes and quotes[orig_sym]["price"] > 0.0:
-            continue
-
         actual_sym = alias_map.get(orig_sym, orig_sym)
         
-        # 2. Requisição direta Yahoo Chart API v8
         q_data = fetch_yahoo_v8(actual_sym)
         
-        # 3. Fallback via yfinance fast_info se a V8 falhar
         if not q_data or q_data["price"] == 0.0:
             try:
                 tk = yf.Ticker(actual_sym)
@@ -445,6 +422,17 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
         else:
             quotes[orig_sym] = {"price": 0.0, "change": 0.0}
 
+    # Passagem 2: Fallback cirúrgico na BRAPI para ativos B3 zerados
+    failed_b3 = [
+        sym for sym, val in quotes.items()
+        if (val["price"] == 0.0 or pd.isna(val["price"])) and sym.endswith(".SA")
+    ]
+
+    if failed_b3:
+        fallback_data = fetch_brapi_fallback(failed_b3, token=brapi_token)
+        for sym, data_dict in fallback_data.items():
+            quotes[sym] = data_dict
+
     return quotes
 
 # -----------------------------------------------------------------------------
@@ -457,7 +445,7 @@ idioma = st.sidebar.selectbox("🌐 Idioma do Output:", ["Português (BR)", "Eng
 modulo = st.sidebar.radio("📌 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("💎 Nível de Acesso (Tier SaaS)")
+st.sidebar.subheader("👤 Nível de Acesso (Tier SaaS)")
 
 tier_selected = st.sidebar.radio(
     "Plano Ativo:",
@@ -476,19 +464,19 @@ elif "Standard" in tier_selected:
     max_free_tickers = 5
     allow_customization = True
     allow_white_label = False
-    st.sidebar.success("⚡ Modo Standard: Personalizável + 5 Tickers Livres.")
+    st.sidebar.success("✅ Modo Standard: Personalizável + 5 Tickers Livres.")
 else:
     max_assets_allowed = 100
     max_free_tickers = 999
     allow_customization = True
     allow_white_label = True
-    st.sidebar.success("🔥 Modo Premium: 100+ Ativos + White-Label Habilitado.")
+    st.sidebar.success("👑 Modo Premium: 100+ Ativos + White-Label Habilitado.")
 
 active_categories = CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI
 active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🎛️ Calibragem (SaaS Enterprise)")
+st.sidebar.subheader("⚙️ Calibragem (SaaS Enterprise)")
 st.sidebar.caption("Selecione os setores/categorias:")
 
 selected_categories = []
@@ -509,7 +497,7 @@ if allow_customization:
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🔑 Configurações de API Extra")
-brapi_token_input = st.sidebar.text_input("BRAPI Token (Opcional):", value="", type="password")
+brapi_token = st.sidebar.text_input("BRAPI Token (Opcional):", type="password")
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("📊 Parâmetros do Engine Preditivo")
@@ -524,7 +512,7 @@ company_name = "OMNIRESEARCH Engine"
 cnpi_code = "CNPI-T 0000"
 if allow_white_label:
     st.sidebar.markdown("---")
-    st.sidebar.subheader("🏛️ Personalização White-Label")
+    st.sidebar.subheader("🏢 Personalização White-Label")
     company_name = st.sidebar.text_input("Nome da Casa/Escritório:", "XP / BTG / Gestora")
     cnpi_code = st.sidebar.text_input("Registro CNPI/Responsável:", "CNPI-T 3421")
 
@@ -539,7 +527,7 @@ for cat_info in active_categories.values():
 
 symbols_to_fetch.extend(custom_tickers)
 
-quotes = fetch_realtime_quotes(tuple(symbols_to_fetch), brapi_token=brapi_token_input)
+quotes = fetch_realtime_quotes(tuple(symbols_to_fetch), brapi_token)
 fng_val, fng_class = fetch_btc_fng()
 global_crypto_data = fetch_global_crypto_data()
 
@@ -563,7 +551,7 @@ if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.title(f"🏛️ {company_name} — Terminal Quant")
     st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
 else:
-    st.title("🚀 OMNIRESEARCH Engine")
+    st.title("⚡ OMNIRESEARCH Engine")
     st.caption("Plataforma Integrada de Inteligência Financeira: YouTube Auto/HITL, Relatórios B2B (Crypto) e TradFi (Macro)")
 
 now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
@@ -571,7 +559,7 @@ now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 col_status, col_btn_refresh = st.columns([3.5, 1])
 with col_status:
     st.markdown(
-        f'<div class="status-bar">⏱️ <b>Dados consolidados das {now_str}</b> (Cache 5m) | Status API: <span style="color: #3FB950;">🟢 Online (BRAPI + Yahoo)</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
+        f'<div class="status-bar">⚡ <b>Dados consolidados das {now_str}</b> (Cache 5m) | Status API: <span style="color: #3FB950;">🟢 Online</span> | <b>Módulo:</b> {modulo} | <b>Plano:</b> <span class="premium-badge">{tier_selected.split()[0]}</span></div>',
         unsafe_allow_html=True
     )
 with col_btn_refresh:
@@ -582,7 +570,7 @@ with col_btn_refresh:
 col_left, col_right = st.columns([1.3, 1])
 
 with col_left:
-    st.subheader(f"📄 Entrega Padrão — {formato}")
+    st.subheader(f"📑 Entrega Padrão — {formato}")
     st.caption("Indicadores e cotações integrados em tempo real via API:")
 
     if "B2B" in formato:
@@ -617,9 +605,9 @@ with col_left:
                 "=== RELATÓRIO INSTITUCIONAL TRADFI (MACRO) (B2B) ===",
                 f"Data/Hora: {now_str}",
                 "",
-                "1. PANORAMA & BENCHMARKS DE MERCADO (DADOS VIA BRAPI & DIRECT API)",
+                "1. PANORAMA & BENCHMARKS DE MERCADO (DADOS VIA DIRECT API)",
                 f"- 1. S&P 500 / SPX: {fmt_num(spx_q['price'])} ({fmt_pct(spx_q['change'])} hoje) [Direct API]",
-                f"- 2. Ibovespa / IBOV: {fmt_num(ibov_q['price'])} ({fmt_pct(ibov_q['change'])} hoje) [BRAPI / Direct API]",
+                f"- 2. Ibovespa / IBOV: {fmt_num(ibov_q['price'])} ({fmt_pct(ibov_q['change'])} hoje) [Direct API]",
                 f"- 3. Petróleo Brent: $ {fmt_num(brent_q['price'])} ({fmt_pct(brent_q['change'])} hoje) [Direct API]",
                 f"- 4. Ouro Spot: $ {fmt_num(gold_q['price'])} ({fmt_pct(gold_q['change'])} hoje) [Direct API]",
                 f"- 5. USD / BRL / Dólar Real: R$ {fmt_num(usdbrl_q['price'])} ({fmt_pct(usdbrl_q['change'])} hoje) [Direct API]",
@@ -654,7 +642,7 @@ with col_left:
         st.text_area("", value=output_content, height=350)
 
         st.download_button(
-            label="💾 Baixar Relatório (TXT)",
+            label="📥 Baixar Relatório (TXT)",
             data=output_content,
             file_name=f"OMNI_Relatorio_{modulo}_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
             mime="text/plain"
@@ -682,7 +670,7 @@ Powered by OMNIRESEARCH Engine"""
         st.text_area("", value=script_text, height=350)
 
         st.download_button(
-            label="💾 Baixar Roteiro YouTube (TXT)",
+            label="📥 Baixar Roteiro YouTube (TXT)",
             data=script_text,
             file_name=f"OMNI_Roteiro_YouTube_{modulo}_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
             mime="text/plain"
