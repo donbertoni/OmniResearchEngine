@@ -285,7 +285,7 @@ CRYPTO_BENCHMARKS = [
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO DE DADOS (YAHOO + BRAPI FALLBACK)
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO VIA YAHOO & BRAPI FALLBACK
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -338,53 +338,102 @@ def fetch_global_crypto_data():
     }
 
 def fetch_brapi_fallback(failed_symbols, token=""):
-    """Busca cirúrgica para ativos B3 falhos no YFinance."""
+    """Busca cirúrgica na BRAPI exclusivamente para ativos B3 não carregados no Yahoo."""
     brapi_quotes = {}
     if not failed_symbols:
         return brapi_quotes
 
-    formatted_symbols = []
-    symbol_map = {}
-
-    for sym in failed_symbols:
-        clean = sym.replace(".SA", "").strip()
-        formatted_symbols.append(clean)
-        symbol_map[clean] = sym
-
-    tickers_query = ",".join(formatted_symbols)
-    url = f"https://brapi.dev/api/quote/{tickers_query}"
-    params = {"token": token} if token else {}
+    token_clean = token.strip() if token else ""
+    sym_map = {sym.replace(".SA", "").strip(): sym for sym in failed_symbols}
+    clean_symbols = list(sym_map.keys())
     headers = {"User-Agent": "Mozilla/5.0"}
+
+    def parse_brapi_item(item):
+        raw_sym = item.get("symbol", "")
+        orig_sym = sym_map.get(raw_sym, raw_sym + ".SA")
+        price = item.get("regularMarketPrice") or item.get("close") or 0.0
+        chg = item.get("regularMarketChangePercent") or item.get("changePercent") or 0.0
+        if price and float(price) > 0:
+            return orig_sym, {"price": float(price), "change": float(chg)}
+        return None, None
+
+    # Tenta chamada em lote na BRAPI
+    tickers_query = ",".join(clean_symbols)
+    url = f"https://brapi.dev/api/quote/{tickers_query}"
+    params = {"token": token_clean} if token_clean else {}
 
     try:
         res = requests.get(url, params=params, headers=headers, timeout=5)
         if res.status_code == 200:
             results = res.json().get("results", [])
             for item in results:
-                raw_sym = item.get("symbol")
-                orig_sym = symbol_map.get(raw_sym, raw_sym + ".SA")
-                price = item.get("regularMarketPrice", 0.0)
-                chg = item.get("regularMarketChangePercent", 0.0)
-                if price and price > 0:
-                    brapi_quotes[orig_sym] = {"price": float(price), "change": float(chg)}
+                k, v = parse_brapi_item(item)
+                if k:
+                    brapi_quotes[k] = v
     except Exception:
         pass
+
+    # Tenta chamadas individuais para os ativos pendentes
+    still_missing = [s for s in clean_symbols if sym_map[s] not in brapi_quotes]
+    for s in still_missing:
+        try:
+            single_url = f"https://brapi.dev/api/quote/{s}"
+            res = requests.get(single_url, params=params, headers=headers, timeout=3)
+            if res.status_code == 200:
+                results = res.json().get("results", [])
+                if results:
+                    k, v = parse_brapi_item(results[0])
+                    if k:
+                        brapi_quotes[k] = v
+        except Exception:
+            pass
 
     return brapi_quotes
 
 @st.cache_data(ttl=300)
 def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
-    quotes = {}
+    quotes = {sym: {"price": 0.0, "change": 0.0} for sym in symbols_tuple}
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     }
-
     alias_map = {"UNI-USD": "UNI7083-USD"}
 
-    def fetch_yahoo_v8(symbol):
-        url = f"https://query2.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=2d"
+    # Passagem 1: Batch Download via YFinance
+    try:
+        download_list = [alias_map.get(s, s) for s in symbols_tuple]
+        df_data = yf.download(download_list, period="2d", interval="1d", group_by="ticker", progress=False)
+        
+        for orig_sym in symbols_tuple:
+            actual_sym = alias_map.get(orig_sym, orig_sym)
+            try:
+                if len(symbols_tuple) == 1:
+                    df_sym = df_data
+                else:
+                    df_sym = df_data[actual_sym] if actual_sym in df_data.columns.get_level_values(0) else None
+                
+                if df_sym is not None and not df_sym.empty:
+                    df_clean = df_sym.dropna(subset=["Close"])
+                    if len(df_clean) >= 1:
+                        p = float(df_clean["Close"].iloc[-1])
+                        if len(df_clean) >= 2:
+                            prev = float(df_clean["Close"].iloc[-2])
+                            c = ((p - prev) / prev) * 100 if prev > 0 else 0.0
+                        else:
+                            c = 0.0
+                        if p > 0:
+                            quotes[orig_sym] = {"price": p, "change": c}
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # Passagem 2: Yahoo Chart API v8 para ativos zerados
+    missing_symbols = [s for s, v in quotes.items() if v["price"] == 0.0]
+    for orig_sym in missing_symbols:
+        actual_sym = alias_map.get(orig_sym, orig_sym)
+        url = f"https://query2.finance.yahoo.com/v8/finance/chart/{actual_sym}?interval=1d&range=2d"
         try:
-            res = requests.get(url, headers=headers, timeout=4)
+            res = requests.get(url, headers=headers, timeout=3)
             if res.status_code == 200:
                 data = res.json()
                 result = data.get("chart", {}).get("result", [])
@@ -394,43 +443,19 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
                     prev_close = meta.get("chartPreviousClose") or meta.get("previousClose") or price
                     if price and prev_close:
                         chg = ((price - prev_close) / prev_close) * 100
-                        return {"price": float(price), "change": float(chg)}
+                        quotes[orig_sym] = {"price": float(price), "change": float(chg)}
         except Exception:
             pass
-        return None
 
-    # Passagem 1: Yahoo V8 API e yfinance fast_info
-    for orig_sym in symbols_tuple:
-        actual_sym = alias_map.get(orig_sym, orig_sym)
-        
-        q_data = fetch_yahoo_v8(actual_sym)
-        
-        if not q_data or q_data["price"] == 0.0:
-            try:
-                tk = yf.Ticker(actual_sym)
-                fast = tk.fast_info
-                p = fast.last_price
-                prev = fast.previous_close
-                if p and prev:
-                    c = ((p - prev) / prev) * 100
-                    q_data = {"price": float(p), "change": float(c)}
-            except Exception:
-                pass
-
-        if q_data and q_data["price"] > 0.0:
-            quotes[orig_sym] = q_data
-        else:
-            quotes[orig_sym] = {"price": 0.0, "change": 0.0}
-
-    # Passagem 2: Fallback cirúrgico na BRAPI para ativos B3 zerados
+    # Passagem 3: Fallback cirúrgico BRAPI para ativos B3 (.SA) não carregados
     failed_b3 = [
         sym for sym, val in quotes.items()
         if (val["price"] == 0.0 or pd.isna(val["price"])) and sym.endswith(".SA")
     ]
 
     if failed_b3:
-        fallback_data = fetch_brapi_fallback(failed_b3, token=brapi_token)
-        for sym, data_dict in fallback_data.items():
+        brapi_data = fetch_brapi_fallback(failed_b3, token=brapi_token)
+        for sym, data_dict in brapi_data.items():
             quotes[sym] = data_dict
 
     return quotes
