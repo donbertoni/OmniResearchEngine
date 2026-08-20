@@ -285,7 +285,7 @@ CRYPTO_BENCHMARKS = [
     {"key": "BTC", "ticker": "BTC-USD", "label": "1. Bitcoin / BTC", "prefix": "$ ", "badge": "yfinance API"},
     {"key": "ETH", "ticker": "ETH-USD", "label": "2. Ethereum / ETH", "prefix": "$ ", "badge": "yfinance API"},
     {"key": "BTC_D", "type": "global_api", "sub_key": "btc_d", "label": "3. Bitcoin Dominance / BTC.D", "badge": "CoinGecko API"},
-    {"key": "TOTAL_MCAP", "type": "global_api", "sub_key": "total_mcap", "label": "4. Total Crypto Market Cap", "badge": "CoinGecko API"},
+    {"key": "USDT_D", "type": "global_api", "sub_key": "usdt_d", "label": "4. Tether Dominance / USDT.D", "badge": "CoinGecko API"},
     {"key": "FEAR_GREED", "type": "fng_api", "label": "5. Bitcoin Fear & Greed Index", "badge": "Alternative.me API"}
 ]
 
@@ -324,21 +324,20 @@ def fetch_global_crypto_data():
         if res.status_code == 200:
             data = res.json()["data"]
             btc_d = data.get("market_cap_percentage", {}).get("btc", 56.8)
-            total_mcap = data.get("total_market_cap", {}).get("usd", 0)
-            mcap_trillion = total_mcap / 1e12
+            usdt_d = data.get("market_cap_percentage", {}).get("usdt", 5.2)
             return {
                 "btc_d_val": f"{btc_d:.2f}%".replace(".", ","),
                 "btc_d_chg": "Ao Vivo",
-                "mcap_val": f"$ {mcap_trillion:.2f} T".replace(".", ","),
-                "mcap_chg": "Ao Vivo"
+                "usdt_d_val": f"{usdt_d:.2f}%".replace(".", ","),
+                "usdt_d_chg": "Ao Vivo"
             }
     except Exception:
         pass
     return {
         "btc_d_val": "56,80%",
         "btc_d_chg": "Estimado",
-        "mcap_val": "$ 2,28 T",
-        "mcap_chg": "Estimado"
+        "usdt_d_val": "5,20%",
+        "usdt_d_chg": "Estimado"
     }
 
 @st.cache_data(ttl=600)
@@ -537,7 +536,7 @@ with col_left:
                 f"- 1. Bitcoin (BTC/USD): $ {fmt_num(btc_q['price'])} ({fmt_pct(btc_q['change'])} hoje) [yfinance API]",
                 f"- 2. Ethereum (ETH/USD): $ {fmt_num(eth_q['price'])} ({fmt_pct(eth_q['change'])} hoje) [yfinance API]",
                 f"- 3. Bitcoin Dominance (BTC.D): {global_crypto_data['btc_d_val']} ({global_crypto_data['btc_d_chg']}) [CoinGecko API]",
-                f"- 4. Total Crypto Market Cap: {global_crypto_data['mcap_val']} ({global_crypto_data['mcap_chg']}) [CoinGecko API]",
+                f"- 4. Tether Dominance (USDT.D): {global_crypto_data['usdt_d_val']} ({global_crypto_data['usdt_d_chg']}) [CoinGecko API]",
                 f"- 5. Bitcoin Fear & Greed Index: {fng_val} ({fng_class}) [Alternative.me API]",
                 "",
                 "2. ANÁLISE INTEGRADA DAS CATEGORIAS CRYPTO SELECIONADAS"
@@ -663,9 +662,9 @@ with col_right:
             if sub_k == "btc_d":
                 val_str = global_crypto_data["btc_d_val"]
                 chg_str = global_crypto_data["btc_d_chg"]
-            else:
-                val_str = global_crypto_data["mcap_val"]
-                chg_str = global_crypto_data["mcap_chg"]
+            elif sub_k == "usdt_d":
+                val_str = global_crypto_data["usdt_d_val"]
+                chg_str = global_crypto_data["usdt_d_chg"]
             change_cls = "metric-change-pos"
         elif item.get("ticker"):
             ticker = item["ticker"]
