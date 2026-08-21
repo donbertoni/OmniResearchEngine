@@ -6,7 +6,6 @@ import pandas as pd
 import json
 import io
 
-# Importação segura do Plotly com fallback
 try:
     import plotly.graph_objects as go
     PLOTLY_AVAILABLE = True
@@ -55,7 +54,6 @@ st.markdown("""<style>
     .metric-change-pos { font-size: 12px; color: #3FB950; font-weight: 600; }
     .metric-change-neg { font-size: 12px; color: #F85149; font-weight: 600; }
     .metric-change-neutral { font-size: 12px; color: #58A6FF; font-weight: 600; }
-    .premium-badge { color: #58A6FF; font-weight: bold; }
 
     .pred-card {
         background-color: #161B22;
@@ -69,12 +67,6 @@ st.markdown("""<style>
     }
     .pred-title { font-size: 11px; color: #8B949E; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .pred-value { font-size: 15px; font-weight: 700; color: #F0F6FC; }
-    .pred-sub { font-size: 11px; font-weight: 600; }
-
-    /* Ajuste milimétrico para alinhar o relatório */
-    .stTextArea {
-        margin-top: -5px !important;
-    }
 
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background-color: #161B22 !important;
@@ -349,7 +341,7 @@ max_free_tickers = 5 if "Standard" in tier_selected else (999 if "Premium" in ti
 active_categories = CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI
 active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
 
-selected_categories = [key for key in active_categories.keys() if st.sidebar.checkbox(key, value=True)]
+selected_sidebar_categories = [key for key in active_categories.keys() if st.sidebar.checkbox(key, value=True)]
 custom_tickers = []
 if allow_customization:
     c_input = st.sidebar.text_input("Tickers extras (ex: WEGE3.SA, PEPE-USD):", value="")
@@ -383,11 +375,11 @@ if custom_tickers:
         "tag": "Custom Feed",
         "assets": [(t, t, "R$" if ".SA" in t else "$") for t in custom_tickers]
     }
-    if "0 - Tickers Personalizados" not in selected_categories:
-        selected_categories.insert(0, "0 - Tickers Personalizados")
+    if "0 - Tickers Personalizados" not in selected_sidebar_categories:
+        selected_sidebar_categories.insert(0, "0 - Tickers Personalizados")
 
 # -----------------------------------------------------------------------------
-# 5. CORPO PRINCIPAL & LAYOUT DE DUAS COLUNAS
+# 5. TÍTULO & STATUS BAR
 # -----------------------------------------------------------------------------
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.title(f"🏛️ {company_name} — Terminal Quant")
@@ -399,21 +391,62 @@ else:
 now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 col_status, col_btn_refresh = st.columns([3.5, 1])
 with col_status:
-    st.markdown(f'<div class="status-bar">🟢 <b>Dados consolidados às {now_str}</b> | Status API: <span style="color: #3FB950;">● Online</span> | <b>Módulo:</b> {modulo}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="status-bar">🕒 <b>Dados consolidados às {now_str}</b> | Status API: <span style="color: #3FB950;">🟢 Online</span> | <b>Módulo:</b> {modulo}</div>', unsafe_allow_html=True)
 with col_btn_refresh:
     if st.button("🔄 Atualizar Cotações"):
         st.cache_data.clear()
         st.rerun()
 
+# -----------------------------------------------------------------------------
+# 6. PAINEL DE ANÁLISE INTEGRADA (PROCESSADO ANTES DO RELATÓRIO)
+# -----------------------------------------------------------------------------
+st.subheader(f"🎛️ Painel de Análise Integrada das Categorias ({modulo})")
+st.caption("Selecione ou desmarque categorias e ativos para filtrar a exibição em tempo real e o relatório automático:")
+
+selected_categories = []
+if selected_sidebar_categories:
+    cols = st.columns(min(len(selected_sidebar_categories), 4))
+    for idx, cat_name in enumerate(selected_sidebar_categories):
+        if cat_name in active_display_categories:
+            cat_info = active_display_categories[cat_name]
+            col = cols[idx % len(cols)]
+            with col:
+                with st.container(border=True):
+                    cat_key = f"chk_cat_{cat_name}"
+                    c_title, c_check = st.columns([3.2, 0.8])
+                    with c_title:
+                        st.markdown(f'<div style="font-size: 13px; font-weight: 700; color: #F0F6FC;">{cat_name}</div>', unsafe_allow_html=True)
+                    with c_check:
+                        cat_enabled = st.checkbox("", value=st.session_state.get(cat_key, True), key=cat_key, label_visibility="collapsed")
+                    
+                    if cat_enabled:
+                        selected_categories.append(cat_name)
+                    
+                    st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
+                    for disp_name, ticker, currency in cat_info["assets"]:
+                        q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
+                        asset_key = f"chk_asset_{cat_name}_{ticker}"
+                        color_style = "color: #3FB950;" if q["change"] >= 0 else "color: #F85149;"
+                        
+                        cA, cB = st.columns([3.2, 0.8])
+                        with cA:
+                            st.markdown(f'<div style="font-size: 12px;"><span style="color: #8B949E;">{disp_name}:</span> <b style="color: #F0F6FC;">{currency} {fmt_num(q["price"])}</b> <span style="{color_style}">({fmt_pct(q["change"])})</span></div>', unsafe_allow_html=True)
+                        with cB:
+                            st.checkbox("", value=st.session_state.get(asset_key, True), key=asset_key, disabled=not cat_enabled, label_visibility="collapsed")
+
+st.markdown("---")
+
+# -----------------------------------------------------------------------------
+# 7. CORPO PRINCIPAL: RELATÓRIO E MÉTRICAS BENCHMARK
+# -----------------------------------------------------------------------------
 col_left, col_right = st.columns([1.3, 1])
 
 with col_left:
     st.markdown('<div class="col-header-sync">', unsafe_allow_html=True)
-    st.subheader(f"📋 Entrega Padrão — {formato}")
-    st.caption("Relatório analítico gerado com dados consolidados em tempo real:")
+    st.subheader(f"📄 Entrega Padrão — {formato}")
+    st.caption("Relatório analítico gerado com base nos filtros ativos:")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Geração Dinâmica e Completa do Conteúdo do Relatório / Roteiro
     if "B2B" in formato:
         report_lines = [
             f"=== RELATÓRIO INSTITUCIONAL {modulo.upper()} (B2B) ===",
@@ -429,6 +462,9 @@ with col_left:
                 cat_info = active_display_categories[cat_name]
                 report_lines.append(f"\n[{cat_name.upper()}] (Tag: {cat_info['tag']})")
                 for disp_name, ticker, currency in cat_info["assets"]:
+                    asset_key = f"chk_asset_{cat_name}_{ticker}"
+                    if not st.session_state.get(asset_key, True):
+                        continue
                     q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                     report_lines.append(f"  • {disp_name} ({ticker}): {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
         
@@ -438,14 +474,12 @@ with col_left:
             f"Tendência estrutural alinhada ao horizonte de {horizonte_pred}. Monitoramento ativo de zonas de liquidez e alavancagem em derivativos para proteção de posições."
         ])
         output_content = "\n".join(report_lines)
-        # Altura ajustada para 410px com label_visibility="collapsed" para alinhamento milimétrico
         st.text_area("", value=output_content, height=410, label_visibility="collapsed")
         
-        # Botões de Exportação Múltipla (TXT, JSON, PDF)
         st.markdown("**Opções de Exportação do Relatório:**")
         col_b1, col_b2, col_b3 = st.columns(3)
         with col_b1:
-            st.download_button("💾 Baixar (TXT)", data=output_content, file_name=f"OMNI_Relatorio_{modulo}.txt", mime="text/plain", use_container_width=True)
+            st.download_button("📥 Baixar (TXT)", data=output_content, file_name=f"OMNI_Relatorio_{modulo}.txt", mime="text/plain", use_container_width=True)
         with col_b2:
             json_data = json.dumps({
                 "module": modulo,
@@ -456,9 +490,17 @@ with col_left:
                 "target_pct": alvo_pct,
                 "stop_pct": stop_pct,
                 "sentiment": f"{fng_val} ({fng_class})",
-                "categories": {cat_name: {disp_name: quotes.get(ticker, {"price": 0.0, "change": 0.0})["price"] for disp_name, ticker, currency in active_display_categories[cat_name]["assets"]} for cat_name in selected_categories if cat_name in active_display_categories}
+                "categories": {
+                    cat_name: {
+                        disp_name: quotes.get(ticker, {"price": 0.0, "change": 0.0})["price"] 
+                        for disp_name, ticker, currency in active_display_categories[cat_name]["assets"]
+                        if st.session_state.get(f"chk_asset_{cat_name}_{ticker}", True)
+                    } 
+                    for cat_name in selected_categories 
+                    if cat_name in active_display_categories and st.session_state.get(f"chk_cat_{cat_name}", True)
+                }
             }, indent=4, ensure_ascii=False)
-            st.download_button("📂 Baixar (JSON)", data=json_data, file_name=f"OMNI_Relatorio_{modulo}.json", mime="application/json", use_container_width=True)
+            st.download_button("📥 Baixar (JSON)", data=json_data, file_name=f"OMNI_Relatorio_{modulo}.json", mime="application/json", use_container_width=True)
         with col_b3:
             pdf_bytes = generate_pdf_report(output_content, company_name, now_str)
             st.download_button("📥 Baixar (PDF)", data=pdf_bytes, file_name=f"OMNI_Relatorio_{modulo}.pdf", mime="application/pdf", use_container_width=True)
@@ -477,7 +519,12 @@ with col_left:
             if cat_name in active_display_categories:
                 cat_info = active_display_categories[cat_name]
                 script_lines.append(f"Destaques em {cat_name}:")
-                for disp_name, ticker, currency in cat_info["assets"][:2]:
+                active_assets = [
+                    (disp_name, ticker, currency) 
+                    for disp_name, ticker, currency in cat_info["assets"] 
+                    if st.session_state.get(f"chk_asset_{cat_name}_{ticker}", True)
+                ][:2]
+                for disp_name, ticker, currency in active_assets:
                     q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                     script_lines.append(f" - {disp_name} negociado a {currency} {fmt_num(q['price'])}, registrando {fmt_pct(q['change'])} hoje.")
         script_lines.extend([
@@ -486,16 +533,15 @@ with col_left:
             "Deixe o seu like, se inscreva no canal e ative as notificações. Bons trades e até a próxima!"
         ])
         script_text = "\n".join(script_lines)
-        # Altura ajustada para 410px com label_visibility="collapsed" também no modo B2C
         st.text_area("", value=script_text, height=410, label_visibility="collapsed")
         
         st.markdown("**Opções de Exportação do Roteiro:**")
         col_b1, col_b2, col_b3 = st.columns(3)
         with col_b1:
-            st.download_button("💾 Baixar (TXT)", data=script_text, file_name=f"OMNI_Roteiro_{modulo}.txt", mime="text/plain", use_container_width=True)
+            st.download_button("📥 Baixar (TXT)", data=script_text, file_name=f"OMNI_Roteiro_{modulo}.txt", mime="text/plain", use_container_width=True)
         with col_b2:
             json_data = json.dumps({"module": modulo, "timestamp": now_str, "script": script_text}, indent=4, ensure_ascii=False)
-            st.download_button("📂 Baixar (JSON)", data=json_data, file_name=f"OMNI_Roteiro_{modulo}.json", mime="application/json", use_container_width=True)
+            st.download_button("📥 Baixar (JSON)", data=json_data, file_name=f"OMNI_Roteiro_{modulo}.json", mime="application/json", use_container_width=True)
         with col_b3:
             pdf_bytes = generate_pdf_report(script_text, company_name, now_str)
             st.download_button("📥 Baixar (PDF)", data=pdf_bytes, file_name=f"OMNI_Roteiro_{modulo}.pdf", mime="application/pdf", use_container_width=True)
@@ -539,120 +585,6 @@ with col_right:
             change_cls = "metric-change-pos" if data["change"] >= 0 else "metric-change-neg"
 
         st.markdown(f'<div class="metric-card"><div class="metric-title">{label}</div><div class="metric-value">{val_str}</div><div class="{change_cls}">{chg_str}</div></div>', unsafe_allow_html=True)
-
-# -----------------------------------------------------------------------------
-# 6. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA)
-# -----------------------------------------------------------------------------
-st.subheader(f"🗂️ Painel de Análise Integrada das Categorias ({modulo})")
-if selected_categories:
-    cols = st.columns(min(len(selected_categories), 4))
-    for idx, cat_name in enumerate(selected_categories):
-        if cat_name in active_display_categories:
-            cat_info = active_display_categories[cat_name]
-            col = cols[idx % len(cols)]
-            with col:
-                with st.container(border=True):
-                    cat_key = f"chk_cat_{cat_name}"
-                    c_title, c_check = st.columns([3.2, 0.8])
-                    with c_title:
-                        st.markdown(f'<div style="font-size: 13px; font-weight: 700; color: #F0F6FC;">{cat_name}</div>', unsafe_allow_html=True)
-                    with c_check:
-                        cat_enabled = st.checkbox("", value=st.session_state.get(cat_key, True), key=cat_key, label_visibility="collapsed")
-                    
-                    st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
-                    for disp_name, ticker, currency in cat_info["assets"]:
-                        q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
-                        asset_key = f"chk_asset_{cat_name}_{ticker}"
-                        color_style = "color: #3FB950;" if q["change"] >= 0 else "color: #F85149;"
-                        
-                        cA, cB = st.columns([3.2, 0.8])
-                        with cA:
-                            st.markdown(f'<div style="font-size: 12px;"><span style="color: #8B949E;">{disp_name}:</span> <b style="color: #F0F6FC;">{currency} {fmt_num(q["price"])}</b> <span style="{color_style}">({fmt_pct(q["change"])})</span></div>', unsafe_allow_html=True)
-                        with cB:
-                            st.checkbox("", value=st.session_state.get(asset_key, True), key=asset_key, disabled=not cat_enabled, label_visibility="collapsed")
-
-st.markdown("---")
-
-# -----------------------------------------------------------------------------
-# 7. NOVO MÓDULO: MAPA TÉRMICO DE LIQUIDAÇÕES & CLUSTERS DE ALAVANCAGEM
-# -----------------------------------------------------------------------------
-st.subheader("🔥 Mapa Térmico de Liquidações & Clusters de Alavancagem")
-st.caption("Perfil estrutural de liquidez e piscinas de alavancagem passiva em derivativos:")
-
-if PLOTLY_AVAILABLE:
-    oi_asset_name = "BTCUSDT Liquidation Heatmap & Leverage Pools" if modulo == "Crypto" else "S&P 500 Liquidity Profile (ES=F)"
-    oi_ticker = "BTC-USD" if modulo == "Crypto" else "ES=F"
-    base_price = quotes.get(oi_ticker, {"price": 77000.0 if modulo == "Crypto" else 5800.0}).get("price", 77000.0)
-    
-    if modulo == "Crypto":
-        min_p, max_p = 60000.0, 84000.0
-        step = 500.0
-    else:
-        min_p, max_p = base_price * 0.85, base_price * 1.15
-        step = base_price * 0.01
-
-    prices = []
-    liq_volumes = []
-    
-    curr = min_p
-    while curr <= max_p:
-        prices.append(curr)
-        dist_from_spot = curr - base_price
-        
-        if modulo == "Crypto":
-            if 60500 <= curr <= 66000:
-                base_vol = 180 + (66000 - curr) * 0.08
-            elif 70000 <= curr <= 71500:
-                base_vol = 140
-            elif curr > base_price:
-                base_vol = 30 + abs(curr - base_price) * 0.03
-            else:
-                base_vol = 45 + abs(dist_from_spot) * 0.01
-        else:
-            base_vol = 50 + abs(dist_from_spot) * 0.05
-            
-        liq_volumes.append(base_vol)
-        curr += step
-
-    fig_oi = go.Figure()
-
-    fig_oi.add_trace(go.Bar(
-        y=prices,
-        x=liq_volumes,
-        orientation='h',
-        marker=dict(
-            color=liq_volumes,
-            colorscale='Turbo',
-            showscale=True,
-            colorbar=dict(title="Volume Liq. ($M)", len=0.8, thickness=12, tickfont=dict(color="#C9D1D9"))
-        ),
-        text=[f"Preço: {fmt_num(p)} | Risco: {v:.0f}M" for p, v in zip(prices, liq_volumes)],
-        hoverinfo='text',
-        name="Clusters de Liquidez"
-    ))
-
-    fig_oi.add_hline(
-        y=base_price, 
-        line_dash="dash", 
-        line_color="#58A6FF", 
-        annotation_text=f"Spot Atual: {fmt_num(base_price)}",
-        annotation_position="bottom right",
-        annotation_font_color="#58A6FF"
-    )
-
-    fig_oi.update_layout(
-        title=f"Mapa de Densidade de Liquidez & Zonas de Alavancagem — {oi_asset_name}",
-        paper_bgcolor="#0B0E14", 
-        plot_bgcolor="#161B22", 
-        font=dict(color="#C9D1D9", size=12),
-        margin=dict(l=20, r=20, t=40, b=20), 
-        height=500,
-        yaxis=dict(gridcolor="#30363D", title="Níveis de Preço (USD)"),
-        xaxis=dict(gridcolor="#30363D", title="Intensidade de Alavancagem / Volume Acumulado ($M)")
-    )
-    st.plotly_chart(fig_oi, use_container_width=True)
-else:
-    st.warning("⚠️ O módulo Plotly não está disponível no momento. Certifique-se de incluir 'plotly' no arquivo `requirements.txt`.")
 
 st.markdown("---")
 st.caption("⚡©️ Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
