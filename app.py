@@ -376,7 +376,7 @@ if selected_categories:
 
 st.markdown("---")
 # -----------------------------------------------------------------------------
-# 5. MAPA TÉRMICO DE LIQUIDAÇÕES & CLUSTERS DE ALAVANCAGEM (DINÂMICO COM PERFIL ORIGINAL)
+# 5. NOVO MÓDULO: MAPA TÉRMICO DE LIQUIDAÇÕES & CLUSTERS DE ALAVANCAGEM
 # -----------------------------------------------------------------------------
 st.subheader("🔥 Mapa Térmico de Liquidações & Clusters de Alavancagem")
 st.caption("Perfil estrutural de liquidez e piscinas de alavancagem passiva em derivativos:")
@@ -384,42 +384,40 @@ st.caption("Perfil estrutural de liquidez e piscinas de alavancagem passiva em d
 if PLOTLY_AVAILABLE:
     oi_asset_name = "BTCUSDT Liquidation Heatmap & Leverage Pools" if modulo == "Crypto" else "S&P 500 Liquidity Profile (ES=F)"
     oi_ticker = "BTC-USD" if modulo == "Crypto" else "ES=F"
-    
-    # Captura o preço real-time
     base_price = quotes.get(oi_ticker, {"price": 77000.0 if modulo == "Crypto" else 5800.0}).get("price", 77000.0)
     if base_price == 0.0:
         base_price = 77000.0 if modulo == "Crypto" else 5800.0
-
-    # Lógica dinâmica mantendo a exata proporção da versão original (faixa de ~60k a ~84k quando o preço está em 77k)
-    if modulo == "Crypto":
-        min_p = base_price * 0.779  # Proporção exata da base inferior
-        max_p = base_price * 1.091  # Proporção exata da base superior
-        num_bins = 24
-        step = (max_p - min_p) / num_bins
-    else:
-        min_p = base_price * 0.85
-        max_p = base_price * 1.15
-        num_bins = 25
-        step = (max_p - min_p) / num_bins
+    
+    # Faixa dinâmica ampla: chão fixo em 0 e teto em 200% do preço spot atual (ex: ~154k para o BTC)
+    min_p = 0.0
+    max_p = base_price * 2.0
+    num_bins = 35
+    step = max_p / num_bins if num_bins > 0 else 2000.0
 
     prices = []
     liq_volumes = []
     
-    curr = min_p
+    curr = step
     while curr <= max_p:
         prices.append(curr)
         
-        # Mantém a exata distribuição de volume da versão original (pico massivo nos shorts embaixo e decaimento gradual)
         if modulo == "Crypto":
-            diff_from_min = curr - min_p
             if curr <= base_price:
-                base_vol = max(20.0, 600.0 - (diff_from_min * 2.2))
+                # Concentração massiva de clusters/shorts abaixo do preço atual, crescendo em direção ao chão (0)
+                depth_ratio = (base_price - curr) / base_price
+                base_vol = 50.0 + (depth_ratio * 550.0)
             else:
-                base_vol = max(15.0, 120.0 - ((curr - base_price) * 0.5))
+                # Acima do preço atual, distribui os níveis de OI proporcionalmente até o teto de 2x
+                height_ratio = (curr - base_price) / base_price
+                base_vol = max(20.0, 120.0 - (height_ratio * 60.0))
         else:
-            diff_from_min = curr - min_p
-            base_vol = max(20.0, 250.0 - (diff_from_min * 1.5))
-            
+            if curr <= base_price:
+                depth_ratio = (base_price - curr) / base_price
+                base_vol = 30.0 + (depth_ratio * 220.0)
+            else:
+                height_ratio = (curr - base_price) / base_price
+                base_vol = max(15.0, 70.0 - (height_ratio * 30.0))
+                
         liq_volumes.append(base_vol)
         curr += step
 
@@ -435,7 +433,7 @@ if PLOTLY_AVAILABLE:
             showscale=True,
             colorbar=dict(title="Volume Liq. ($M)", len=0.8, thickness=12, tickfont=dict(color="#C9D1D9"))
         ),
-        text=[f"Preço: {fmt_num(p)} | Volume: {v:.0f}M" for p, v in zip(prices, liq_volumes)],
+        text=[f"Preço: {fmt_num(p)} | Risco: {v:.0f}M" for p, v in zip(prices, liq_volumes)],
         hoverinfo='text',
         name="Clusters de Liquidez"
     ))
@@ -461,7 +459,7 @@ if PLOTLY_AVAILABLE:
     )
     st.plotly_chart(fig_oi, use_container_width=True)
 else:
-    st.warning("⚠️ O módulo Plotly não está disponível no momento.")
+    st.warning("⚠️ O módulo Plotly não está disponível no momento. Certifique-se de incluir 'plotly' no arquivo `requirements.txt`.")
 
 st.markdown("---")
 st.caption("⚡©️ Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
