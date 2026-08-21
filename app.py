@@ -71,7 +71,6 @@ st.markdown("""<style>
     .pred-value { font-size: 15px; font-weight: 700; color: #F0F6FC; }
     .pred-sub { font-size: 11px; font-weight: 600; }
 
-    /* Ajuste milimétrico para alinhar o relatório */
     .stTextArea {
         margin-top: -5px !important;
     }
@@ -337,8 +336,8 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
 # -----------------------------------------------------------------------------
 # 4. SIDEBAR: CONFIGURAÇÕES
 # -----------------------------------------------------------------------------
-st.sidebar.title("?? Configurações OMNI")
-modulo = st.sidebar.radio("?? Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
+st.sidebar.title("⚙️ Configurações OMNI")
+modulo = st.sidebar.radio("🌐 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
 brapi_token = st.sidebar.text_input("BRAPI API Token:", value="", type="password")
 tier_selected = st.sidebar.radio("Plano Ativo:", ["Free (Lead Magnet)", "Standard (B2C Trader)", "Premium (B2B White-Label)"], index=1)
 
@@ -359,7 +358,7 @@ if allow_customization:
 horizonte_pred = st.sidebar.selectbox("Horizonte Temporário:", ["24 Horas", "48 Horas", "7 Dias"], index=1)
 alvo_pct = st.sidebar.slider("Projeção de Resposta (%)", 0.5, 15.0, 3.0, 0.5)
 stop_pct = st.sidebar.slider("Zona de Suporte / Defesa (%)", 0.5, 15.0, 3.0, 0.5)
-formato = st.sidebar.radio(f"?? Formato ({modulo}):", ["B2B (Relatório)", "B2C (YouTube Auto-Pilot)"], index=0)
+formato = st.sidebar.radio(f"📋 Formato ({modulo}):", ["B2B (Relatório)", "B2C (YouTube Auto-Pilot)"], index=0)
 
 company_name = "OMNIRESEARCH Engine"
 cnpi_code = "CNPI-T 0000"
@@ -390,18 +389,18 @@ if custom_tickers:
 # 5. CORPO PRINCIPAL & LAYOUT DE DUAS COLUNAS
 # -----------------------------------------------------------------------------
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
-    st.title(f"?? {company_name} — Terminal Quant")
+    st.title(f"🏢 {company_name} — Terminal Quant")
     st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
 else:
-    st.title("? OMNIRESEARCH Engine")
+    st.title("🚀 OMNIRESEARCH Engine")
     st.caption("Plataforma Integrada de Inteligência Financeira")
 
 now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 col_status, col_btn_refresh = st.columns([3.5, 1])
 with col_status:
-    st.markdown(f'<div class="status-bar">?? <b>Dados consolidados às {now_str}</b> | Status API: <span style="color: #3FB950;">?? Online</span> | <b>Módulo:</b> {modulo}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="status-bar">🕒 <b>Dados consolidados às {now_str}</b> | Status API: <span style="color: #3FB950;">🟢 Online</span> | <b>Módulo:</b> {modulo}</div>', unsafe_allow_html=True)
 with col_btn_refresh:
-    if st.button("?? Atualizar Cotações"):
+    if st.button("🔄 Atualizar Cotações"):
         st.cache_data.clear()
         st.rerun()
 
@@ -409,11 +408,10 @@ col_left, col_right = st.columns([1.3, 1])
 
 with col_left:
     st.markdown('<div class="col-header-sync">', unsafe_allow_html=True)
-    st.subheader(f"?? Entrega Padrão — {formato}")
+    st.subheader(f"📄 Entrega Padrão — {formato}")
     st.caption("Relatório analítico gerado com dados consolidados em tempo real:")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Geração Dinâmica filtrando categorias e ativos ativos via st.session_state
     if "B2B" in formato:
         report_lines = [
             f"=== RELATÓRIO INSTITUCIONAL {modulo.upper()} (B2B) ===",
@@ -427,7 +425,6 @@ with col_left:
         for cat_name in selected_categories:
             if cat_name in active_display_categories:
                 cat_key = f"chk_cat_{cat_name}"
-                # Respeita o estado do checkbox do card (padrão True)
                 if not st.session_state.get(cat_key, True):
                     continue
                 
@@ -435,7 +432,6 @@ with col_left:
                 report_lines.append(f"\n[{cat_name.upper()}] (Tag: {cat_info['tag']})")
                 for disp_name, ticker, currency in cat_info["assets"]:
                     asset_key = f"chk_asset_{cat_name}_{ticker}"
-                    # Respeita o estado do checkbox do ativo individual (padrão True)
                     if not st.session_state.get(asset_key, True):
                         continue
                     q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
@@ -449,11 +445,10 @@ with col_left:
         output_content = "\n".join(report_lines)
         st.text_area("", value=output_content, height=410, label_visibility="collapsed")
         
-        # Botões de Exportação Múltipla (TXT, JSON, PDF)
         st.markdown("**Opções de Exportação do Relatório:**")
         col_b1, col_b2, col_b3 = st.columns(3)
         with col_b1:
-            st.download_button("?? Baixar (TXT)", data=output_content, file_name=f"OMNI_Relatorio_{modulo}.txt", mime="text/plain", use_container_width=True)
+            st.download_button("📥 Baixar (TXT)", data=output_content, file_name=f"OMNI_Relatorio_{modulo}.txt", mime="text/plain", use_container_width=True)
         with col_b2:
             json_data = json.dumps({
                 "module": modulo,
@@ -474,10 +469,10 @@ with col_left:
                     if cat_name in active_display_categories and st.session_state.get(f"chk_cat_{cat_name}", True)
                 }
             }, indent=4, ensure_ascii=False)
-            st.download_button("?? Baixar (JSON)", data=json_data, file_name=f"OMNI_Relatorio_{modulo}.json", mime="application/json", use_container_width=True)
+            st.download_button("📥 Baixar (JSON)", data=json_data, file_name=f"OMNI_Relatorio_{modulo}.json", mime="application/json", use_container_width=True)
         with col_b3:
             pdf_bytes = generate_pdf_report(output_content, company_name, now_str)
-            st.download_button("?? Baixar (PDF)", data=pdf_bytes, file_name=f"OMNI_Relatorio_{modulo}.pdf", mime="application/pdf", use_container_width=True)
+            st.download_button("📥 Baixar (PDF)", data=pdf_bytes, file_name=f"OMNI_Relatorio_{modulo}.pdf", mime="application/pdf", use_container_width=True)
     else:
         script_lines = [
             f"=== ROTEIRO YOUTUBE AUTO-PILOT ({modulo.upper()}) ===",
@@ -514,17 +509,17 @@ with col_left:
         st.markdown("**Opções de Exportação do Roteiro:**")
         col_b1, col_b2, col_b3 = st.columns(3)
         with col_b1:
-            st.download_button("?? Baixar (TXT)", data=script_text, file_name=f"OMNI_Roteiro_{modulo}.txt", mime="text/plain", use_container_width=True)
+            st.download_button("📥 Baixar (TXT)", data=script_text, file_name=f"OMNI_Roteiro_{modulo}.txt", mime="text/plain", use_container_width=True)
         with col_b2:
             json_data = json.dumps({"module": modulo, "timestamp": now_str, "script": script_text}, indent=4, ensure_ascii=False)
-            st.download_button("?? Baixar (JSON)", data=json_data, file_name=f"OMNI_Roteiro_{modulo}.json", mime="application/json", use_container_width=True)
+            st.download_button("📥 Baixar (JSON)", data=json_data, file_name=f"OMNI_Roteiro_{modulo}.json", mime="application/json", use_container_width=True)
         with col_b3:
             pdf_bytes = generate_pdf_report(script_text, company_name, now_str)
-            st.download_button("?? Baixar (PDF)", data=pdf_bytes, file_name=f"OMNI_Roteiro_{modulo}.pdf", mime="application/pdf", use_container_width=True)
+            st.download_button("📥 Baixar (PDF)", data=pdf_bytes, file_name=f"OMNI_Roteiro_{modulo}.pdf", mime="application/pdf", use_container_width=True)
 
 with col_right:
     st.markdown('<div class="col-header-sync">', unsafe_allow_html=True)
-    st.subheader(f"?? Métricas Agregadas ({modulo})")
+    st.subheader(f"📊 Métricas Agregadas ({modulo})")
     st.caption(f"Atualizado às {datetime.now().strftime('%H:%M:%S BRT')}")
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -546,7 +541,7 @@ with col_right:
         st.markdown(f'<div class="metric-card"><div class="metric-title">{label}</div><div class="metric-value">{val_str}</div><div class="{change_cls}">{chg_str}</div></div>', unsafe_allow_html=True)
 
 st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-st.markdown("### ?? Alvos Preditivos & Zonas Operacionais")
+st.markdown("### 🎯 Alvos Preditivos & Zonas Operacionais")
 c1, c2, c3, c4, c5, c6 = st.columns(6)
 main_q = quotes.get("BTC-USD" if modulo == "Crypto" else "^GSPC", {"price": 100.0, "change": 0.0})
 with c1:
@@ -565,7 +560,7 @@ with c6:
 # -----------------------------------------------------------------------------
 # 6. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA)
 # -----------------------------------------------------------------------------
-st.subheader(f"?? Painel de Análise Integrada das Categorias ({modulo})")
+st.subheader(f"📈 Painel de Análise Integrada das Categorias ({modulo})")
 if selected_categories:
     cols = st.columns(min(len(selected_categories), 4))
     for idx, cat_name in enumerate(selected_categories):
@@ -598,7 +593,7 @@ st.markdown("---")
 # -----------------------------------------------------------------------------
 # 7. NOVO MÓDULO: MAPA TÉRMICO DE LIQUIDAÇÕES & CLUSTERS DE ALAVANCAGEM
 # -----------------------------------------------------------------------------
-st.subheader("?? Mapa Térmico de Liquidações & Clusters de Alavancagem")
+st.subheader("🔥 Mapa Térmico de Liquidações & Clusters de Alavancagem")
 st.caption("Perfil estrutural de liquidez e piscinas de alavancagem passiva em derivativos:")
 
 if PLOTLY_AVAILABLE:
@@ -674,7 +669,7 @@ if PLOTLY_AVAILABLE:
     )
     st.plotly_chart(fig_oi, use_container_width=True)
 else:
-    st.warning("?? O módulo Plotly não está disponível no momento. Certifique-se de incluir 'plotly' no arquivo `requirements.txt`.")
+    st.warning("⚠️ O módulo Plotly não está disponível no momento. Certifique-se de incluir 'plotly' no arquivo `requirements.txt`.")
 
 st.markdown("---")
-st.caption("⚡© Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
+st.caption("⚡©️ Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
