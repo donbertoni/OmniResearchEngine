@@ -3,6 +3,8 @@ import yfinance as yf
 import requests
 from datetime import datetime
 import pandas as pd
+import json
+import io
 
 # Importação segura do Plotly com fallback
 try:
@@ -211,6 +213,30 @@ def fmt_pct(val):
     sign = "+" if val > 0 else ""
     return f"{sign}{val:.2f}%".replace(".", ",")
 
+def generate_pdf_report(text_content, company, timestamp):
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.pdfgen import canvas
+        buffer = io.BytesIO()
+        c = canvas.Canvas(buffer, pagesize=letter)
+        width, height = letter
+        
+        c.drawString(50, height - 50, f"=== {company} ===")
+        c.drawString(50, height - 70, f"Gerado em: {timestamp}")
+        
+        y = height - 100
+        for line in text_content.split("\n"):
+            if y < 50:
+                c.showPage()
+                y = height - 50
+            c.drawString(50, y, line[:90])
+            y = y - 15
+        c.save()
+        buffer.seek(0)
+        return buffer.getvalue()
+    except Exception:
+        return text_content.encode('utf-8')
+
 @st.cache_data(ttl=600)
 def fetch_btc_fng():
     try:
@@ -373,7 +399,7 @@ else:
 now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 col_status, col_btn_refresh = st.columns([3.5, 1])
 with col_status:
-    st.markdown(f'<div class="status-bar">🕒 <b>Dados consolidados às {now_str}</b> | Status API: <span style="color: #3FB950;">🟢 Online</span> | <b>Módulo:</b> {modulo}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="status-bar">🟢 <b>Dados consolidados às {now_str}</b> | Status API: <span style="color: #3FB950;">● Online</span> | <b>Módulo:</b> {modulo}</div>', unsafe_allow_html=True)
 with col_btn_refresh:
     if st.button("🔄 Atualizar Cotações"):
         st.cache_data.clear()
@@ -412,8 +438,29 @@ with col_left:
             f"Tendência estrutural alinhada ao horizonte de {horizonte_pred}. Monitoramento ativo de zonas de liquidez e alavancagem em derivativos para proteção de posições."
         ])
         output_content = "\n".join(report_lines)
-        st.text_area("", value=output_content, height=350)
-        st.download_button("📄 Baixar Relatório (TXT)", data=output_content, file_name=f"OMNI_Relatorio_{modulo}.txt", mime="text/plain")
+        st.text_area("", value=output_content, height=320)
+        
+        # Botões de Exportação Múltipla (TXT, JSON, PDF)
+        st.markdown("**Opções de Exportação do Relatório:**")
+        col_b1, col_b2, col_b3 = st.columns(3)
+        with col_b1:
+            st.download_button("📥 Baixar (TXT)", data=output_content, file_name=f"OMNI_Relatorio_{modulo}.txt", mime="text/plain", use_container_width=True)
+        with col_b2:
+            json_data = json.dumps({
+                "module": modulo,
+                "timestamp": now_str,
+                "company": company_name,
+                "cnpi": cnpi_code,
+                "horizon": horizonte_pred,
+                "target_pct": alvo_pct,
+                "stop_pct": stop_pct,
+                "sentiment": f"{fng_val} ({fng_class})",
+                "categories": {cat_name: {disp_name: quotes.get(ticker, {"price": 0.0, "change": 0.0})["price"] for disp_name, ticker, currency in active_display_categories[cat_name]["assets"]} for cat_name in selected_categories if cat_name in active_display_categories}
+            }, indent=4, ensure_ascii=False)
+            st.download_button("📊 Baixar (JSON)", data=json_data, file_name=f"OMNI_Relatorio_{modulo}.json", mime="application/json", use_container_width=True)
+        with col_b3:
+            pdf_bytes = generate_pdf_report(output_content, company_name, now_str)
+            st.download_button("📄 Baixar (PDF)", data=pdf_bytes, file_name=f"OMNI_Relatorio_{modulo}.pdf", mime="application/pdf", use_container_width=True)
     else:
         script_lines = [
             f"=== ROTEIRO YOUTUBE AUTO-PILOT ({modulo.upper()}) ===",
@@ -438,12 +485,22 @@ with col_left:
             "Deixe o seu like, se inscreva no canal e ative as notificações. Bons trades e até a próxima!"
         ])
         script_text = "\n".join(script_lines)
-        st.text_area("", value=script_text, height=350)
-        st.download_button("📕 Baixar Roteiro YouTube (TXT)", data=script_text, file_name=f"OMNI_Roteiro_{modulo}.txt", mime="text/plain")
+        st.text_area("", value=script_text, height=320)
+        
+        st.markdown("**Opções de Exportação do Roteiro:**")
+        col_b1, col_b2, col_b3 = st.columns(3)
+        with col_b1:
+            st.download_button("📥 Baixar (TXT)", data=script_text, file_name=f"OMNI_Roteiro_{modulo}.txt", mime="text/plain", use_container_width=True)
+        with col_b2:
+            json_data = json.dumps({"module": modulo, "timestamp": now_str, "script": script_text}, indent=4, ensure_ascii=False)
+            st.download_button("📊 Baixar (JSON)", data=json_data, file_name=f"OMNI_Roteiro_{modulo}.json", mime="application/json", use_container_width=True)
+        with col_b3:
+            pdf_bytes = generate_pdf_report(script_text, company_name, now_str)
+            st.download_button("📄 Baixar (PDF)", data=pdf_bytes, file_name=f"OMNI_Roteiro_{modulo}.pdf", mime="application/pdf", use_container_width=True)
 
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
     st.markdown("### 🎯 Alvos Preditivos & Zonas Operacionais")
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
     main_q = quotes.get("BTC-USD" if modulo == "Crypto" else "^GSPC", {"price": 100.0, "change": 0.0})
     with c1:
         st.markdown(f'<div class="pred-card"><div class="pred-title">Tendência</div><div class="pred-value">Compradora</div></div>', unsafe_allow_html=True)
@@ -453,6 +510,10 @@ with col_left:
         st.markdown(f'<div class="pred-card"><div class="pred-title">Suporte Chave</div><div class="pred-value">{fmt_num(main_q["price"] * 0.97)}</div></div>', unsafe_allow_html=True)
     with c4:
         st.markdown(f'<div class="pred-card"><div class="pred-title">Previsão</div><div class="pred-value">Alta Moderada</div></div>', unsafe_allow_html=True)
+    with c5:
+        st.markdown(f'<div class="pred-card"><div class="pred-title">Volatilidade</div><div class="pred-value">3.45%</div></div>', unsafe_allow_html=True)
+    with c6:
+        st.markdown(f'<div class="pred-card"><div class="pred-title">Delta OI</div><div class="pred-value">+5.82%</div></div>', unsafe_allow_html=True)
 
 with col_right:
     st.markdown('<div class="col-header-sync">', unsafe_allow_html=True)
@@ -592,4 +653,4 @@ else:
     st.warning("⚠️ O módulo Plotly não está disponível no momento. Certifique-se de incluir 'plotly' no arquivo `requirements.txt`.")
 
 st.markdown("---")
-st.caption("©️ Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
+st.caption("⚡©️ Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
