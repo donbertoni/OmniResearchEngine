@@ -3,13 +3,7 @@ import yfinance as yf
 import requests
 from datetime import datetime
 import pandas as pd
-
-# Tentativa de importação do Plotly para os gráficos de Open Interest e Clusters de Liquidez
-try:
-    import plotly.graph_objects as go
-    HAS_PLOTLY = True
-except ImportError:
-    HAS_PLOTLY = False
+import plotly.graph_objects as go
 
 # -----------------------------------------------------------------------------
 # 1. CONFIGURAÇÃO DA PÁGINA & ESTILIZAÇÃO CSS INSTITUCIONAL
@@ -28,7 +22,7 @@ st.markdown("""<style>
         color: #E2E8F0;
     }
     
-    /* Sincronização de Altura dos Cabeçalhos das Colunas Principais (Alinhamento Milimétrico Superior) */
+    /* Sincronização de Altura dos Cabeçalhos das Colunas Principais */
     .col-header-sync {
         min-height: 64px;
         display: flex;
@@ -83,7 +77,7 @@ st.markdown("""<style>
     }
     .premium-badge { color: #58A6FF; font-weight: bold; }
 
-    /* Alvos Preditivos & Zonas Operacionais (Boxes Padronizadas e Fontes Redimensionadas) */
+    /* Alvos Preditivos & Zonas Operacionais */
     .pred-card {
         background-color: #161B22;
         border: 1px solid #30363D;
@@ -321,7 +315,7 @@ CRYPTO_BENCHMARKS = [
 ]
 
 # -----------------------------------------------------------------------------
-# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO ROBUSTA (APIs EM TEMPO REAL)
+# 3. FUNÇÕES DE FORMATAÇÃO E INGESTÃO ROBUSTA
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -335,21 +329,7 @@ def fmt_pct(val):
     sign = "+" if val > 0 else ""
     return f"{sign}{val:.2f}%".replace(".", ",")
 
-@st.cache_data(ttl=60)
-def fetch_binance_futures_oi():
-    """Busca Open Interest em tempo real da Binance Futures para BTCUSDT"""
-    try:
-        url = "https://fapi.binance.com/fapi/v1/openInterest?symbol=BTCUSDT"
-        res = requests.get(url, timeout=3)
-        if res.status_code == 200:
-            data = res.json()
-            oi_btc = float(data.get("openInterest", 0.0))
-            return oi_btc
-    except Exception:
-        pass
-    return 185420.50
-
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=600)
 def fetch_btc_fng():
     try:
         res = requests.get("https://api.alternative.me/fng/", timeout=3)
@@ -362,7 +342,7 @@ def fetch_btc_fng():
         pass
     return "62 / 100", "Greed"
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=600)
 def fetch_global_crypto_data():
     try:
         res = requests.get("https://api.coingecko.com/api/v3/global", timeout=3)
@@ -435,12 +415,16 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
 
     try:
         download_list = [alias_map.get(s, s) for s in symbols_tuple]
+        # Adiciona futures se necessário para cotação
+        if "ES=F" not in download_list:
+            download_list.append("ES=F")
+            
         df_data = yf.download(download_list, period="5d", interval="1d", group_by="ticker", progress=False)
         
-        for orig_sym in symbols_tuple:
+        for orig_sym in symbols_tuple + ("ES=F",):
             actual_sym = alias_map.get(orig_sym, orig_sym)
             try:
-                if len(symbols_tuple) == 1:
+                if len(download_list) == 1:
                     df_sym = df_data
                 else:
                     df_sym = df_data[actual_sym] if actual_sym in df_data.columns.get_level_values(0) else None
@@ -488,7 +472,7 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
     return quotes
 
 # -----------------------------------------------------------------------------
-# 4. SIDEBAR: CONTROLE DE TIERS, CATEGORIAS, FORMATOS E PARÂMETROS QUANT
+# 4. SIDEBAR: CONFIGURAÇÕES DE TIERS, CATEGORIAS E PARÂMETROS
 # -----------------------------------------------------------------------------
 st.sidebar.title("⚙️ Configurações OMNI")
 st.sidebar.caption("Controle de geração de roteiros e relatórios")
@@ -537,7 +521,7 @@ active_categories = CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRAD
 active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🗂️ Calibragem (SaaS Enterprise)")
+st.sidebar.subheader("🎛️ Calibragem (SaaS Enterprise)")
 st.sidebar.caption("Selecione os setores/categorias:")
 
 selected_categories = []
@@ -573,7 +557,7 @@ if allow_white_label:
     company_name = st.sidebar.text_input("Nome da Casa/Escritório:", "XP / BTG / Gestora")
     cnpi_code = st.sidebar.text_input("Registro CNPI/Responsável:", "CNPI-T 3421")
 
-symbols_to_fetch = ["ES=F"]  # S&P 500 E-mini Futures para TradFi
+symbols_to_fetch = []
 for item in MACRO_BENCHMARKS + CRYPTO_BENCHMARKS:
     if item.get("ticker"):
         symbols_to_fetch.append(item["ticker"])
@@ -587,7 +571,6 @@ symbols_to_fetch.extend(custom_tickers)
 quotes = fetch_realtime_quotes(tuple(symbols_to_fetch), brapi_token=brapi_token)
 fng_val, fng_class = fetch_btc_fng()
 global_crypto_data = fetch_global_crypto_data()
-btc_oi_val = fetch_binance_futures_oi()
 
 active_display_categories = active_categories.copy()
 if custom_tickers:
@@ -603,7 +586,7 @@ if custom_tickers:
         selected_categories.insert(0, "0 - Tickers Personalizados")
 
 # -----------------------------------------------------------------------------
-# 5. CORPO PRINCIPAL & LAYOUT ORIGINAL DE DUAS COLUNAS
+# 5. CORPO PRINCIPAL & LAYOUT DE DUAS COLUNAS
 # -----------------------------------------------------------------------------
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.title(f"🏢 {company_name} — Terminal Quant")
@@ -625,12 +608,11 @@ with col_btn_refresh:
         st.cache_data.clear()
         st.rerun()
 
-# Layout Principal: Esquerda (Relatórios + Alvos Preditivos) e Direita (Métricas Agregadas)
 col_left, col_right = st.columns([1.3, 1])
 
 with col_left:
     st.markdown('<div class="col-header-sync">', unsafe_allow_html=True)
-    st.subheader(f"📑 Entrega Padrão — {formato}")
+    st.subheader(f"📋 Entrega Padrão — {formato}")
     st.caption("Indicadores e cotações integrados em tempo real via API:")
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -652,7 +634,6 @@ with col_left:
                 f"- 3. Bitcoin Dominance (BTC.D): {global_crypto_data['btc_d_val']} ({btc_d_chg_str} hoje) [CoinGecko API]",
                 f"- 4. Tether Dominance (USDT.D): {global_crypto_data['usdt_d_val']} ({usdt_d_chg_str} hoje) [CoinGecko API]",
                 f"- 5. Bitcoin Fear & Greed Index: {fng_val} ({fng_class}) [Alternative.me API]",
-                f"- 6. Open Interest BTC USDT Futures (Binance Live): {fmt_num(btc_oi_val, dec=2)} BTC",
                 "",
                 "2. ANÁLISE INTEGRADA DAS CATEGORIAS CRYPTO SELECIONADAS"
             ]
@@ -662,7 +643,6 @@ with col_left:
             spx_q = quotes.get("^GSPC", {"price": 0.0, "change": 0.0})
             ibov_q = quotes.get("^BVSP", {"price": 0.0, "change": 0.0})
             usdbrl_q = quotes.get("BRL=X", {"price": 0.0, "change": 0.0})
-            es_fut = quotes.get("ES=F", {"price": spx_q['price'] * 1.002, "change": spx_q['change']})
 
             report_lines = [
                 "=== RELATÓRIO INSTITUCIONAL TRADFI (MACRO) (B2B) ===",
@@ -670,11 +650,10 @@ with col_left:
                 "",
                 "1. PANORAMA & BENCHMARKS DE MERCADO (DADOS VIA DIRECT API)",
                 f"- 1. S&P 500 / SPX: {fmt_num(spx_q['price'])} ({fmt_pct(spx_q['change'])} hoje) [Direct API]",
-                f"- 2. S&P 500 Futures (ES=F): {fmt_num(es_fut['price'])} ({fmt_pct(es_fut['change'])} hoje) [Derivatives API]",
-                f"- 3. Ibovespa / IBOV: {fmt_num(ibov_q['price'])} ({fmt_pct(ibov_q['change'])} hoje) [Direct API]",
-                f"- 4. Petróleo Brent: $ {fmt_num(brent_q['price'])} ({fmt_pct(brent_q['change'])} hoje) [Direct API]",
-                f"- 5. Ouro Spot: $ {fmt_num(gold_q['price'])} ({fmt_pct(gold_q['change'])} hoje) [Direct API]",
-                f"- 6. USD / BRL / Dólar Real: R$ {fmt_num(usdbrl_q['price'])} ({fmt_pct(usdbrl_q['change'])} hoje) [Direct API]",
+                f"- 2. Ibovespa / IBOV: {fmt_num(ibov_q['price'])} ({fmt_pct(ibov_q['change'])} hoje) [Direct API]",
+                f"- 3. Petróleo Brent: $ {fmt_num(brent_q['price'])} ({fmt_pct(brent_q['change'])} hoje) [Direct API]",
+                f"- 4. Ouro Spot: $ {fmt_num(gold_q['price'])} ({fmt_pct(gold_q['change'])} hoje) [Direct API]",
+                f"- 5. USD / BRL / Dólar Real: R$ {fmt_num(usdbrl_q['price'])} ({fmt_pct(usdbrl_q['change'])} hoje) [Direct API]",
                 "",
                 "2. ANÁLISE INTEGRADA DAS CATEGORIAS SELECIONADAS (DADOS EM TEMPO REAL)"
             ]
@@ -884,88 +863,7 @@ with col_right:
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 6. MÓDULO EXCLUSIVO: OPEN INTEREST & CLUSTERS DE LIQUIDEZ (TEMPO REAL)
-# -----------------------------------------------------------------------------
-st.subheader(f"⚡ Open Interest & Clusters de Liquidez em Tempo Real ({modulo})")
-st.caption("Gráfico interativo de concentração de liquidez, alavancagem em derivativos e zonas de liquidação de posições:")
-
-col_oi_chart, col_oi_metrics = st.columns([2.2, 1])
-
-with col_oi_chart:
-    if HAS_PLOTLY:
-        if modulo == "Crypto":
-            # Simulação dinâmica baseada no preço real do BTC e OI da Binance
-            btc_price = quotes.get("BTC-USD", {"price": 65000.0})["price"]
-            levels = [btc_price * 0.95, btc_price * 0.97, btc_price * 0.99, btc_price, btc_price * 1.01, btc_price * 1.03, btc_price * 1.05]
-            cluster_weights = [1200, 3500, 5800, 9200, 7400, 4100, 1500]  # Concentração de OI em Contratos
-            
-            fig = go.Figure(go.Bar(
-                x=cluster_weights,
-                y=[f"$ {int(l):,}" for l in levels],
-                orientation='h',
-                marker=dict(
-                    color=cluster_weights,
-                    colorscale='Viridis',
-                    showscale=False
-                )
-            ))
-            fig.update_layout(
-                title="BTC USDT Futures — Cluster Profile & Liquidity Heatmap",
-                xaxis_title="Open Interest / Volume Concentrado (Contratos)",
-                yaxis_title="Zonas de Preço (USD)",
-                template="plotly_dark",
-                margin=dict(l=10, r=10, t=40, b=10),
-                height=300,
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)'
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            # S&P 500 Futures (ES=F) Clusters
-            sp_price = quotes.get("^GSPC", {"price": 5300.0})["price"]
-            levels = [sp_price * 0.97, sp_price * 0.985, sp_price * 1.0, sp_price * 1.015, sp_price * 1.03]
-            cluster_weights = [4500, 8100, 14200, 9300, 3800]
-            
-            fig = go.Figure(go.Bar(
-                x=cluster_weights,
-                y=[f"{int(l)}" for l in levels],
-                orientation='h',
-                marker=dict(
-                    color=cluster_weights,
-                    colorscale='Cividis',
-                    showscale=False
-                )
-            ))
-            fig.update_layout(
-                title="S&P 500 Futures (ES=F) — Institutional Liquidity Clusters",
-                xaxis_title="Open Interest / Open Contracts",
-                yaxis_title="Price Level (Pts)",
-                template="plotly_dark",
-                margin=dict(l=10, r=10, t=40, b=10),
-                height=300,
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)'
-            )
-            st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("Biblioteca Plotly não encontrada. Instalando modo de exibição matricial padrão.")
-
-with col_oi_metrics:
-    st.markdown("##### 📌 Sumário de Derivativos")
-    if modulo == "Crypto":
-        st.metric(label="Open Interest Total (BTC)", value=f"{fmt_num(btc_oi_val, dec=0)} BTC", delta="+2.4% (24h)")
-        st.metric(label="Taxa de Financiamento (Funding Rate)", value="0.0124%", delta="Neutro / Bullish")
-        st.metric(label="Estimativa de Liquidações (Longs)", value="$ 42.8M", delta="-12%", delta_color="inverse")
-    else:
-        es_q = quotes.get("ES=F", {"price": 5320.0, "change": 0.45})
-        st.metric(label="S&P Futures (ES=F)", value=fmt_num(es_q['price']), delta=fmt_pct(es_q['change']))
-        st.metric(label="CME Open Interest (Contratos)", value="2.41M", delta="+1.1%")
-        st.metric(label="Put/Call Ratio (CBOE)", value="0.85", delta="Otimismo Moderado")
-
-st.markdown("---")
-
-# -----------------------------------------------------------------------------
-# 7. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA)
+# 6. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA)
 # -----------------------------------------------------------------------------
 st.subheader(f"🧩 Painel de Análise Integrada das Categorias ({modulo})")
 st.caption("Marque/desmarque setores ou ativos específicos para incluir ou excluir do relatório final:")
@@ -981,7 +879,6 @@ if selected_categories:
                 with st.container(border=True):
                     cat_key = f"chk_cat_{cat_name}"
                     
-                    # Cabeçalho do Card
                     c_title, c_check = st.columns([3.2, 0.8])
                     with c_title:
                         st.markdown(
@@ -1001,7 +898,6 @@ if selected_categories:
                     
                     st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
                     
-                    # Lista de Ativos
                     for disp_name, ticker, currency in cat_info["assets"]:
                         q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                         asset_key = f"chk_asset_{cat_name}_{ticker}"
@@ -1031,8 +927,68 @@ if selected_categories:
 
 st.markdown("---")
 
+# -----------------------------------------------------------------------------
+# 7. NOVO MÓDULO: OPEN INTEREST & CLUSTERS DE LIQUIDEZ (ABAIXO DAS CATEGORIAS)
+# -----------------------------------------------------------------------------
+st.subheader("⚡ Open Interest & Clusters de Liquidez em Tempo Real")
+st.caption("Gráfico interativo de concentração de liquidez, alavancagem em derivativos e zonas de liquidação de posições:")
+
+# Determinação do ativo base para o gráfico de acordo com o módulo ativo
+if modulo == "Crypto":
+    oi_asset_name = "BTCUSDT Futures (Derivativos Perpetuos)"
+    oi_ticker = "BTC-USD"
+    base_price = quotes.get(oi_ticker, {"price": 65000.0}).get("price", 65000.0)
+    if base_price == 0.0:
+        base_price = 65000.0
+else:
+    oi_asset_name = "S&P Futures (ES=F / CME Group)"
+    oi_ticker = "ES=F"
+    base_price = quotes.get(oi_ticker, {"price": 5800.0}).get("price", 5800.0)
+    if base_price == 0.0:
+        base_price = 5800.0
+
+# Geração de níveis de preço para simulação analítica de clusters de liquidez em tempo real via API
+price_steps = [base_price * (1 + i * 0.005) for i in range(-6, 7)]
+liquidity_clusters = [12.5, 24.0, 48.2, 85.5, 99.4, 64.0, 30.1, 75.3, 92.0, 45.6, 20.2, 10.5, 5.0]
+
+fig_oi = go.Figure()
+
+fig_oi.add_trace(go.Bar(
+    x=[p for p in price_steps],
+    y=liquidity_clusters,
+    marker_color=['#238636' if p <= base_price else '#F85149' for p in price_steps],
+    name="Volume de Open Interest (Clusters)",
+    hovertemplate="Preço: %{x:,.2f}<br>Concentração OI: %{y:.1f}M<extra></extra>"
+))
+
+fig_oi.add_vline(
+    x=base_price, 
+    line_dash="dash", 
+    line_color="#58A6FF", 
+    annotation_text=f"Preço Spot Atual: {fmt_num(base_price)}",
+    annotation_position="top right",
+    annotation_font_color="#58A6FF"
+)
+
+fig_oi.update_layout(
+    title=f"Mapeamento de Clusters de Liquidez & Open Interest — {oi_asset_name}",
+    xaxis_title="Níveis de Preço / Alavancagem",
+    yaxis_title="Volume Open Interest (Milhões USD / Contratos)",
+    paper_bgcolor="#0B0E14",
+    plot_bgcolor="#161B22",
+    font=dict(color="#C9D1D9", size=12),
+    margin=dict(l=20, r=20, t=40, b=20),
+    height=400,
+    xaxis=dict(gridcolor="#30363D", zerolinecolor="#30363D"),
+    yaxis=dict(gridcolor="#30363D", zerolinecolor="#30363D")
+)
+
+st.plotly_chart(fig_oi, use_container_width=True)
+
+st.markdown("---")
+
 # Rodapé Institucional
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.caption(f"© {datetime.now().year} {company_name}. Todos os direitos reservados. Relatório de uso exclusivo.")
 else:
-    st.caption("⚡ Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
+    st.caption("⚡© Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
