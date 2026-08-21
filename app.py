@@ -379,75 +379,103 @@ st.markdown("---")
 # 7. MÓDULO: MAPA DE ALAVANCAGEM & OPEN INTEREST (MULTI-API RESILIENTE)
 # -------------------------------------------------------------
 st.subheader("🔥 Mapa de Alavancagem & Open Interest (Derivativos)")
-st.caption("Métricas estruturais de derivativos com redundância de APIs (Binance / Bybit):")
+st.caption("Métricas estruturais de derivativos via APIs de infraestrutura aberta (Deribit / Kraken):")
 
 if PLOTLY_AVAILABLE:
     import requests
     import pandas as pd
+    import numpy as np
 
-    oi_asset_name = "BTCUSDT Futures Open Interest & Leverage Profile" if modulo == "Crypto" else "S&P 500 Liquidity Profile (ES=F)"
+    oi_asset_name = "BTC Futures Liquidity & Leverage Profile" if modulo == "Crypto" else "S&P 500 Liquidity Profile (ES=F)"
     base_price = quotes.get("BTC-USD" if modulo == "Crypto" else "ES=F", {"price": 77000.0}).get("price", 77000.0)
     if base_price == 0.0:
         base_price = 77000.0
 
-    current_oi_btc = 0.0
+    current_oi_usd = 0.0
     data_source = None
     prices = []
     liq_volumes = []
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    
+    headers = {"User-Agent": "Mozilla/5.0"}
 
     if modulo == "Crypto":
-        # --- TENTATIVA 1: BINANCE FUTURES ---
+        # --- TENTATIVA 1: DERIBIT (Excelente para servidores Cloud / Sem Cloudflare agressivo) ---
         try:
-            url_binance = "https://fapi.binance.com/fapi/v1/openInterest"
-            res = requests.get(url_binance, params={"symbol": "BTCUSDT"}, headers=headers, timeout=4)
-            if res.status_code == 200:
-                current_oi_btc = float(res.json().get("openInterest", 0))
-                data_source = "Binance Futures (API Primária)"
-        except Exception:
+            # Pegando o Open Interest Real do Contrato Perpétuo de BTC
+            url_deribit_oi = "https://www.deribit.com/api/v2/public/ticker?instrument_name=BTC-PERPETUAL"
+            res_deribit = requests.get(url_deribit_oi, headers=headers, timeout=5)
+            
+            if res_deribit.status_code == 200:
+                deribit_data = res_deribit.json().get("result", {})
+                current_oi_usd = float(deribit_data.get("open_interest", 0)) # No Deribit, OI já vem em USD
+                
+                # Coletando o Livro de Ordens real de Derivativos para montar os Clusters
+                url_book = "https://www.deribit.com/api/v2/public/get_order_book?instrument_name=BTC-PERPETUAL&depth=1000"
+                res_book = requests.get(url_book, headers=headers, timeout=5)
+                
+                if res_book.status_code == 200:
+                    book_data = res_book.json().get("result", {})
+                    bids = pd.DataFrame(book_data.get("bids", []), columns=["price", "qty"])
+                    asks = pd.DataFrame(book_data.get("asks", []), columns=["price", "qty"])
+                    
+                    df_book = pd.concat([bids, asks])
+                    # No BTC-PERPETUAL da Deribit, 'qty' equivale a contratos em USD. Dividimos por 1M para facilitar a leitura.
+                    df_book["volume_m"] = df_book["qty"] / 1_000_000 
+                    
+                    # Agrupando em faixas de preço (Heatmap clusters)
+                    df_book["price_bin"] = pd.cut(df_book["price"], bins=40)
+                    grouped = df_book.groupby("price_bin", observed=False)["volume_m"].sum().reset_index()
+                    
+                    prices = [interval.mid for interval in grouped["price_bin"]]
+                    liq_volumes = grouped["volume_m"].fillna(0.0).tolist()
+                    
+                    data_source = "Deribit BTC-PERPETUAL (Derivativos Real)"
+        except Exception as e:
             pass
 
-        # --- TENTATIVA 2: BYBIT V5 API (FALLBACK) ---
+        # --- TENTATIVA 2: KRAKEN FUTURES (Fallback super permissivo com IPs) ---
         if not data_source:
             try:
-                url_bybit = "https://api.bybit.com/v5/market/open-interest"
-                params_bybit = {"category": "linear", "symbol": "BTCUSDT", "limit": 1}
-                res_bybit = requests.get(url_bybit, params=params_bybit, headers=headers, timeout=4)
-                if res_bybit.status_code == 200:
-                    bybit_json = res_bybit.json()
-                    if bybit_json.get("retCode") == 0:
-                        lst = bybit_json.get("result", {}).get("list", [])
-                        if lst:
-                            current_oi_btc = float(lst[0].get("openInterest", 0))
-                            data_source = "Bybit V5 Public API (Fallback Ativo)"
+                url_kraken = "https://futures.kraken.com/derivatives/api/v3/tickers"
+                res_kraken = requests.get(url_kraken, headers=headers, timeout=5)
+                
+                if res_kraken.status_code == 200:
+                    tickers = res_kraken.json().get("tickers", [])
+                    btc_ticker = next((t for t in tickers if t.get("symbol") == "pi_xbtusd"), None)
+                    
+                    if btc_ticker:
+                        current_oi_btc = float(btc_ticker.get("openInterest", 0))
+                        current_oi_usd = current_oi_btc * base_price
+                        data_source = "Kraken Futures XBT/USD (Fallback)"
+                        
+                        # Usando distribuição sobre o OI Real capturado
+                        step = base_price * 0.02
+                        for i in range(1, 15):
+                            prices.append(base_price - (i * step))
+                            liq_volumes.append((current_oi_usd / 1_000_000) * (0.1 / i) * 1.5)
+                            prices.append(base_price + (i * step))
+                            liq_volumes.append((current_oi_usd / 1_000_000) * (0.1 / i) * 0.8)
             except Exception:
                 pass
 
-        # Se conseguimos dados de alguma das APIs, construímos a visualização analítica
-        if data_source and current_oi_btc > 0:
-            current_oi_usd = current_oi_btc * base_price
-            st.success(f"🟢 **Fonte de Dados Ativa:** {data_source}")
-            st.info(f"📊 **Open Interest Global:** {current_oi_btc:,.2f} BTC (~${current_oi_usd/1_000_000:,.2f}M alavancados no mercado)")
-
-            # Construção analítica baseada no volume real capturado de Open Interest
-            step = base_price * 0.03
-            for i in range(1, 11):
-                p_down = base_price - (i * step)
-                p_up = base_price + (i * step)
-                
-                prices.append(p_down)
-                liq_volumes.append((current_oi_usd / 1_000_000) * (0.05 / i) * 1.5)
-                
-                prices.append(p_up)
-                liq_volumes.append((current_oi_usd / 1_000_000) * (0.05 / i) * 0.8)
-
+        # Status Visual no Painel
+        if data_source and current_oi_usd > 0:
+            st.success(f"🟢 **Fonte de Dados (Conexão Limpa):** {data_source}")
+            st.info(f"📊 **Open Interest Local:** ~${current_oi_usd/1_000_000:,.2f}M alocados em contratos abertos nesta exchange.")
         else:
-            st.warning("⚠️ **Aviso de Rede:** As APIs externas de derivativos (Binance e Bybit) bloquearam temporariamente o IP do ambiente em nuvem. Operando em modo de resiliência.")
+            st.error("⚠️ Falha total na conexão. O provedor de nuvem pode estar bloqueando completamente as saídas HTTPS.")
+            
     else:
-        # Fallback para TradFi
         data_source = "Simulação Estrutural (TradFi S&P 500)"
+        # Fallback de simulação visual (apenas para TradFi se não houver dados)
+        step = base_price * 0.02
+        for i in range(1, 15):
+            prices.append(base_price - (i * step))
+            liq_volumes.append(50 / i)
+            prices.append(base_price + (i * step))
+            liq_volumes.append(25 / i)
 
-    # Plotagem gráfica caso haja dados válidos
+    # Plotagem do Gráfico
     if prices and liq_volumes:
         fig_oi = go.Figure()
         fig_oi.add_trace(go.Bar(
@@ -455,17 +483,17 @@ if PLOTLY_AVAILABLE:
             x=liq_volumes,
             orientation='h',
             marker=dict(color=liq_volumes, colorscale='Turbo', showscale=True),
-            text=[f"Preço: {fmt_num(p)} | Alavancagem Est.: ${v:.2f}M" for p, v in zip(prices, liq_volumes)],
+            text=[f"Preço: {fmt_num(p)} | Vol/Alavancagem: ${v:.2f}M" for p, v in zip(prices, liq_volumes)],
             hoverinfo='text',
-            name="Clusters de Alavancagem"
+            name="Clusters"
         ))
-        fig_oi.add_hline(y=base_price, line_dash="dash", line_color="#58A6FF", annotation_text=f"Spot: {fmt_num(base_price)}")
+        fig_oi.add_hline(y=base_price, line_dash="dash", line_color="#58A6FF", annotation_text=f"Spot Atual: {fmt_num(base_price)}")
         fig_oi.update_layout(
             title=f"Mapa de Densidade de Alavancagem — {oi_asset_name}",
             paper_bgcolor="#0B0E14", plot_bgcolor="#161B22", font=dict(color="#C9D1D9", size=12),
             margin=dict(l=20, r=20, t=40, b=20), height=500,
             yaxis=dict(gridcolor="#30363D", title="Níveis de Preço (USD)"),
-            xaxis=dict(gridcolor="#30363D", title="Volume Alavancado Estimado ($M)")
+            xaxis=dict(gridcolor="#30363D", title="Volume Agregado ($M)")
         )
         st.plotly_chart(fig_oi, use_container_width=True)
 
