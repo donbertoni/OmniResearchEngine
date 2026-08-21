@@ -375,91 +375,102 @@ if selected_categories:
                             st.checkbox("", value=st.session_state.get(asset_key, True), key=asset_key, disabled=not cat_enabled, label_visibility="collapsed")
 
 st.markdown("---")
-# -----------------------------------------------------------------------------
-# 5. NOVO MÓDULO: MAPA TÉRMICO DE LIQUIDAÇÕES & CLUSTERS DE ALAVANCAGEM
-# -----------------------------------------------------------------------------
+# -------------------------------------------------------------
+# 7. MÓDULO: MAPA TÉRMICO DE LIQUIDAÇÕES & CLUSTERS (VIA API REAL)
+# -------------------------------------------------------------
 st.subheader("🔥 Mapa Térmico de Liquidações & Clusters de Alavancagem")
-st.caption("Perfil estrutural de liquidez e piscinas de alavancagem passiva em derivativos:")
+st.caption("Perfil estrutural de liquidez baseado no Order Book de Futuros em tempo real:")
 
 if PLOTLY_AVAILABLE:
-    oi_asset_name = "BTCUSDT Liquidation Heatmap & Leverage Pools" if modulo == "Crypto" else "S&P 500 Liquidity Profile (ES=F)"
-    oi_ticker = "BTC-USD" if modulo == "Crypto" else "ES=F"
-    base_price = quotes.get(oi_ticker, {"price": 77000.0 if modulo == "Crypto" else 5800.0}).get("price", 77000.0)
+    import requests
+    import pandas as pd
+
+    oi_asset_name = "BTCUSDT Order Book & Liquidity Clusters" if modulo == "Crypto" else "S&P 500 Liquidity Profile (ES=F)"
+    base_price = quotes.get("BTC-USD" if modulo == "Crypto" else "ES=F", {"price": 77000.0}).get("price", 77000.0)
     if base_price == 0.0:
-        base_price = 77000.0 if modulo == "Crypto" else 5800.0
-    
-    # Faixa dinâmica ampla: chão fixo em 0 e teto em 200% do preço spot atual (ex: ~154k para o BTC)
-    min_p = 0.0
-    max_p = base_price * 2.0
-    num_bins = 35
-    step = max_p / num_bins if num_bins > 0 else 2000.0
+        base_price = 77000.0
 
     prices = []
     liq_volumes = []
-    
-    curr = step
-    while curr <= max_p:
-        prices.append(curr)
-        
-        if modulo == "Crypto":
-            if curr <= base_price:
-                # Concentração massiva de clusters/shorts abaixo do preço atual, crescendo em direção ao chão (0)
-                depth_ratio = (base_price - curr) / base_price
-                base_vol = 50.0 + (depth_ratio * 550.0)
-            else:
-                # Acima do preço atual, distribui os níveis de OI proporcionalmente até o teto de 2x
-                height_ratio = (curr - base_price) / base_price
-                base_vol = max(20.0, 120.0 - (height_ratio * 60.0))
-        else:
-            if curr <= base_price:
-                depth_ratio = (base_price - curr) / base_price
-                base_vol = 30.0 + (depth_ratio * 220.0)
-            else:
-                height_ratio = (curr - base_price) / base_price
-                base_vol = max(15.0, 70.0 - (height_ratio * 30.0))
+
+    if modulo == "Crypto":
+        try:
+            # Consumindo a API pública de Depth (Livro de Ofertas) da Binance Futures para dados reais
+            url = "https://fapi.binance.com/fapi/v1/depth"
+            params = {"symbol": "BTCUSDT", "limit": 1000}
+            response = requests.get(url, params=params, timeout=5)
+            
+            if response.status_code == 200:
+                book_data = response.json()
+                bids = pd.DataFrame(book_data.get("bids", []), columns=["price", "qty"], dtype=float)
+                asks = pd.DataFrame(book_data.get("asks", []), columns=["price", "qty"], dtype=float)
                 
-        liq_volumes.append(base_vol)
-        curr += step
+                # Calcular volume financeiro (Preço * Quantidade) em milhões (USD)
+                bids["volume_m"] = (bids["price"] * bids["qty"]) / 1_000_000
+                asks["volume_m"] = (asks["price"] * asks["qty"]) / 1_000_000
+                
+                df_book = pd.concat([bids, asks]).sort_values(by="price", ascending=True)
+                
+                # Agrupando em bins de preço para o gráfico de calor
+                df_book["price_bin"] = pd.cut(df_book["price"], bins=35)
+                grouped = df_book.groupby("price_bin", observed=False)["volume_m"].sum().reset_index()
+                
+                prices = [interval.mid for interval in grouped["price_bin"]]
+                liq_volumes = grouped["volume_m"].fillna(0.0).tolist()
+            else:
+                st.warning("⚠️ Erro na resposta da API de derivativos. Usando estrutura vazia.")
+        except Exception as e:
+            st.error(f"⚠️ Falha de conexão com a API da exchange: {e}")
+    else:
+        # Fallback estrutural para TradFi caso o módulo seja S&P 500
+        min_p, max_p = base_price * 0.7, base_price * 1.3
+        step = (max_p - min_p) / 30
+        curr = min_p
+        while curr <= max_p:
+            prices.append(curr)
+            liq_volumes.append(50.0 + (abs(curr - base_price) / base_price) * 100)
+            curr += step
 
-    fig_oi = go.Figure()
+    if prices and liq_volumes:
+        fig_oi = go.Figure()
 
-    fig_oi.add_trace(go.Bar(
-        y=prices,
-        x=liq_volumes,
-        orientation='h',
-        marker=dict(
-            color=liq_volumes,
-            colorscale='Turbo',
-            showscale=True,
-            colorbar=dict(title="Volume Liq. ($M)", len=0.8, thickness=12, tickfont=dict(color="#C9D1D9"))
-        ),
-        text=[f"Preço: {fmt_num(p)} | Risco: {v:.0f}M" for p, v in zip(prices, liq_volumes)],
-        hoverinfo='text',
-        name="Clusters de Liquidez"
-    ))
+        fig_oi.add_trace(go.Bar(
+            y=prices,
+            x=liq_volumes,
+            orientation='h',
+            marker=dict(
+                color=liq_volumes,
+                colorscale='Turbo',
+                showscale=True,
+                colorbar=dict(title="Vol. API ($M)", len=0.8, thickness=12, tickfont=dict(color="#C9D1D9"))
+            ),
+            text=[f"Preço: {fmt_num(p)} | Vol: ${v:.2f}M" for p, v in zip(prices, liq_volumes)],
+            hoverinfo='text',
+            name="Clusters de Liquidez"
+        ))
 
-    fig_oi.add_hline(
-        y=base_price, 
-        line_dash="dash", 
-        line_color="#58A6FF", 
-        annotation_text=f"Spot Atual: {fmt_num(base_price)}",
-        annotation_position="bottom right",
-        annotation_font_color="#58A6FF"
-    )
+        fig_oi.add_hline(
+            y=base_price, 
+            line_dash="dash", 
+            line_color="#58A6FF", 
+            annotation_text=f"Spot Atual: {fmt_num(base_price)}",
+            annotation_position="bottom right",
+            annotation_font_color="#58A6FF"
+        )
 
-    fig_oi.update_layout(
-        title=f"Mapa de Densidade de Liquidez & Zonas de Alavancagem — {oi_asset_name}",
-        paper_bgcolor="#0B0E14", 
-        plot_bgcolor="#161B22", 
-        font=dict(color="#C9D1D9", size=12),
-        margin=dict(l=20, r=20, t=40, b=20), 
-        height=500,
-        yaxis=dict(gridcolor="#30363D", title="Níveis de Preço (USD)"),
-        xaxis=dict(gridcolor="#30363D", title="Intensidade de Alavancagem / Volume Acumulado ($M)")
-    )
-    st.plotly_chart(fig_oi, use_container_width=True)
+        fig_oi.update_layout(
+            title=f"Mapa de Densidade de Liquidez & Order Book (API Real) — {oi_asset_name}",
+            paper_bgcolor="#0B0E14", 
+            plot_bgcolor="#161B22", 
+            font=dict(color="#C9D1D9", size=12),
+            margin=dict(l=20, r=20, t=40, b=20), 
+            height=500,
+            yaxis=dict(gridcolor="#30363D", title="Níveis de Preço (USD)"),
+            xaxis=dict(gridcolor="#30363D", title="Volume Agregado no Order Book ($M)")
+        )
+        st.plotly_chart(fig_oi, use_container_width=True)
 else:
-    st.warning("⚠️ O módulo Plotly não está disponível no momento. Certifique-se de incluir 'plotly' no arquivo `requirements.txt`.")
+    st.warning("⚠️ O módulo Plotly não está disponível no momento.")
 
 st.markdown("---")
 st.caption("⚡©️ Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
