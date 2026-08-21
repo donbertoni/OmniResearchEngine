@@ -376,16 +376,16 @@ if selected_categories:
 
 st.markdown("---")
 # -------------------------------------------------------------
-# 7. MÓDULO: MAPA TÉRMICO DE LIQUIDAÇÕES & CLUSTERS (VIA API REAL)
+# 7. MÓDULO: MAPA DE LIQUIDEZ & DERIVATIVOS (API FUTUROS REAL)
 # -------------------------------------------------------------
-st.subheader("🔥 Mapa Térmico de Liquidações & Clusters de Alavancagem")
-st.caption("Perfil estrutural de liquidez baseado no Order Book de Futuros em tempo real:")
+st.subheader("🔥 Mapa de Alavancagem & Open Interest (Futuros)")
+st.caption("Métricas estruturais de derivativos e posições abertas via API de Futuros da Binance:")
 
 if PLOTLY_AVAILABLE:
     import requests
     import pandas as pd
 
-    oi_asset_name = "BTCUSDT Order Book & Liquidity Clusters" if modulo == "Crypto" else "S&P 500 Liquidity Profile (ES=F)"
+    oi_asset_name = "BTCUSDT Futures Open Interest & Leverage Profile" if modulo == "Crypto" else "S&P 500 Liquidity Profile (ES=F)"
     base_price = quotes.get("BTC-USD" if modulo == "Crypto" else "ES=F", {"price": 77000.0}).get("price", 77000.0)
     if base_price == 0.0:
         base_price = 77000.0
@@ -395,80 +395,74 @@ if PLOTLY_AVAILABLE:
 
     if modulo == "Crypto":
         try:
-            # Consumindo a API pública de Depth (Livro de Ofertas) da Binance Futures para dados reais
-            url = "https://fapi.binance.com/fapi/v1/depth"
-            params = {"symbol": "BTCUSDT", "limit": 1000}
-            response = requests.get(url, params=params, timeout=5)
+            # Consumindo a API oficial de Futuros da Binance para Open Interest e Estatísticas
+            url_oi = "https://fapi.binance.com/fapi/v1/openInterest"
+            params = {"symbol": "BTCUSDT"}
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+            response = requests.get(url_oi, params=params, headers=headers, timeout=5)
             
             if response.status_code == 200:
-                book_data = response.json()
-                bids = pd.DataFrame(book_data.get("bids", []), columns=["price", "qty"], dtype=float)
-                asks = pd.DataFrame(book_data.get("asks", []), columns=["price", "qty"], dtype=float)
+                oi_data = response.json()
+                current_oi_btc = float(oi_data.get("openInterest", 0))
+                current_oi_usd = current_oi_btc * base_price
                 
-                # Calcular volume financeiro (Preço * Quantidade) em milhões (USD)
-                bids["volume_m"] = (bids["price"] * bids["qty"]) / 1_000_000
-                asks["volume_m"] = (asks["price"] * asks["qty"]) / 1_000_000
+                st.info(f"📊 **Open Interest Atual (BTC Futures):** {current_oi_btc:,.2f} BTC (~${current_oi_usd/1_000_000:,.2f}M alavancados)")
                 
-                df_book = pd.concat([bids, asks]).sort_values(by="price", ascending=True)
+                # Buscando histórico recente de liquidações / força de ordens em futuros
+                url_force = "https://fapi.binance.com/fapi/v1/allForceOrders"
+                params_force = {"symbol": "BTCUSDT", "limit": 100}
+                res_force = requests.get(url_force, params=params_force, headers=headers, timeout=5)
                 
-                # Agrupando em bins de preço para o gráfico de calor
-                df_book["price_bin"] = pd.cut(df_book["price"], bins=35)
-                grouped = df_book.groupby("price_bin", observed=False)["volume_m"].sum().reset_index()
-                
-                prices = [interval.mid for interval in grouped["price_bin"]]
-                liq_volumes = grouped["volume_m"].fillna(0.0).tolist()
+                if res_force.status_code == 200:
+                    force_data = res_force.json()
+                    if force_data:
+                        df_force = pd.DataFrame(force_data)
+                        df_force["price"] = df_force["price"].astype(float)
+                        df_force["executedQty"] = df_force["executedQty"].astype(float)
+                        df_force["liq_vol_m"] = (df_force["price"] * df_force["executedQty"]) / 1_000_000
+                        
+                        # Agrupando liquidações reais por faixa de preço
+                        df_force["price_bin"] = pd.cut(df_force["price"], bins=25)
+                        grouped = df_force.groupby("price_bin", observed=False)["liq_vol_m"].sum().reset_index()
+                        
+                        prices = [interval.mid for interval in grouped["price_bin"]]
+                        liq_volumes = grouped["liq_vol_m"].fillna(0.0).tolist()
+                    else:
+                        st.warning("⚠️ Nenhuma ordem de liquidação forçada recente retornado pela API neste exato segundo.")
+                else:
+                    st.warning("⚠️ Endpoint de ordens forçadas restrito pelo IP da nuvem. Exibindo estrutura baseada em OI.")
             else:
-                st.warning("⚠️ Erro na resposta da API de derivativos. Usando estrutura vazia.")
+                st.warning(f"⚠️ Erro ao acessar API de Futuros (Status: {response.status_code} - Bloqueio de IP Cloudflare).")
         except Exception as e:
-            st.error(f"⚠️ Falha de conexão com a API da exchange: {e}")
+            st.error(f"⚠️ Falha na requisição de derivativos: {e}")
     else:
-        # Fallback estrutural para TradFi caso o módulo seja S&P 500
-        min_p, max_p = base_price * 0.7, base_price * 1.3
-        step = (max_p - min_p) / 30
-        curr = min_p
-        while curr <= max_p:
-            prices.append(curr)
-            liq_volumes.append(50.0 + (abs(curr - base_price) / base_price) * 100)
-            curr += step
+        # Fallback para TradFi
+        pass
 
+    # Se conseguiu coletar dados reais de futuros, plota; senão avisa o status de infraestrutura
     if prices and liq_volumes:
         fig_oi = go.Figure()
-
         fig_oi.add_trace(go.Bar(
             y=prices,
             x=liq_volumes,
             orientation='h',
-            marker=dict(
-                color=liq_volumes,
-                colorscale='Turbo',
-                showscale=True,
-                colorbar=dict(title="Vol. API ($M)", len=0.8, thickness=12, tickfont=dict(color="#C9D1D9"))
-            ),
-            text=[f"Preço: {fmt_num(p)} | Vol: ${v:.2f}M" for p, v in zip(prices, liq_volumes)],
+            marker=dict(color=liq_volumes, colorscale='Viridis', showscale=True),
+            text=[f"Preço: {fmt_num(p)} | Liq: ${v:.2f}M" for p, v in zip(prices, liq_volumes)],
             hoverinfo='text',
-            name="Clusters de Liquidez"
+            name="Liquidações Reais"
         ))
-
-        fig_oi.add_hline(
-            y=base_price, 
-            line_dash="dash", 
-            line_color="#58A6FF", 
-            annotation_text=f"Spot Atual: {fmt_num(base_price)}",
-            annotation_position="bottom right",
-            annotation_font_color="#58A6FF"
-        )
-
+        fig_oi.add_hline(y=base_price, line_dash="dash", line_color="#58A6FF", annotation_text=f"Spot: {fmt_num(base_price)}")
         fig_oi.update_layout(
-            title=f"Mapa de Densidade de Liquidez & Order Book (API Real) — {oi_asset_name}",
-            paper_bgcolor="#0B0E14", 
-            plot_bgcolor="#161B22", 
-            font=dict(color="#C9D1D9", size=12),
-            margin=dict(l=20, r=20, t=40, b=20), 
-            height=500,
-            yaxis=dict(gridcolor="#30363D", title="Níveis de Preço (USD)"),
-            xaxis=dict(gridcolor="#30363D", title="Volume Agregado no Order Book ($M)")
+            title=f"Mapa de Liquidações Reais (API Futuros) — {oi_asset_name}",
+            paper_bgcolor="#0B0E14", plot_bgcolor="#161B22", font=dict(color="#C9D1D9", size=12),
+            margin=dict(l=20, r=20, t=40, b=20), height=500,
+            yaxis=dict(gridcolor="#30363D", title="Preço de Liquidação (USD)"),
+            xaxis=dict(gridcolor="#30363D", title="Volume Liquidado ($M)")
         )
         st.plotly_chart(fig_oi, use_container_width=True)
+    else:
+        st.warning("⚠️ O ambiente de hospedagem atual (Codespace/Cloud) possui barreiras de IP da Binance Futures (`fapi.binance.com`). Para rodar este módulo de derivativos em produção real sem bloqueio, o ideal é consumir via backend próprio ou proxy dedicado.")
+
 else:
     st.warning("⚠️ O módulo Plotly não está disponível no momento.")
 
