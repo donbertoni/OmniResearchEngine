@@ -413,7 +413,7 @@ with col_left:
     st.caption("Relatório analítico gerado com dados consolidados em tempo real:")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Geração Dinâmica e Completa do Conteúdo do Relatório / Roteiro (respeitando apenas as categorias selecionadas)
+    # Geração Dinâmica filtrando categorias e ativos ativos via st.session_state
     if "B2B" in formato:
         report_lines = [
             f"=== RELATÓRIO INSTITUCIONAL {modulo.upper()} (B2B) ===",
@@ -426,9 +426,18 @@ with col_left:
         ]
         for cat_name in selected_categories:
             if cat_name in active_display_categories:
+                cat_key = f"chk_cat_{cat_name}"
+                # Respeita o estado do checkbox do card (padrão True)
+                if not st.session_state.get(cat_key, True):
+                    continue
+                
                 cat_info = active_display_categories[cat_name]
                 report_lines.append(f"\n[{cat_name.upper()}] (Tag: {cat_info['tag']})")
                 for disp_name, ticker, currency in cat_info["assets"]:
+                    asset_key = f"chk_asset_{cat_name}_{ticker}"
+                    # Respeita o estado do checkbox do ativo individual (padrão True)
+                    if not st.session_state.get(asset_key, True):
+                        continue
                     q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                     report_lines.append(f"  • {disp_name} ({ticker}): {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
         
@@ -455,7 +464,15 @@ with col_left:
                 "target_pct": alvo_pct,
                 "stop_pct": stop_pct,
                 "sentiment": f"{fng_val} ({fng_class})",
-                "categories": {cat_name: {disp_name: quotes.get(ticker, {"price": 0.0, "change": 0.0})["price"] for disp_name, ticker, currency in active_display_categories[cat_name]["assets"]} for cat_name in selected_categories if cat_name in active_display_categories}
+                "categories": {
+                    cat_name: {
+                        disp_name: quotes.get(ticker, {"price": 0.0, "change": 0.0})["price"] 
+                        for disp_name, ticker, currency in active_display_categories[cat_name]["assets"] 
+                        if st.session_state.get(f"chk_asset_{cat_name}_{ticker}", True)
+                    } 
+                    for cat_name in selected_categories 
+                    if cat_name in active_display_categories and st.session_state.get(f"chk_cat_{cat_name}", True)
+                }
             }, indent=4, ensure_ascii=False)
             st.download_button("📥 Baixar (JSON)", data=json_data, file_name=f"OMNI_Relatorio_{modulo}.json", mime="application/json", use_container_width=True)
         with col_b3:
@@ -474,9 +491,16 @@ with col_left:
         ]
         for cat_name in selected_categories:
             if cat_name in active_display_categories:
+                cat_key = f"chk_cat_{cat_name}"
+                if not st.session_state.get(cat_key, True):
+                    continue
                 cat_info = active_display_categories[cat_name]
                 script_lines.append(f"Destaques em {cat_name}:")
-                for disp_name, ticker, currency in cat_info["assets"][:2]:
+                active_assets = [
+                    (d, t, c) for d, t, c in cat_info["assets"] 
+                    if st.session_state.get(f"chk_asset_{cat_name}_{t}", True)
+                ]
+                for disp_name, ticker, currency in active_assets[:2]:
                     q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                     script_lines.append(f" - {disp_name} negociado a {currency} {fmt_num(q['price'])}, registrando {fmt_pct(q['change'])} hoje.")
         script_lines.extend([
