@@ -376,7 +376,7 @@ if selected_categories:
 
 st.markdown("---")
 # -------------------------------------------------------------
-# 7. MÓDULO: MAPA DE ALAVANCAGEM & LIQUIDEZ (CALIBRADO & MÉTRICAS)
+# 7. MÓDULO: MAPA DE ALAVANCAGEM & LIQUIDEZ (ESPECTRO CALIBRADO)
 # -------------------------------------------------------------
 st.subheader("🔥 Mapa de Alavancagem & Open Interest (Derivativos)")
 
@@ -412,10 +412,9 @@ if PLOTLY_AVAILABLE:
                 df_book = df_book[(df_book["price"] >= min_p) & (df_book["price"] <= max_p)]
                 df_book["volume_m"] = df_book["qty"] / 1_000_000
                 
-                # 20 bins para manter a visualização limpa e estruturada
-                df_book["price_bin"] = pd.cut(df_book["price"], bins=20)
+                df_book["price_bin"] = pd.cut(df_book["price"], bins=22)
                 grouped = df_book.groupby("price_bin", observed=False)["volume_m"].sum().reset_index()
-                grouped = grouped[grouped["volume_m"] > 0.05]
+                grouped = grouped[grouped["volume_m"] > 0.01]
                 
                 prices = [interval.mid for interval in grouped["price_bin"]]
                 liq_volumes = grouped["volume_m"].tolist()
@@ -430,9 +429,9 @@ if PLOTLY_AVAILABLE:
 
         if not prices or not liq_volumes:
             step = base_price * 0.015
-            for i in range(1, 11):
+            for i in range(1, 12):
                 prices.extend([base_price - (i * step), base_price + (i * step)])
-                liq_volumes.extend([50.0 / i, 60.0 / i])
+                liq_volumes.extend([max(0.5, 20.0 / i), max(0.4, 15.0 / i)])
 
     else:
         # --- MÓDULO TRADFI: S&P 500 FUTURES (ES=F) ---
@@ -449,7 +448,7 @@ if PLOTLY_AVAILABLE:
                     max_p = base_price * 1.12
                     es_data = es_data[(es_data['Close'] >= min_p) & (es_data['Close'] <= max_p)]
                     
-                    es_data['price_bin'] = pd.cut(es_data['Close'], bins=16)
+                    es_data['price_bin'] = pd.cut(es_data['Close'], bins=18)
                     grouped = es_data.groupby('price_bin', observed=False)['Volume'].sum().reset_index()
                     grouped = grouped[grouped['Volume'] > 0]
                     
@@ -466,9 +465,15 @@ if PLOTLY_AVAILABLE:
             step = base_price * 0.01
             for i in range(1, 10):
                 prices.extend([base_price - (i * step), base_price + (i * step)])
-                liq_volumes.extend([60.0 + (i * 10), 50.0 + (i * 10)])
+                liq_volumes.extend([25.0 + (i * 5), 20.0 + (i * 5)])
 
     oi_asset_name = f"{data_source} Liquidity Profile" if data_source else "Asset Liquidity Profile"
+
+    # --- CALIBRAGEM PROFISSIONAL DE CORES (NORMALIZAÇÃO POR RAIZ QUADRADA) ---
+    # Isso redistribui os tons médios (verde/amarelo) de forma equilibrada sem deixar tudo azul.
+    arr_v = np.array(liq_volumes, dtype=float)
+    max_v = arr_v.max() if len(arr_v) > 0 and arr_v.max() > 0 else 1.0
+    color_intensity = np.sqrt(arr_v / max_v) * 100.0
 
     # --- IDENTIFICAÇÃO DINÂMICA DOS PRINCIPAIS CLUSTERS ACIMA E ABAIXO ---
     df_clusters = pd.DataFrame({"price": prices, "volume": liq_volumes})
@@ -479,17 +484,22 @@ if PLOTLY_AVAILABLE:
     df_below = df_clusters[df_clusters["price"] < base_price]
     top_sup = df_below.loc[df_below["volume"].idxmax()] if not df_below.empty else {"price": base_price * 0.96, "volume": 0}
 
-    # Plotagem limpa com escala Jet e hover informativo (sem poluição nas barras)
+    # Plotagem limpa com espectro Jet calibrado
     fig_oi = go.Figure()
     fig_oi.add_trace(go.Bar(
         y=prices,
         x=liq_volumes,
         orientation='h',
         marker=dict(
-            color=liq_volumes,
+            color=color_intensity,
             colorscale='Jet',
             showscale=True,
-            colorbar=dict(title="Intensidade", len=0.8, thickness=12, tickfont=dict(color="#C9D1D9"))
+            colorbar=dict(
+                title="Intensidade", 
+                len=0.8, 
+                thickness=12, 
+                tickfont=dict(color="#C9D1D9")
+            )
         ),
         hoverinfo='text',
         text=[f"Preço: {fmt_num(p)} | Densidade: ${v:.2f}M" for p, v in zip(prices, liq_volumes)],
