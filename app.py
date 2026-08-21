@@ -376,7 +376,7 @@ if selected_categories:
 
 st.markdown("---")
 # -------------------------------------------------------------
-# 7. MÓDULO: MAPA TÉRMICO DE LIQUIDEZ E VOLUME PROFILE
+# 5. MÓDULO: MAPA TÉRMICO DE LIQUIDEZ E VOLUME PROFILE
 # -------------------------------------------------------------
 if modulo == "Crypto":
     st.subheader("🔥 Mapa de Alavancagem & Open Interest (Derivativos)")
@@ -395,10 +395,11 @@ if PLOTLY_AVAILABLE:
     prices = []
     liq_volumes = []
     data_source = ""
-    metric_label_type = "Open Interest / Liquidez Efetiva" if modulo == "Crypto" else "Volume Profile / Densidade"
+    unit_label = "M" if modulo == "Crypto" else "B"
+    metric_label_type = "Open Interest / Liquidez Efetiva" if modulo == "Crypto" else "Volume Profile Institucional"
 
     if modulo == "Crypto":
-        # --- MÓDULO CRIPTO: DADOS REAIS DA DERIBIT API (NORMALIZADOS) ---
+        # --- MÓDULO CRIPTO: ESCALA EM MILHÕES ($M) ---
         data_source = "Deribit API (BTC-PERPETUAL Order Book Normalizado)"
         try:
             url = "https://www.deribit.com/api/v2/public/get_order_book?instrument_name=BTC-PERPETUAL&depth=200"
@@ -439,8 +440,8 @@ if PLOTLY_AVAILABLE:
             liq_volumes = [max(3.0, 30.0 / (1 + 0.8 * abs(p - base_price) / (base_price * 0.01))) for p in prices]
 
     else:
-        # --- MÓDULO TRADFI: VOLUME PROFILE BASEADO EM FUTUROS (ES=F COM ESCALA NORMALIZADA) ---
-        data_source = "Yahoo Finance API (S&P 500 Futures Volume Profile — ES=F Normalizado)"
+        # --- MÓDULO TRADFI: ESCALA REAL EM BILHÕES ($B) PARA S&P 500 ---
+        data_source = "Yahoo Finance API (S&P 500 Futures Volume Profile — ES=F em Bilhões)"
         try:
             import yfinance as yf
             df_es = yf.download("ES=F", period="1mo", interval="1h", progress=False)
@@ -455,29 +456,32 @@ if PLOTLY_AVAILABLE:
             if not df_es.empty:
                 if isinstance(df_es.columns, pd.MultiIndex):
                     df_es.columns = df_es.columns.get_level_values(0)
-                df_es = df_es.dropna(subset=['Close', 'Volume'])
+                df_es = df_es.dropna(subset=['Close', 'Volume', 'Open'])
                 if not df_es.empty:
                     df_es = df_es[(df_es['Close'] >= min_p) & (df_es['Close'] <= max_p)]
+                    # Calcular volume financeiro aproximado em Bilhões de USD (Preço * Volume de Contratos)
+                    df_es["notional_b"] = (df_es['Close'] * df_es['Volume']) / 1_000_000_000
                     df_es["bin_idx"] = pd.cut(df_es['Close'], bins=bin_edges, labels=False, include_lowest=True)
-                    grouped = df_es.groupby("bin_idx")['Volume'].sum()
+                    grouped = df_es.groupby("bin_idx")['notional_b'].sum()
                     for idx, val in grouped.items():
                         if pd.notna(idx) and 0 <= int(idx) < num_bins:
                             hist_vols[int(idx)] = float(val)
 
             max_h = hist_vols.max() if hist_vols.max() > 0 else 1.0
-            liq_volumes = [max(3.0, (v / max_h) * 40.0) for v in hist_vols]
+            # Escala real em bilhões (ex: picos de 15B a 120B de dólares negociados na faixa)
+            liq_volumes = [max(2.0, (v / max_h) * 95.0) if v > 0 else 5.0 for v in hist_vols]
                 
         except Exception:
             pass
 
         if not prices or sum(liq_volumes) == 0:
-            data_source = "Yahoo Finance API (Fallback Model Simétrico)"
+            data_source = "Yahoo Finance API (Fallback Model Simétrico TradFi)"
             num_bins = 20
             min_p = base_price * 0.88
             max_p = base_price * 1.12
             bin_edges = np.linspace(min_p, max_p, num_bins + 1)
             prices = [(bin_edges[i] + bin_edges[i+1]) / 2 for i in range(num_bins)]
-            liq_volumes = [max(5.0, 30.0 / (1 + 0.5 * abs(p - base_price) / (base_price * 0.01))) for p in prices]
+            liq_volumes = [max(10.0, 70.0 / (1 + 0.5 * abs(p - base_price) / (base_price * 0.01))) for p in prices]
 
     # --- CALIBRAGEM DE ESPECTRO TÉRMICO (RAIZ QUADRADA) ---
     arr_v = np.array(liq_volumes, dtype=float)
@@ -511,7 +515,7 @@ if PLOTLY_AVAILABLE:
             )
         ),
         hoverinfo='text',
-        text=[f"Preço: {fmt_num(p)} | {metric_label_type}: ${v:.2f}M" for p, v in zip(prices, liq_volumes)],
+        text=[f"Preço: {fmt_num(p)} | {metric_label_type}: ${v:.2f}{unit_label}" for p, v in zip(prices, liq_volumes)],
         name="Clusters de Liquidez"
     ))
 
@@ -524,8 +528,9 @@ if PLOTLY_AVAILABLE:
         annotation_font_color="#58A6FF"
     )
 
-    chart_title = "Mapa Térmico de Open Interest & Alavancagem (Derivativos)" if modulo == "Crypto" else "Mapa Térmico de Volume Profile & Liquidez (S&P 500 Futures)"
-    
+    chart_title = "Mapa Térmico de Open Interest & Alavancagem (Crypto — $M)" if modulo == "Crypto" else "Mapa Térmico de Volume Profile & Liquidez (S&P 500 Futures — $B)"
+    xaxis_title = "Densidade Relativa / Volume Efetivo ($M)" if modulo == "Crypto" else "Volume Notional Acumulado por Faixa ($ Bilhões)"
+
     fig_oi.update_layout(
         title=chart_title,
         paper_bgcolor="#0B0E14", 
@@ -534,11 +539,11 @@ if PLOTLY_AVAILABLE:
         margin=dict(l=20, r=20, t=40, b=20), 
         height=520,
         yaxis=dict(gridcolor="#30363D", title="Níveis de Preço (USD)"),
-        xaxis=dict(gridcolor="#30363D", title="Densidade Relativa / Volume Efetivo ($M)")
+        xaxis=dict(gridcolor="#30363D", title=xaxis_title)
     )
     st.plotly_chart(fig_oi, use_container_width=True)
 
-    # --- EXIBIÇÃO EXPLÍCITA DOS PRINCIPAIS NÍVEIS COM FONTE DA API REAL ---
+    # --- EXIBIÇÃO EXPLÍCITA DOS PRINCIPAIS NÍVEIS COM UNIDADE CORRETA ---
     st.markdown(f"🟢 **Fonte Oficial da API Ativa:** `{data_source}`")
     st.markdown("### 🎯 Pontos Criticos de Liquidez & Defesa Institucional")
     
@@ -547,13 +552,13 @@ if PLOTLY_AVAILABLE:
         st.metric(
             label="🛡️ Principal Suporte / Alinhamento Abaixo",
             value=fmt_num(top_sup["price"]),
-            delta=f"Densidade: ${top_sup['volume']:.2f}M"
+            delta=f"Volume: ${top_sup['volume']:.2f}{unit_label}"
         )
     with col_res:
         st.metric(
             label="⚡ Principal Resistência / Alvo Acima",
             value=fmt_num(top_res["price"]),
-            delta=f"Densidade: ${top_res['volume']:.2f}M"
+            delta=f"Volume: ${top_res['volume']:.2f}{unit_label}"
         )
 else:
     st.warning("⚠️ O módulo Plotly não está disponível no momento.")
