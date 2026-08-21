@@ -376,7 +376,7 @@ if selected_categories:
 
 st.markdown("---")
 # -------------------------------------------------------------
-# 5. MÓDULO: MAPA TÉRMICO DE LIQUIDEZ E VOLUME PROFILE
+# 7. MÓDULO: MAPA TÉRMICO DE LIQUIDEZ E VOLUME PROFILE
 # -------------------------------------------------------------
 if modulo == "Crypto":
     st.subheader("🔥 Mapa de Alavancagem & Open Interest (Derivativos)")
@@ -399,7 +399,7 @@ if PLOTLY_AVAILABLE:
     metric_label_type = "Open Interest / Liquidez Efetiva" if modulo == "Crypto" else "Volume Profile Institucional"
 
     if modulo == "Crypto":
-        # --- MÓDULO CRIPTO: DADOS REAIS DO ORDER BOOK DA DERIBIT (SEM PISOS ARTIFICIAIS) ---
+        # --- MÓDULO CRIPTO: DADOS REAIS DA DERIBIT (QTY JÁ EM USD) ---
         data_source = "Deribit API (BTC-PERPETUAL Order Book Real)"
         try:
             url = "https://www.deribit.com/api/v2/public/get_order_book?instrument_name=BTC-PERPETUAL&depth=250"
@@ -413,8 +413,8 @@ if PLOTLY_AVAILABLE:
                 df_book = pd.concat([bids, asks])
                 
                 if not df_book.empty:
-                    # Cálculo notional real em Milhões de USD (qty * price / 1M)
-                    df_book["notional_m"] = (df_book["qty"] * df_book["price"]) / 1_000_000
+                    # Correção: Deribit perpetual qty já está em USD, dividimos direto por 1M para ter Milhões ($M)
+                    df_book["notional_m"] = df_book["qty"] / 1_000_000
                     
                     min_p = base_price * 0.85
                     max_p = base_price * 1.15
@@ -430,7 +430,7 @@ if PLOTLY_AVAILABLE:
                         p_mid = (bin_edges[i] + bin_edges[i+1]) / 2
                         matched = grouped[grouped["bin_idx"] == i]
                         v = float(matched["notional_m"].values[0]) if not matched.empty else 0.0
-                        if v > 0:  # Apenas níveis com ordens reais no book
+                        if v > 0:
                             prices.append(p_mid)
                             liq_volumes.append(v)
         except Exception:
@@ -457,7 +457,7 @@ if PLOTLY_AVAILABLE:
                     max_p = base_price * 1.12
                     df_es = df_es[(df_es['Close'] >= min_p) & (df_es['Close'] <= max_p)]
                     
-                    # Volume notional real em Bilhões de USD negociados na faixa
+                    # Volume notional real em Bilhões de USD
                     df_es["notional_b"] = (df_es['Close'] * df_es['Volume']) / 1_000_000_000
                     
                     num_bins = 25
@@ -470,7 +470,7 @@ if PLOTLY_AVAILABLE:
                         p_mid = (bin_edges[i] + bin_edges[i+1]) / 2
                         matched = grouped[grouped["bin_idx"] == i]
                         v = float(matched["notional_b"].values[0]) if not matched.empty else 0.0
-                        if v > 0:  # Apenas faixas com histórico real de negociação
+                        if v > 0:
                             prices.append(p_mid)
                             liq_volumes.append(v)
         except Exception:
