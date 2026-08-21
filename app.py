@@ -505,32 +505,64 @@ if selected_categories:
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 7. NOVO MÓDULO: OPEN INTEREST & CLUSTERS DE LIQUIDEZ
+# 7. NOVO MÓDULO: OPEN INTEREST & CLUSTERS DE LIQUIDEZ (ESTILO BOOKMAP)
 # -----------------------------------------------------------------------------
-st.subheader("⚡ Open Interest & Clusters de Liquidez em Tempo Real")
-st.caption("Gráfico interativo de concentração de liquidez e alavancagem em derivativos:")
+st.subheader("⚡ Open Interest & Clusters de Liquidez (Estilo Bookmap)")
+st.caption("Visualização avançada de grandes blocos de liquidez, muralhas e alavancagem em derivativos:")
 
 if PLOTLY_AVAILABLE:
     oi_asset_name = "BTCUSDT Futures (Derivativos Perpetuos)" if modulo == "Crypto" else "S&P Futures (ES=F / CME Group)"
     oi_ticker = "BTC-USD" if modulo == "Crypto" else "ES=F"
-    base_price = quotes.get(oi_ticker, {"price": 65000.0 if modulo == "Crypto" else 5800.0}).get("price", 65000.0)
+    base_price = quotes.get(oi_ticker, {"price": 76000.0 if modulo == "Crypto" else 5800.0}).get("price", 76000.0)
     
-    price_steps = [base_price * (1 + i * 0.005) for i in range(-6, 7)]
-    liquidity_clusters = [12.5, 24.0, 48.2, 85.5, 99.4, 64.0, 30.1, 75.3, 92.0, 45.6, 20.2, 10.5, 5.0]
+    # Gerando alta granularidade de preços simulando o Order Book depth
+    price_steps = [base_price * (1 + i * 0.0015) for i in range(-12, 13)]
+    
+    # Simulando volume de ordens passivas (clusters maiores em patamares chave)
+    import random
+    random.seed(42)
+    volumes = [abs(i) * 8 + random.randint(15, 75) + (120 if abs(i) in [2, 6, 10] else 0) for i in range(len(price_steps))]
 
     fig_oi = go.Figure()
-    fig_oi.add_trace(go.Bar(
+
+    # Gráfico de Dispersão com Bolhas Proporcionais (Estilo Bookmap Bubbles)
+    fig_oi.add_trace(go.Scatter(
         x=price_steps,
-        y=liquidity_clusters,
-        marker_color=['#238636' if p <= base_price else '#F85149' for p in price_steps],
-        name="Volume de Open Interest (Clusters)"
+        y=[1] * len(price_steps),
+        mode='markers',
+        marker=dict(
+            size=[v * 0.45 for v in volumes],
+            color=volumes,
+            colorscale='Turbo',  # Cores vibrantes estilo heatmap de volume
+            showscale=True,
+            colorbar=dict(title="Volume / OI", len=0.75, thickness=12, tickfont=dict(color="#C9D1D9")),
+            opacity=0.85,
+            line=dict(width=1.5, color='#FFFFFF')
+        ),
+        text=[f"Preço: {fmt_num(p)}<br>Liquidez/OI: {v}M" for p, v in zip(price_steps, volumes)],
+        hoverinfo='text',
+        name="Clusters de Liquidez"
     ))
-    fig_oi.add_vline(x=base_price, line_dash="dash", line_color="#58A6FF", annotation_text=f"Preço Spot: {fmt_num(base_price)}")
+
+    # Linha vertical indicando o Preço Spot atual
+    fig_oi.add_vline(
+        x=base_price, 
+        line_dash="dash", 
+        line_color="#58A6FF", 
+        annotation_text=f"Spot: {fmt_num(base_price)}",
+        annotation_position="top left",
+        annotation_font_color="#58A6FF"
+    )
+
     fig_oi.update_layout(
-        title=f"Mapeamento de Clusters de Liquidez & Open Interest — {oi_asset_name}",
-        paper_bgcolor="#0B0E14", plot_bgcolor="#161B22", font=dict(color="#C9D1D9", size=12),
-        margin=dict(l=20, r=20, t=40, b=20), height=400,
-        xaxis=dict(gridcolor="#30363D"), yaxis=dict(gridcolor="#30363D")
+        title=f"Mapa de Bolhas de Liquidez & Order Flow — {oi_asset_name}",
+        paper_bgcolor="#0B0E14", 
+        plot_bgcolor="#161B22", 
+        font=dict(color="#C9D1D9", size=12),
+        margin=dict(l=20, r=20, t=40, b=20), 
+        height=420,
+        xaxis=dict(gridcolor="#30363D", title="Níveis de Preço de Execução"),
+        yaxis=dict(showticklabels=False, showgrid=False, zeroline=False, title="")
     )
     st.plotly_chart(fig_oi, use_container_width=True)
 else:
