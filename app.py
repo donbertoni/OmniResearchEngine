@@ -60,6 +60,20 @@ st.markdown("""<style>
     .color-red { color: #F85149 !important; font-weight: 600; }
     .color-blue { color: #58A6FF !important; font-weight: 600; }
 
+    /* ESTILIZAÇÃO DOS CARDS DE MÉTRICAS AGREGADAS */
+    .metric-card {
+        background-color: #161B22;
+        border: 1px solid #30363D;
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin-bottom: 10px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .metric-title { font-size: 11px; color: #8B949E; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .metric-value { font-size: 15px; font-weight: 700; color: #F0F6FC; margin: 2px 0px; }
+
     .pred-card {
         background-color: #161B22;
         border: 1px solid #30363D;
@@ -205,7 +219,6 @@ col_left, col_right = st.columns([1.3, 1])
 with col_left:
     st.subheader(f"📝 Relatório — {formato}")
 
-    # Geração do texto dinâmico baseado nos ativos habilitados no dashboard
     if "B2B" in formato:
         report_lines = [
             f"=== RELATÓRIO INSTITUCIONAL {modulo.upper()} (B2B) ===",
@@ -230,7 +243,6 @@ with col_left:
                     q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                     report_lines.append(f"  • {disp_name} ({ticker}): {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
         
-        # O estado do checkbox do Heat Map é lido aqui de forma segura
         include_heatmap = st.session_state.get("chk_include_heatmap", True)
         if include_heatmap:
             report_lines.extend([
@@ -246,7 +258,6 @@ with col_left:
         ])
         output_content = "\n".join(report_lines)
     else:
-        # Modo Auto-Pilot (YouTube / WhatsApp / Telegram)
         script_lines = [
             f"=== ROTEIRO AUTO-PILOT ({modulo.upper()}) ===",
             f"Data/Hora: {now_str}",
@@ -394,7 +405,6 @@ st.markdown("---")
 # 5. MÓDULO: MAPA TÉRMICO DE LIQUIDEZ E VOLUME PROFILE
 # -------------------------------------------------------------
 
-# CABEÇALHO DA SEÇÃO COM CHECKBOX ALINHADO AO LADO DO TÍTULO
 col_sec_title, col_sec_chk = st.columns([4, 1])
 with col_sec_title:
     if modulo == "Crypto":
