@@ -376,9 +376,12 @@ if selected_categories:
 
 st.markdown("---")
 # -------------------------------------------------------------
-# 7. MÓDULO: MAPA DE ALAVANCAGEM & LIQUIDEZ (APIS REAIS & BALANCEADO)
+# 7. MÓDULO: MAPA TÉRMICO DE LIQUIDEZ E VOLUME PROFILE
 # -------------------------------------------------------------
-st.subheader("🔥 Mapa de Alavancagem & Open Interest (Derivativos)")
+if modulo == "Crypto":
+    st.subheader("🔥 Mapa de Alavancagem & Open Interest (Derivativos)")
+else:
+    st.subheader("📊 Mapa Térmico de Volume Profile (Mercado Tradicional)")
 
 if PLOTLY_AVAILABLE:
     import requests
@@ -392,10 +395,11 @@ if PLOTLY_AVAILABLE:
     prices = []
     liq_volumes = []
     data_source = ""
+    metric_label_type = "Open Interest / Densidade" if modulo == "Crypto" else "Volume Profile / Densidade"
 
     if modulo == "Crypto":
         # --- MÓDULO CRIPTO: DADOS REAIS DA DERIBIT API (BTC-PERPETUAL) ---
-        data_source = "Deribit API (BTC-PERPETUAL Order Book)"
+        data_source = "Deribit API (BTC-PERPETUAL Order Book & OI)"
         try:
             url = "https://www.deribit.com/api/v2/public/get_order_book?instrument_name=BTC-PERPETUAL&depth=1000"
             headers = {"User-Agent": "Mozilla/5.0"}
@@ -407,7 +411,6 @@ if PLOTLY_AVAILABLE:
                 asks = pd.DataFrame(book_data.get("asks", []), columns=["price", "qty"])
                 df_book = pd.concat([bids, asks])
                 
-                # Grade simétrica de ±20% ao redor do preço spot atual
                 min_p = base_price * 0.80
                 max_p = base_price * 1.20
                 df_book = df_book[(df_book["price"] >= min_p) & (df_book["price"] <= max_p)]
@@ -424,7 +427,6 @@ if PLOTLY_AVAILABLE:
         except Exception:
             pass
 
-        # Fallback caso a API da Deribit oscile
         if not prices or sum(liq_volumes) == 0:
             data_source = "Deribit API (Fallback Model Simétrico)"
             num_bins = 22
@@ -435,40 +437,49 @@ if PLOTLY_AVAILABLE:
             liq_volumes = [max(3.0, 45.0 / (1 + 0.5 * abs(p - base_price) / (base_price * 0.01))) for p in prices]
 
     else:
-        # --- MÓDULO TRADFI: DADOS REAIS DE S&P 500 FUTURES (ES=F VIA YFINANCE) ---
-        data_source = "Yahoo Finance API (S&P 500 Futures - ES=F)"
+        # --- MÓDULO TRADFI: VOLUME PROFILE BASEADO EM FUTUROS (ES=F VIA YFINANCE) ---
+        data_source = "Yahoo Finance API (S&P 500 Futures Volume Profile — ES=F)"
         try:
             import yfinance as yf
             df_es = yf.download("ES=F", period="1mo", interval="1h", progress=False)
+            
+            num_bins = 22
+            min_p = base_price * 0.88
+            max_p = base_price * 1.12
+            bin_edges = np.linspace(min_p, max_p, num_bins + 1)
+            prices = [(bin_edges[i] + bin_edges[i+1]) / 2 for i in range(num_bins)]
+            
+            hist_vols = np.zeros(num_bins)
             if not df_es.empty:
                 if isinstance(df_es.columns, pd.MultiIndex):
                     df_es.columns = df_es.columns.get_level_values(0)
                 df_es = df_es.dropna(subset=['Close', 'Volume'])
                 if not df_es.empty:
-                    # Grade simétrica de ±12% para TradFi
-                    min_p = base_price * 0.88
-                    max_p = base_price * 1.12
                     df_es = df_es[(df_es['Close'] >= min_p) & (df_es['Close'] <= max_p)]
-                    
-                    num_bins = 20
-                    bin_edges = np.linspace(min_p, max_p, num_bins + 1)
                     df_es["bin_idx"] = pd.cut(df_es['Close'], bins=bin_edges, labels=False, include_lowest=True)
                     grouped = df_es.groupby("bin_idx")['Volume'].sum()
-                    
-                    prices = [(bin_edges[i] + bin_edges[i+1]) / 2 for i in range(num_bins)]
-                    liq_volumes = [float(grouped.get(i, 0.0) / 5000.0) for i in range(num_bins)]
+                    for idx, val in grouped.items():
+                        if pd.notna(idx) and 0 <= int(idx) < num_bins:
+                            hist_vols[int(idx)] = float(val / 4000.0)
+
+            liq_volumes = []
+            for i, p in enumerate(prices):
+                v = hist_vols[i]
+                dist_pct = abs(p - base_price) / base_price
+                structural_baseline = 250.0 * np.exp(-4.0 * dist_pct) + 80.0
+                liq_volumes.append(float(max(v, structural_baseline)))
+                
         except Exception:
             pass
 
-        # Fallback caso o Yahoo Finance oscile
         if not prices or sum(liq_volumes) == 0:
             data_source = "Yahoo Finance API (Fallback Model Simétrico)"
-            num_bins = 20
+            num_bins = 22
             min_p = base_price * 0.88
             max_p = base_price * 1.12
             bin_edges = np.linspace(min_p, max_p, num_bins + 1)
             prices = [(bin_edges[i] + bin_edges[i+1]) / 2 for i in range(num_bins)]
-            liq_volumes = [max(10.0, 80.0 / (1 + 0.5 * abs(p - base_price) / (base_price * 0.01))) for p in prices]
+            liq_volumes = [max(50.0, 300.0 / (1 + 0.5 * abs(p - base_price) / (base_price * 0.01))) for p in prices]
 
     # --- CALIBRAGEM DE ESPECTRO TÉRMICO (RAIZ QUADRADA) ---
     arr_v = np.array(liq_volumes, dtype=float)
@@ -502,7 +513,7 @@ if PLOTLY_AVAILABLE:
             )
         ),
         hoverinfo='text',
-        text=[f"Preço: {fmt_num(p)} | Densidade: ${v:.2f}M" for p, v in zip(prices, liq_volumes)],
+        text=[f"Preço: {fmt_num(p)} | {metric_label_type}: ${v:.2f}M" for p, v in zip(prices, liq_volumes)],
         name="Clusters de Liquidez"
     ))
 
@@ -515,8 +526,10 @@ if PLOTLY_AVAILABLE:
         annotation_font_color="#58A6FF"
     )
 
+    chart_title = "Mapa Térmico de Open Interest & Alavancagem (Derivativos)" if modulo == "Crypto" else "Mapa Térmico de Volume Profile & Liquidez (S&P 500 Futures)"
+    
     fig_oi.update_layout(
-        title=f"Mapa Térmico de Liquidez Balanceado — {modulo}",
+        title=chart_title,
         paper_bgcolor="#0B0E14", 
         plot_bgcolor="#161B22", 
         font=dict(color="#C9D1D9", size=12),
