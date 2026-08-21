@@ -20,8 +20,8 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-st.markdown("""
-<style>
+
+st.markdown("""<style>
     .stApp {
         background-color: #0B0E14;
         color: #E2E8F0;
@@ -33,78 +33,80 @@ st.markdown("""
         justify-content: flex-start;
     }
     .status-bar {
-        background-color: #161B22;
-        border: 1px solid #30363D;
-        padding: 10px 15px;
+        background-color: #131B2A;
+        padding: 10px 18px;
         border-radius: 8px;
+        border: 1px solid #1E293B;
         margin-bottom: 20px;
-        font-size: 14px;
-        color: #C9D1D9;
+        color: #94A3B8;
+        font-size: 13px;
     }
     .metric-card {
         background-color: #161B22;
         border: 1px solid #30363D;
         border-radius: 8px;
-        padding: 15px;
+        padding: 12px 16px;
         margin-bottom: 12px;
     }
-    .metric-title {
-        font-size: 12px;
-        color: #8B949E;
-        margin-bottom: 4px;
-        text-transform: uppercase;
-        font-weight: 600;
-    }
-    .metric-value {
-        font-size: 20px;
-        font-weight: 700;
-        color: #F0F6FC;
-    }
-    .metric-change-pos {
-        font-size: 12px;
-        color: #3FB950;
-        margin-top: 4px;
-    }
-    .metric-change-neg {
-        font-size: 12px;
-        color: #F85149;
-        margin-top: 4px;
-    }
-    .metric-change-neutral {
-        font-size: 12px;
-        color: #8B949E;
-        margin-top: 4px;
-    }
+    .metric-title { font-size: 12px; color: #8B949E; font-weight: 600; }
+    .metric-value { font-size: 18px; font-weight: 700; color: #F0F6FC; margin: 4px 0; }
+    .metric-change-pos { font-size: 12px; color: #3FB950; font-weight: 600; }
+    .metric-change-neg { font-size: 12px; color: #F85149; font-weight: 600; }
+    .metric-change-neutral { font-size: 12px; color: #58A6FF; font-weight: 600; }
+    .premium-badge { color: #58A6FF; font-weight: bold; }
+
     .pred-card {
         background-color: #161B22;
         border: 1px solid #30363D;
         border-radius: 8px;
-        padding: 12px;
-        text-align: center;
+        padding: 10px 14px;
+        height: 85px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
     }
-    .pred-title {
-        font-size: 11px;
-        color: #8B949E;
-        text-transform: uppercase;
-        margin-bottom: 4px;
+    .pred-title { font-size: 11px; color: #8B949E; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pred-value { font-size: 15px; font-weight: 700; color: #F0F6FC; }
+    .pred-sub { font-size: 11px; font-weight: 600; }
+
+    /* Ajuste milimétrico para alinhar o relatório */
+    .stTextArea {
+        margin-top: -5px !important;
     }
-    .pred-value {
-        font-size: 16px;
-        font-weight: 700;
-        color: #58A6FF;
+
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background-color: #161B22 !important;
+        border: 1px solid #30363D !important;
+        border-radius: 8px !important;
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"] > div {
+        background-color: transparent !important;
+        background: transparent !important;
+        border: none !important;
+    }
+    div[data-testid="stCheckbox"] {
+        display: flex !important;
+        justify-content: flex-end !important;
+        align-items: center !important;
+        height: 24px !important;
+        margin: 0px !important;
+        padding: 0px !important;
+    }
+    div[data-testid="stCheckbox"] > label {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        margin: 0px !important;
+        padding: 0px !important;
+        cursor: pointer !important;
     }
     div[data-baseweb="checkbox"] input:checked + div {
         background-color: #238636 !important;
         border-color: #238636 !important;
     }
     input[type="checkbox"]:checked { accent-color: #238636 !important; }
+</style>""", unsafe_allow_html=True)
 
-    /* Ajuste milimétrico apenas para puxar o topo do relatório para a mesma linha */
-    .stTextArea {
-        margin-top: -5px !important;
-    }
-</style>
-""", unsafe_allow_html=True)
 # -----------------------------------------------------------------------------
 # 2. ACERVO MESTRE DE DADOS & CATEGORIAS (TRADFI & CRYPTO)
 # -----------------------------------------------------------------------------
@@ -357,11 +359,33 @@ if custom_tickers:
     }
     if "0 - Tickers Personalizados" not in selected_categories:
         selected_categories.insert(0, "0 - Tickers Personalizados")
-import json # Necessário para o botão de exportar JSON
+
+# -----------------------------------------------------------------------------
+# 5. CORPO PRINCIPAL & LAYOUT DE DUAS COLUNAS
+# -----------------------------------------------------------------------------
+if allow_white_label and company_name != "OMNIRESEARCH Engine":
+    st.title(f"🏢 {company_name} — Terminal Quant")
+    st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
+else:
+    st.title("⚡ OMNIRESEARCH Engine")
+    st.caption("Plataforma Integrada de Inteligência Financeira")
+
+now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
+col_status, col_btn_refresh = st.columns([3.5, 1])
+with col_status:
+    st.markdown(f'<div class="status-bar">🕒 <b>Dados consolidados às {now_str}</b> | Status API: <span style="color: #3FB950;">🟢 Online</span> | <b>Módulo:</b> {modulo}</div>', unsafe_allow_html=True)
+with col_btn_refresh:
+    if st.button("🔄 Atualizar Cotações"):
+        st.cache_data.clear()
+        st.rerun()
+
+col_left, col_right = st.columns([1.3, 1])
 
 with col_left:
+    st.markdown('<div class="col-header-sync">', unsafe_allow_html=True)
     st.subheader(f"📋 Entrega Padrão — {formato}")
     st.caption("Relatório analítico gerado com dados consolidados em tempo real:")
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # Geração Dinâmica e Completa do Conteúdo do Relatório / Roteiro
     if "B2B" in formato:
@@ -388,20 +412,8 @@ with col_left:
             f"Tendência estrutural alinhada ao horizonte de {horizonte_pred}. Monitoramento ativo de zonas de liquidez e alavancagem em derivativos para proteção de posições."
         ])
         output_content = "\n".join(report_lines)
-        
-        # ALTURA AJUSTADA (aprox. 350px) para alinhar a base do text_area com a 4ª caixa de métrica
-        st.text_area("", value=output_content, height=350, label_visibility="collapsed")
-        
-        # BOTÕES DE DOWNLOAD ALINHADOS (Ocupando a altura da 5ª caixa)
-        btn_col1, btn_col2, btn_col3 = st.columns(3)
-        with btn_col1:
-            st.download_button("📄 Baixar (TXT)", data=output_content, file_name=f"OMNI_{modulo}.txt", mime="text/plain", use_container_width=True)
-        with btn_col2:
-            st.download_button("📕 Baixar (PDF)", data=output_content, file_name=f"OMNI_{modulo}.pdf", mime="application/pdf", use_container_width=True)
-        with btn_col3:
-            json_data = json.dumps({"relatorio": output_content})
-            st.download_button("📊 Baixar (JSON)", data=json_data, file_name=f"OMNI_{modulo}.json", mime="application/json", use_container_width=True)
-
+        st.text_area("", value=output_content, height=350)
+        st.download_button("📄 Baixar Relatório (TXT)", data=output_content, file_name=f"OMNI_Relatorio_{modulo}.txt", mime="text/plain")
     else:
         script_lines = [
             f"=== ROTEIRO YOUTUBE AUTO-PILOT ({modulo.upper()}) ===",
@@ -426,21 +438,27 @@ with col_left:
             "Deixe o seu like, se inscreva no canal e ative as notificações. Bons trades e até a próxima!"
         ])
         script_text = "\n".join(script_lines)
-        
-        st.text_area("", value=script_text, height=350, label_visibility="collapsed")
-        
-        btn_col1, btn_col2, btn_col3 = st.columns(3)
-        with btn_col1:
-            st.download_button("📄 Baixar (TXT)", data=script_text, file_name=f"OMNI_Roteiro_{modulo}.txt", mime="text/plain", use_container_width=True)
-        with btn_col2:
-            st.download_button("📕 Baixar (PDF)", data=script_text, file_name=f"OMNI_Roteiro_{modulo}.pdf", mime="application/pdf", use_container_width=True)
-        with btn_col3:
-            json_data = json.dumps({"roteiro": script_text})
-            st.download_button("📊 Baixar (JSON)", data=json_data, file_name=f"OMNI_Roteiro_{modulo}.json", mime="application/json", use_container_width=True)
+        st.text_area("", value=script_text, height=350)
+        st.download_button("📕 Baixar Roteiro YouTube (TXT)", data=script_text, file_name=f"OMNI_Roteiro_{modulo}.txt", mime="text/plain")
+
+    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+    st.markdown("### 🎯 Alvos Preditivos & Zonas Operacionais")
+    c1, c2, c3, c4 = st.columns(4)
+    main_q = quotes.get("BTC-USD" if modulo == "Crypto" else "^GSPC", {"price": 100.0, "change": 0.0})
+    with c1:
+        st.markdown(f'<div class="pred-card"><div class="pred-title">Tendência</div><div class="pred-value">Compradora</div></div>', unsafe_allow_html=True)
+    with c2:
+        st.markdown(f'<div class="pred-card"><div class="pred-title">Resistência Alvo</div><div class="pred-value">{fmt_num(main_q["price"] * 1.03)}</div></div>', unsafe_allow_html=True)
+    with c3:
+        st.markdown(f'<div class="pred-card"><div class="pred-title">Suporte Chave</div><div class="pred-value">{fmt_num(main_q["price"] * 0.97)}</div></div>', unsafe_allow_html=True)
+    with c4:
+        st.markdown(f'<div class="pred-card"><div class="pred-title">Previsão</div><div class="pred-value">Alta Moderada</div></div>', unsafe_allow_html=True)
 
 with col_right:
+    st.markdown('<div class="col-header-sync">', unsafe_allow_html=True)
     st.subheader(f"📊 Métricas Agregadas ({modulo})")
     st.caption(f"Atualizado às {datetime.now().strftime('%H:%M:%S BRT')}")
+    st.markdown('</div>', unsafe_allow_html=True)
 
     for item in active_benchmarks:
         label = item["label"]
@@ -460,28 +478,9 @@ with col_right:
         st.markdown(f'<div class="metric-card"><div class="metric-title">{label}</div><div class="metric-value">{val_str}</div><div class="{change_cls}">{chg_str}</div></div>', unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# Seção Full-Width Abaixo: Alvos Preditivos
-# -----------------------------------------------------------------------------
-st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-st.markdown("### 🎯 Alvos Preditivos & Zonas Operacionais")
-p_cols = st.columns(6)
-main_q = quotes.get("BTC-USD" if modulo == "Crypto" else "^GSPC", {"price": 77000.0 if modulo == "Crypto" else 5800.0}).get("price", 77000.0)
-
-with p_cols[0]:
-    st.markdown(f'<div class="pred-card"><div class="pred-title">Tendência</div><div class="pred-value" style="font-size:15px;">Compradora</div></div>', unsafe_allow_html=True)
-with p_cols[1]:
-    st.markdown(f'<div class="pred-card"><div class="pred-title">Resistência Alvo</div><div class="pred-value" style="font-size:15px;">{fmt_num(main_q * 1.03)}</div></div>', unsafe_allow_html=True)
-with p_cols[2]:
-    st.markdown(f'<div class="pred-card"><div class="pred-title">Suporte Chave</div><div class="pred-value" style="font-size:15px;">{fmt_num(main_q * 0.97)}</div></div>', unsafe_allow_html=True)
-with p_cols[3]:
-    st.markdown(f'<div class="pred-card"><div class="pred-title">Previsão</div><div class="pred-value" style="font-size:15px;">Alta Moderada</div></div>', unsafe_allow_html=True)
-with p_cols[4]:
-    st.markdown(f'<div class="pred-card"><div class="pred-title">Volatilidade</div><div class="pred-value" style="font-size:15px;">Média-Alta</div></div>', unsafe_allow_html=True)
-with p_cols[5]:
-    st.markdown(f'<div class="pred-card"><div class="pred-title">Delta OI (24h)</div><div class="pred-value" style="font-size:15px;">+4.85%</div></div>', unsafe_allow_html=True)        
 # 6. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA)
 # -----------------------------------------------------------------------------
-st.subheader(f"🧩 Painel de Análise Integrada das Categorias ({modulo})")
+st.subheader(f"🗂️ Painel de Análise Integrada das Categorias ({modulo})")
 if selected_categories:
     cols = st.columns(min(len(selected_categories), 4))
     for idx, cat_name in enumerate(selected_categories):
@@ -514,7 +513,7 @@ st.markdown("---")
 # -----------------------------------------------------------------------------
 # 7. NOVO MÓDULO: MAPA TÉRMICO DE LIQUIDAÇÕES & CLUSTERS DE ALAVANCAGEM
 # -----------------------------------------------------------------------------
-st.subheader("⚡ Mapa Térmico de Liquidações & Clusters de Alavancagem")
+st.subheader("🔥 Mapa Térmico de Liquidações & Clusters de Alavancagem")
 st.caption("Perfil estrutural de liquidez e piscinas de alavancagem passiva em derivativos:")
 
 if PLOTLY_AVAILABLE:
@@ -522,7 +521,6 @@ if PLOTLY_AVAILABLE:
     oi_ticker = "BTC-USD" if modulo == "Crypto" else "ES=F"
     base_price = quotes.get(oi_ticker, {"price": 77000.0 if modulo == "Crypto" else 5800.0}).get("price", 77000.0)
     
-    # Definir faixa ampla de preços cobrindo desde os clusters inferiores até acima do spot
     if modulo == "Crypto":
         min_p, max_p = 60000.0, 84000.0
         step = 500.0
@@ -538,14 +536,13 @@ if PLOTLY_AVAILABLE:
         prices.append(curr)
         dist_from_spot = curr - base_price
         
-        # Simulando concentração real de clusters pesados abaixo (ex: 60.5k a 66k) e zonas de defesa
         if modulo == "Crypto":
             if 60500 <= curr <= 66000:
-                base_vol = 180 + (66000 - curr) * 0.08  # Piscinas massivas de longs alavancados abaixo
+                base_vol = 180 + (66000 - curr) * 0.08
             elif 70000 <= curr <= 71500:
-                base_vol = 140                          # Suporte / Muralha intermediária
+                base_vol = 140
             elif curr > base_price:
-                base_vol = 30 + abs(curr - base_price) * 0.03 # Liquidação de shorts acima
+                base_vol = 30 + abs(curr - base_price) * 0.03
             else:
                 base_vol = 45 + abs(dist_from_spot) * 0.01
         else:
@@ -556,14 +553,13 @@ if PLOTLY_AVAILABLE:
 
     fig_oi = go.Figure()
 
-    # Gráfico de Barras Horizontais (Liquidation Profile estilo Heatmap)
     fig_oi.add_trace(go.Bar(
         y=prices,
         x=liq_volumes,
         orientation='h',
         marker=dict(
             color=liq_volumes,
-            colorscale='Turbo',  # Gradiente térmico idêntico ao heatmap profissional
+            colorscale='Turbo',
             showscale=True,
             colorbar=dict(title="Volume Liq. ($M)", len=0.8, thickness=12, tickfont=dict(color="#C9D1D9"))
         ),
@@ -572,7 +568,6 @@ if PLOTLY_AVAILABLE:
         name="Clusters de Liquidez"
     ))
 
-    # Linha horizontal indicando o Preço Spot atual
     fig_oi.add_hline(
         y=base_price, 
         line_dash="dash", 
@@ -597,4 +592,4 @@ else:
     st.warning("⚠️ O módulo Plotly não está disponível no momento. Certifique-se de incluir 'plotly' no arquivo `requirements.txt`.")
 
 st.markdown("---")
-st.caption("⚡© Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
+st.caption("©️ Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
