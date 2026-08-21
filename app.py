@@ -356,7 +356,7 @@ if custom_tickers:
         selected_categories.insert(0, "0 - Tickers Personalizados")
 
 # -----------------------------------------------------------------------------
-# 5. CORPO PRINCIPAL & LAYOUT DE DUAS COLUNAS
+# 5. CORPO PRINCIPAL & LAYOUT DE DUAS COLUNAS + ALVOS PREDITIVOS EXPANDIDOS
 # -----------------------------------------------------------------------------
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.title(f"🏢 {company_name} — Terminal Quant")
@@ -377,10 +377,8 @@ with col_btn_refresh:
 col_left, col_right = st.columns([1.3, 1])
 
 with col_left:
-    st.markdown('<div class="col-header-sync">', unsafe_allow_html=True)
     st.subheader(f"📋 Entrega Padrão — {formato}")
     st.caption("Relatório analítico gerado com dados consolidados em tempo real:")
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # Geração Dinâmica e Completa do Conteúdo do Relatório / Roteiro
     if "B2B" in formato:
@@ -407,7 +405,8 @@ with col_left:
             f"Tendência estrutural alinhada ao horizonte de {horizonte_pred}. Monitoramento ativo de zonas de liquidez e alavancagem em derivativos para proteção de posições."
         ])
         output_content = "\n".join(report_lines)
-        st.text_area("", value=output_content, height=350)
+        # Altura ajustada (420px) para alinhar milimetricamente com as 5 caixas de métricas à direita
+        st.text_area("", value=output_content, height=420)
         st.download_button("📥 Baixar Relatório (TXT)", data=output_content, file_name=f"OMNI_Relatorio_{modulo}.txt", mime="text/plain")
     else:
         script_lines = [
@@ -433,27 +432,12 @@ with col_left:
             "Deixe o seu like, se inscreva no canal e ative as notificações. Bons trades e até a próxima!"
         ])
         script_text = "\n".join(script_lines)
-        st.text_area("", value=script_text, height=350)
+        st.text_area("", value=script_text, height=420)
         st.download_button("📥 Baixar Roteiro YouTube (TXT)", data=script_text, file_name=f"OMNI_Roteiro_{modulo}.txt", mime="text/plain")
 
-    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-    st.markdown("### 🎯 Alvos Preditivos & Zonas Operacionais")
-    c1, c2, c3, c4 = st.columns(4)
-    main_q = quotes.get("BTC-USD" if modulo == "Crypto" else "^GSPC", {"price": 100.0, "change": 0.0})
-    with c1:
-        st.markdown(f'<div class="pred-card"><div class="pred-title">Tendência</div><div class="pred-value">Compradora</div></div>', unsafe_allow_html=True)
-    with c2:
-        st.markdown(f'<div class="pred-card"><div class="pred-title">Resistência Alvo</div><div class="pred-value">{fmt_num(main_q["price"] * 1.03)}</div></div>', unsafe_allow_html=True)
-    with c3:
-        st.markdown(f'<div class="pred-card"><div class="pred-title">Suporte Chave</div><div class="pred-value">{fmt_num(main_q["price"] * 0.97)}</div></div>', unsafe_allow_html=True)
-    with c4:
-        st.markdown(f'<div class="pred-card"><div class="pred-title">Previsão</div><div class="pred-value">Alta Moderada</div></div>', unsafe_allow_html=True)
-
 with col_right:
-    st.markdown('<div class="col-header-sync">', unsafe_allow_html=True)
     st.subheader(f"📊 Métricas Agregadas ({modulo})")
     st.caption(f"Atualizado às {datetime.now().strftime('%H:%M:%S BRT')}")
-    st.markdown('</div>', unsafe_allow_html=True)
 
     for item in active_benchmarks:
         label = item["label"]
@@ -471,7 +455,25 @@ with col_right:
             change_cls = "metric-change-pos" if data["change"] >= 0 else "metric-change-neg"
 
         st.markdown(f'<div class="metric-card"><div class="metric-title">{label}</div><div class="metric-value">{val_str}</div><div class="{change_cls}">{chg_str}</div></div>', unsafe_allow_html=True)
-# -----------------------------------------------------------------------------
+
+# Seção Full-Width Abaixo Alinhada Perfeitamente com 6 Cards Preditivos
+st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
+st.markdown("### 🎯 Alvos Preditivos & Zonas Operacionais")
+p_cols = st.columns(6)
+main_q = quotes.get("BTC-USD" if modulo == "Crypto" else "^GSPC", {"price": 77000.0 if modulo == "Crypto" else 5800.0}).get("price", 77000.0)
+
+with p_cols[0]:
+    st.markdown(f'<div class="pred-card"><div class="pred-title">Tendência</div><div class="pred-value" style="font-size:15px;">Compradora</div></div>', unsafe_allow_html=True)
+with p_cols[1]:
+    st.markdown(f'<div class="pred-card"><div class="pred-title">Resistência Alvo</div><div class="pred-value" style="font-size:15px;">{fmt_num(main_q * 1.03)}</div></div>', unsafe_allow_html=True)
+with p_cols[2]:
+    st.markdown(f'<div class="pred-card"><div class="pred-title">Suporte Chave</div><div class="pred-value" style="font-size:15px;">{fmt_num(main_q * 0.97)}</div></div>', unsafe_allow_html=True)
+with p_cols[3]:
+    st.markdown(f'<div class="pred-card"><div class="pred-title">Previsão</div><div class="pred-value" style="font-size:15px;">Alta Moderada</div></div>', unsafe_allow_html=True)
+with p_cols[4]:
+    st.markdown(f'<div class="pred-card"><div class="pred-title">Volatilidade</div><div class="pred-value" style="font-size:15px;">Média-Alta</div></div>', unsafe_allow_html=True)
+with p_cols[5]:
+    st.markdown(f'<div class="pred-card"><div class="pred-title">Delta OI (24h)</div><div class="pred-value" style="font-size:15px;">+4.85%</div></div>', unsafe_allow_html=True)# -----------------------------------------------------------------------------
 # 6. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA)
 # -----------------------------------------------------------------------------
 st.subheader(f"🧩 Painel de Análise Integrada das Categorias ({modulo})")
