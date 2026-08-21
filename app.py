@@ -20,8 +20,8 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-st.markdown("""<style>
+st.markdown("""
+<style>
     .stApp {
         background-color: #0B0E14;
         color: #E2E8F0;
@@ -33,75 +33,72 @@ st.markdown("""<style>
         justify-content: flex-start;
     }
     .status-bar {
-        background-color: #131B2A;
-        padding: 10px 18px;
+        background-color: #161B22;
+        border: 1px solid #30363D;
+        padding: 10px 15px;
         border-radius: 8px;
-        border: 1px solid #1E293B;
         margin-bottom: 20px;
-        color: #94A3B8;
-        font-size: 13px;
+        font-size: 14px;
+        color: #C9D1D9;
     }
     .metric-card {
         background-color: #161B22;
         border: 1px solid #30363D;
         border-radius: 8px;
-        padding: 12px 16px;
+        padding: 15px;
         margin-bottom: 12px;
     }
-    .metric-title { font-size: 12px; color: #8B949E; font-weight: 600; }
-    .metric-value { font-size: 18px; font-weight: 700; color: #F0F6FC; margin: 4px 0; }
-    .metric-change-pos { font-size: 12px; color: #3FB950; font-weight: 600; }
-    .metric-change-neg { font-size: 12px; color: #F85149; font-weight: 600; }
-    .metric-change-neutral { font-size: 12px; color: #58A6FF; font-weight: 600; }
-    .premium-badge { color: #58A6FF; font-weight: bold; }
-
+    .metric-title {
+        font-size: 12px;
+        color: #8B949E;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+    .metric-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: #F0F6FC;
+    }
+    .metric-change-pos {
+        font-size: 12px;
+        color: #3FB950;
+        margin-top: 4px;
+    }
+    .metric-change-neg {
+        font-size: 12px;
+        color: #F85149;
+        margin-top: 4px;
+    }
+    .metric-change-neutral {
+        font-size: 12px;
+        color: #8B949E;
+        margin-top: 4px;
+    }
     .pred-card {
         background-color: #161B22;
         border: 1px solid #30363D;
         border-radius: 8px;
-        padding: 10px 14px;
-        height: 85px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
+        padding: 12px;
+        text-align: center;
     }
-    .pred-title { font-size: 11px; color: #8B949E; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .pred-value { font-size: 15px; font-weight: 700; color: #F0F6FC; }
-    .pred-sub { font-size: 11px; font-weight: 600; }
-
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        background-color: #161B22 !important;
-        border: 1px solid #30363D !important;
-        border-radius: 8px !important;
+    .pred-title {
+        font-size: 11px;
+        color: #8B949E;
+        text-transform: uppercase;
+        margin-bottom: 4px;
     }
-    div[data-testid="stVerticalBlockBorderWrapper"] > div {
-        background-color: transparent !important;
-        background: transparent !important;
-        border: none !important;
-    }
-    div[data-testid="stCheckbox"] {
-        display: flex !important;
-        justify-content: flex-end !important;
-        align-items: center !important;
-        height: 24px !important;
-        margin: 0px !important;
-        padding: 0px !important;
-    }
-    div[data-testid="stCheckbox"] > label {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: flex-end !important;
-        margin: 0px !important;
-        padding: 0px !important;
-        cursor: pointer !important;
+    .pred-value {
+        font-size: 16px;
+        font-weight: 700;
+        color: #58A6FF;
     }
     div[data-baseweb="checkbox"] input:checked + div {
         background-color: #238636 !important;
         border-color: #238636 !important;
     }
     input[type="checkbox"]:checked { accent-color: #238636 !important; }
-    st.markdown("""
-<style>
+
     /* Ajuste milimétrico para alinhar o topo do text_area com a primeira caixa de métrica */
     .stTextArea {
         margin-top: -4px !important;
@@ -114,10 +111,8 @@ st.markdown("""<style>
         font-family: 'Courier New', monospace !important;
         font-size: 13px !important;
     }
-    /* Restante dos seus estilos... */
 </style>
 """, unsafe_allow_html=True)
-
 # -----------------------------------------------------------------------------
 # 2. ACERVO MESTRE DE DADOS & CATEGORIAS (TRADFI & CRYPTO)
 # -----------------------------------------------------------------------------
