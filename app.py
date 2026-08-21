@@ -23,7 +23,7 @@ from backend import (
 )
 
 # -----------------------------------------------------------------------------
-# DEFINIÇÃO DE CATEGORIAS SEPARADAS POR MÓDULO (TRADFI vs CRYPTO PURA)
+# DEFINIÇÃO DE CATEGORIAS (8 CATEGORIAS OFICIAIS DO MÓDULO CRYPTO)
 # -----------------------------------------------------------------------------
 CATEGORIES_CRYPTO = {
     "1 - Volume Spot (24 hs)": {
@@ -70,11 +70,8 @@ CATEGORIES_CRYPTO = {
             ("Tether BRL", "USDT-BRL", "R$"),
             ("Dai", "DAI-USD", "$")
         ]
-    }
-}
-
-CATEGORIES_TRADFI = {
-    "1 - ETFs (Crypto & Macro)": {
+    },
+    "6 - ETFs (Crypto & Macro)": {
         "tag": "ETFs",
         "assets": [
             ("IBIT (BlackRock)", "IBIT", "$"),
@@ -83,7 +80,7 @@ CATEGORIES_TRADFI = {
             ("BITO (Futures)", "BITO", "$")
         ]
     },
-    "2 - Treasury & Ações": {
+    "7 - Treasury & Ações": {
         "tag": "Treasury",
         "assets": [
             ("MicroStrategy", "MSTR", "$"),
@@ -92,13 +89,25 @@ CATEGORIES_TRADFI = {
             ("Coinbase Global", "COIN", "$")
         ]
     },
-    "3 - Mineração & Hashrate": {
+    "8 - Mineração & Hashrate": {
         "tag": "Mining",
         "assets": [
             ("CleanSpark", "CLSK", "$"),
             ("Hut 8", "HUT", "$"),
             ("Bitfarms", "BITF", "$"),
             ("Iris Energy", "IREN", "$")
+        ]
+    }
+}
+
+CATEGORIES_TRADFI = {
+    "1 - Índices & Globais": {
+        "tag": "Indices",
+        "assets": [
+            ("S&P 500", "^GSPC", "$"),
+            ("Nasdaq", "^IXIC", "$"),
+            ("Dow Jones", "^DJI", "$"),
+            ("Dollar Index", "DX-Y.NYB", "$")
         ]
     }
 }
