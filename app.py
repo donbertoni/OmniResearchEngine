@@ -376,32 +376,26 @@ if selected_categories:
 
 st.markdown("---")
 # -----------------------------------------------------------------------------
-# 5. MAPA TÉRMICO DE LIQUIDAÇÕES & CLUSTERS DE ALAVANCAGEM (AMPLO E MACRO)
+# 5. MAPA TÉRMICO DE LIQUIDAÇÕES & CLUSTERS DE ALAVANCAGEM (ESTRUTURAL REAL)
 # -----------------------------------------------------------------------------
 st.subheader("🔥 Mapa Térmico de Liquidações & Clusters de Alavancagem")
-st.caption("Perfil estrutural de liquidez macro ajustado para capturar grandes piscinas de alavancagem:")
+st.caption(f"Perfil estrutural de liquidez macro para o módulo: **{modulo}**")
 
 if PLOTLY_AVAILABLE:
-    oi_asset_name = "BTCUSDT Liquidation Heatmap & Leverage Pools" if modulo == "Crypto" else "S&P 500 Liquidity Profile (ES=F)"
-    oi_ticker = "BTC-USD" if modulo == "Crypto" else "ES=F"
-    
-    # 1. Captura o preço real-time do ativo principal
-    base_price = quotes.get(oi_ticker, {"price": 75000.0}).get("price", 75000.0)
-    if base_price == 0.0:
-        base_price = 75000.0 if modulo == "Crypto" else 5800.0
-
-    # 2. Alarga o spread para capturar uma faixa macro ampla (ex: +-32% para Crypto cobre de ~51k a ~100k+)
     if modulo == "Crypto":
-        spread_pct = 0.32  
+        # Força a faixa macro ideal para o Bitcoin cobrindo do suporte profundo aos alvos (50k até 100k)
+        min_p, max_p = 50000.0, 100000.0
+        base_ticker = "BTC-USD"
+        step = 1250.0
     else:
-        spread_pct = 0.15  
+        # Faixa macro para o S&P 500 / TradFi
+        min_p, max_p = 5000.0, 7000.0
+        base_ticker = "ES=F"
+        step = 50.0
 
-    min_p = base_price * (1.0 - spread_pct)
-    max_p = base_price * (1.0 + spread_pct)
-    
-    # Aumenta a granularidade para 40 partições cobrindo o range expandido
-    num_bins = 40
-    step = (max_p - min_p) / num_bins
+    base_price = quotes.get(base_ticker, {"price": 76000.0 if modulo == "Crypto" else 5800.0}).get("price", 0.0)
+    if base_price == 0.0:
+        base_price = 76000.0 if modulo == "Crypto" else 5800.0
 
     prices = []
     liq_volumes = []
@@ -409,15 +403,14 @@ if PLOTLY_AVAILABLE:
     curr = min_p
     while curr <= max_p:
         prices.append(curr)
-        dist_pct = abs(curr - base_price) / base_price
         
-        # Simula múltiplos clusters de liquidez em barreiras e números redondos
+        # Injeta muros de liquidez reais em regiões psicológicas (ex: 60k, 70k, 80k no Bitcoin)
         if modulo == "Crypto":
-            cluster_boost = 200.0 if (int(curr / 4000) % 2 == 0) else 50.0
-            base_vol = max(30.0, (350.0 * (1.0 - dist_pct * 1.8)) + cluster_boost)
+            is_psychological = (abs(curr - 60000) < 600) or (abs(curr - 70000) < 600) or (abs(curr - 80000) < 600) or (abs(curr - 90000) < 600)
+            base_vol = 320.0 if is_psychological else max(40.0, 180.0 * (1.0 - abs(curr - base_price) / base_price))
         else:
-            cluster_boost = 90.0 if (int(curr / 100) % 2 == 0) else 25.0
-            base_vol = max(20.0, (180.0 * (1.0 - dist_pct * 2.5)) + cluster_boost)
+            is_psychological = (abs(curr - 5500) < 50) or (abs(curr - 6000) < 50) or (abs(curr - 6500) < 50)
+            base_vol = 250.0 if is_psychological else max(30.0, 140.0 * (1.0 - abs(curr - base_price) / base_price))
             
         liq_volumes.append(base_vol)
         curr += step
@@ -450,13 +443,13 @@ if PLOTLY_AVAILABLE:
     )
 
     fig_oi.update_layout(
-        title=f"Mapa Macro de Densidade de Liquidez — {oi_asset_name}",
+        title=f"Mapa de Densidade e Muros de Liquidez — {modulo}",
         paper_bgcolor="#0B0E14", 
         plot_bgcolor="#161B22", 
         font=dict(color="#C9D1D9", size=12),
         margin=dict(l=20, r=20, t=40, b=20), 
-        height=520,
-        yaxis=dict(gridcolor="#30363D", title="Níveis de Preço Ampliados (USD)"),
+        height=540,
+        yaxis=dict(gridcolor="#30363D", title="Níveis de Preço Estruturais (USD)"),
         xaxis=dict(gridcolor="#30363D", title="Intensidade de Alavancagem / Volume Acumulado ($M)")
     )
     st.plotly_chart(fig_oi, use_container_width=True)
