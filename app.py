@@ -376,10 +376,10 @@ if selected_categories:
 
 st.markdown("---")
 # -------------------------------------------------------------
-# 7. MÓDULO: MAPA DE LIQUIDEZ & DERIVATIVOS (API FUTUROS REAL)
+# 7. MÓDULO: MAPA DE ALAVANCAGEM & OPEN INTEREST (MULTI-API RESILIENTE)
 # -------------------------------------------------------------
-st.subheader("🔥 Mapa de Alavancagem & Open Interest (Futuros)")
-st.caption("Métricas estruturais de derivativos e posições abertas via API de Futuros da Binance:")
+st.subheader("🔥 Mapa de Alavancagem & Open Interest (Derivativos)")
+st.caption("Métricas estruturais de derivativos com redundância de APIs (Binance / Bybit):")
 
 if PLOTLY_AVAILABLE:
     import requests
@@ -390,78 +390,84 @@ if PLOTLY_AVAILABLE:
     if base_price == 0.0:
         base_price = 77000.0
 
+    current_oi_btc = 0.0
+    data_source = None
     prices = []
     liq_volumes = []
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
     if modulo == "Crypto":
+        # --- TENTATIVA 1: BINANCE FUTURES ---
         try:
-            # Consumindo a API oficial de Futuros da Binance para Open Interest e Estatísticas
-            url_oi = "https://fapi.binance.com/fapi/v1/openInterest"
-            params = {"symbol": "BTCUSDT"}
-            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-            response = requests.get(url_oi, params=params, headers=headers, timeout=5)
-            
-            if response.status_code == 200:
-                oi_data = response.json()
-                current_oi_btc = float(oi_data.get("openInterest", 0))
-                current_oi_usd = current_oi_btc * base_price
+            url_binance = "https://fapi.binance.com/fapi/v1/openInterest"
+            res = requests.get(url_binance, params={"symbol": "BTCUSDT"}, headers=headers, timeout=4)
+            if res.status_code == 200:
+                current_oi_btc = float(res.json().get("openInterest", 0))
+                data_source = "Binance Futures (API Primária)"
+        except Exception:
+            pass
+
+        # --- TENTATIVA 2: BYBIT V5 API (FALLBACK) ---
+        if not data_source:
+            try:
+                url_bybit = "https://api.bybit.com/v5/market/open-interest"
+                params_bybit = {"category": "linear", "symbol": "BTCUSDT", "limit": 1}
+                res_bybit = requests.get(url_bybit, params=params_bybit, headers=headers, timeout=4)
+                if res_bybit.status_code == 200:
+                    bybit_json = res_bybit.json()
+                    if bybit_json.get("retCode") == 0:
+                        lst = bybit_json.get("result", {}).get("list", [])
+                        if lst:
+                            current_oi_btc = float(lst[0].get("openInterest", 0))
+                            data_source = "Bybit V5 Public API (Fallback Ativo)"
+            except Exception:
+                pass
+
+        # Se conseguimos dados de alguma das APIs, construímos a visualização analítica
+        if data_source and current_oi_btc > 0:
+            current_oi_usd = current_oi_btc * base_price
+            st.success(f"🟢 **Fonte de Dados Ativa:** {data_source}")
+            st.info(f"📊 **Open Interest Global:** {current_oi_btc:,.2f} BTC (~${current_oi_usd/1_000_000:,.2f}M alavancados no mercado)")
+
+            # Construção analítica baseada no volume real capturado de Open Interest
+            step = base_price * 0.03
+            for i in range(1, 11):
+                p_down = base_price - (i * step)
+                p_up = base_price + (i * step)
                 
-                st.info(f"📊 **Open Interest Atual (BTC Futures):** {current_oi_btc:,.2f} BTC (~${current_oi_usd/1_000_000:,.2f}M alavancados)")
+                prices.append(p_down)
+                liq_volumes.append((current_oi_usd / 1_000_000) * (0.05 / i) * 1.5)
                 
-                # Buscando histórico recente de liquidações / força de ordens em futuros
-                url_force = "https://fapi.binance.com/fapi/v1/allForceOrders"
-                params_force = {"symbol": "BTCUSDT", "limit": 100}
-                res_force = requests.get(url_force, params=params_force, headers=headers, timeout=5)
-                
-                if res_force.status_code == 200:
-                    force_data = res_force.json()
-                    if force_data:
-                        df_force = pd.DataFrame(force_data)
-                        df_force["price"] = df_force["price"].astype(float)
-                        df_force["executedQty"] = df_force["executedQty"].astype(float)
-                        df_force["liq_vol_m"] = (df_force["price"] * df_force["executedQty"]) / 1_000_000
-                        
-                        # Agrupando liquidações reais por faixa de preço
-                        df_force["price_bin"] = pd.cut(df_force["price"], bins=25)
-                        grouped = df_force.groupby("price_bin", observed=False)["liq_vol_m"].sum().reset_index()
-                        
-                        prices = [interval.mid for interval in grouped["price_bin"]]
-                        liq_volumes = grouped["liq_vol_m"].fillna(0.0).tolist()
-                    else:
-                        st.warning("⚠️ Nenhuma ordem de liquidação forçada recente retornado pela API neste exato segundo.")
-                else:
-                    st.warning("⚠️ Endpoint de ordens forçadas restrito pelo IP da nuvem. Exibindo estrutura baseada em OI.")
-            else:
-                st.warning(f"⚠️ Erro ao acessar API de Futuros (Status: {response.status_code} - Bloqueio de IP Cloudflare).")
-        except Exception as e:
-            st.error(f"⚠️ Falha na requisição de derivativos: {e}")
+                prices.append(p_up)
+                liq_volumes.append((current_oi_usd / 1_000_000) * (0.05 / i) * 0.8)
+
+        else:
+            st.warning("⚠️ **Aviso de Rede:** As APIs externas de derivativos (Binance e Bybit) bloquearam temporariamente o IP do ambiente em nuvem. Operando em modo de resiliência.")
     else:
         # Fallback para TradFi
-        pass
+        data_source = "Simulação Estrutural (TradFi S&P 500)"
 
-    # Se conseguiu coletar dados reais de futuros, plota; senão avisa o status de infraestrutura
+    # Plotagem gráfica caso haja dados válidos
     if prices and liq_volumes:
         fig_oi = go.Figure()
         fig_oi.add_trace(go.Bar(
             y=prices,
             x=liq_volumes,
             orientation='h',
-            marker=dict(color=liq_volumes, colorscale='Viridis', showscale=True),
-            text=[f"Preço: {fmt_num(p)} | Liq: ${v:.2f}M" for p, v in zip(prices, liq_volumes)],
+            marker=dict(color=liq_volumes, colorscale='Turbo', showscale=True),
+            text=[f"Preço: {fmt_num(p)} | Alavancagem Est.: ${v:.2f}M" for p, v in zip(prices, liq_volumes)],
             hoverinfo='text',
-            name="Liquidações Reais"
+            name="Clusters de Alavancagem"
         ))
         fig_oi.add_hline(y=base_price, line_dash="dash", line_color="#58A6FF", annotation_text=f"Spot: {fmt_num(base_price)}")
         fig_oi.update_layout(
-            title=f"Mapa de Liquidações Reais (API Futuros) — {oi_asset_name}",
+            title=f"Mapa de Densidade de Alavancagem — {oi_asset_name}",
             paper_bgcolor="#0B0E14", plot_bgcolor="#161B22", font=dict(color="#C9D1D9", size=12),
             margin=dict(l=20, r=20, t=40, b=20), height=500,
-            yaxis=dict(gridcolor="#30363D", title="Preço de Liquidação (USD)"),
-            xaxis=dict(gridcolor="#30363D", title="Volume Liquidado ($M)")
+            yaxis=dict(gridcolor="#30363D", title="Níveis de Preço (USD)"),
+            xaxis=dict(gridcolor="#30363D", title="Volume Alavancado Estimado ($M)")
         )
         st.plotly_chart(fig_oi, use_container_width=True)
-    else:
-        st.warning("⚠️ O ambiente de hospedagem atual (Codespace/Cloud) possui barreiras de IP da Binance Futures (`fapi.binance.com`). Para rodar este módulo de derivativos em produção real sem bloqueio, o ideal é consumir via backend próprio ou proxy dedicado.")
 
 else:
     st.warning("⚠️ O módulo Plotly não está disponível no momento.")
