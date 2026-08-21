@@ -505,64 +505,85 @@ if selected_categories:
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 7. NOVO MÓDULO: OPEN INTEREST & CLUSTERS DE LIQUIDEZ (ESTILO BOOKMAP)
+# 7. NOVO MÓDULO: MAPA TÉRMICO DE LIQUIDAÇÕES & CLUSTERS DE ALAVANCAGEM
 # -----------------------------------------------------------------------------
-st.subheader("⚡ Open Interest & Clusters de Liquidez (Estilo Bookmap)")
-st.caption("Visualização avançada de grandes blocos de liquidez, muralhas e alavancagem em derivativos:")
+st.subheader("⚡ Mapa Térmico de Liquidações & Clusters de Alavancagem")
+st.caption("Perfil estrutural de liquidez e piscinas de alavancagem passiva em derivativos:")
 
 if PLOTLY_AVAILABLE:
-    oi_asset_name = "BTCUSDT Futures (Derivativos Perpetuos)" if modulo == "Crypto" else "S&P Futures (ES=F / CME Group)"
+    oi_asset_name = "BTCUSDT Liquidation Heatmap & Leverage Pools" if modulo == "Crypto" else "S&P 500 Liquidity Profile (ES=F)"
     oi_ticker = "BTC-USD" if modulo == "Crypto" else "ES=F"
-    base_price = quotes.get(oi_ticker, {"price": 76000.0 if modulo == "Crypto" else 5800.0}).get("price", 76000.0)
+    base_price = quotes.get(oi_ticker, {"price": 77000.0 if modulo == "Crypto" else 5800.0}).get("price", 77000.0)
     
-    # Gerando alta granularidade de preços simulando o Order Book depth
-    price_steps = [base_price * (1 + i * 0.0015) for i in range(-12, 13)]
+    # Definir faixa ampla de preços cobrindo desde os clusters inferiores até acima do spot
+    if modulo == "Crypto":
+        min_p, max_p = 60000.0, 84000.0
+        step = 500.0
+    else:
+        min_p, max_p = base_price * 0.85, base_price * 1.15
+        step = base_price * 0.01
+
+    prices = []
+    liq_volumes = []
     
-    # Simulando volume de ordens passivas (clusters maiores em patamares chave)
-    import random
-    random.seed(42)
-    volumes = [abs(i) * 8 + random.randint(15, 75) + (120 if abs(i) in [2, 6, 10] else 0) for i in range(len(price_steps))]
+    curr = min_p
+    while curr <= max_p:
+        prices.append(curr)
+        dist_from_spot = curr - base_price
+        
+        # Simulando concentração real de clusters pesados abaixo (ex: 60.5k a 66k) e zonas de defesa
+        if modulo == "Crypto":
+            if 60500 <= curr <= 66000:
+                base_vol = 180 + (66000 - curr) * 0.08  # Piscinas massivas de longs alavancados abaixo
+            elif 70000 <= curr <= 71500:
+                base_vol = 140                          # Suporte / Muralha intermediária
+            elif curr > base_price:
+                base_vol = 30 + abs(curr - base_price) * 0.03 # Liquidação de shorts acima
+            else:
+                base_vol = 45 + abs(dist_from_spot) * 0.01
+        else:
+            base_vol = 50 + abs(dist_from_spot) * 0.05
+            
+        liq_volumes.append(base_vol)
+        curr += step
 
     fig_oi = go.Figure()
 
-    # Gráfico de Dispersão com Bolhas Proporcionais (Estilo Bookmap Bubbles)
-    fig_oi.add_trace(go.Scatter(
-        x=price_steps,
-        y=[1] * len(price_steps),
-        mode='markers',
+    # Gráfico de Barras Horizontais (Liquidation Profile estilo Heatmap)
+    fig_oi.add_trace(go.Bar(
+        y=prices,
+        x=liq_volumes,
+        orientation='h',
         marker=dict(
-            size=[v * 0.45 for v in volumes],
-            color=volumes,
-            colorscale='Turbo',  # Cores vibrantes estilo heatmap de volume
+            color=liq_volumes,
+            colorscale='Turbo',  # Gradiente térmico idêntico ao heatmap profissional
             showscale=True,
-            colorbar=dict(title="Volume / OI", len=0.75, thickness=12, tickfont=dict(color="#C9D1D9")),
-            opacity=0.85,
-            line=dict(width=1.5, color='#FFFFFF')
+            colorbar=dict(title="Volume Liq. ($M)", len=0.8, thickness=12, tickfont=dict(color="#C9D1D9"))
         ),
-        text=[f"Preço: {fmt_num(p)}<br>Liquidez/OI: {v}M" for p, v in zip(price_steps, volumes)],
+        text=[f"Preço: {fmt_num(p)} | Risco: {v:.0f}M" for p, v in zip(prices, liq_volumes)],
         hoverinfo='text',
         name="Clusters de Liquidez"
     ))
 
-    # Linha vertical indicando o Preço Spot atual
-    fig_oi.add_vline(
-        x=base_price, 
+    # Linha horizontal indicando o Preço Spot atual
+    fig_oi.add_hline(
+        y=base_price, 
         line_dash="dash", 
         line_color="#58A6FF", 
-        annotation_text=f"Spot: {fmt_num(base_price)}",
-        annotation_position="top left",
+        annotation_text=f"Spot Atual: {fmt_num(base_price)}",
+        annotation_position="bottom right",
         annotation_font_color="#58A6FF"
     )
 
     fig_oi.update_layout(
-        title=f"Mapa de Bolhas de Liquidez & Order Flow — {oi_asset_name}",
+        title=f"Mapa de Densidade de Liquidez & Zonas de Alavancagem — {oi_asset_name}",
         paper_bgcolor="#0B0E14", 
         plot_bgcolor="#161B22", 
         font=dict(color="#C9D1D9", size=12),
         margin=dict(l=20, r=20, t=40, b=20), 
-        height=420,
-        xaxis=dict(gridcolor="#30363D", title="Níveis de Preço de Execução"),
-        yaxis=dict(showticklabels=False, showgrid=False, zeroline=False, title="")
+        height=500,
+        yaxis=dict(gridcolor="#30363D", title="Níveis de Preço (USD)"),
+        xaxis=dict(gridcolor="#30363D", title="Intensidade de Alavancagem / Volume Acumulado ($M)")
     )
     st.plotly_chart(fig_oi, use_container_width=True)
 else:
