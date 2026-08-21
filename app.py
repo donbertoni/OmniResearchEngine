@@ -11,9 +11,7 @@ except ImportError:
 
 # Importação do Backend Modularizado
 from backend import (
-    CATEGORIES_TRADFI,
     MACRO_BENCHMARKS,
-    CATEGORIES_CRYPTO,
     CRYPTO_BENCHMARKS,
     fmt_num,
     fmt_pct,
@@ -23,6 +21,87 @@ from backend import (
     fetch_realtime_quotes,
     send_whatsapp_report
 )
+
+# -----------------------------------------------------------------------------
+# DEFINIÇÃO DE CATEGORIAS SEPARADAS POR MÓDULO (TRADFI vs CRYPTO PURA)
+# -----------------------------------------------------------------------------
+CATEGORIES_CRYPTO = {
+    "1 - Volume Spot (24 hs)": {
+        "tag": "Spot Market",
+        "assets": [
+            ("Bitcoin", "BTCUSDT", "$"),
+            ("Ethereum", "ETHUSDT", "$"),
+            ("Solana", "SOLUSDT", "$"),
+            ("Binance Coin", "BNBUSDT", "$")
+        ]
+    },
+    "2 - Volume Futuros (24 hs)": {
+        "tag": "Derivatives",
+        "assets": [
+            ("BTC Perp", "BTCUSDT", "$"),
+            ("ETH Perp", "ETHUSDT", "$"),
+            ("SOL Perp", "SOLUSDT", "$"),
+            ("BNB Perp", "BNBUSDT", "$")
+        ]
+    },
+    "3 - Open Interest": {
+        "tag": "Open Interest",
+        "assets": [
+            ("BTC OI Base", "BTCUSDT", "$"),
+            ("ETH OI Base", "ETHUSDT", "$"),
+            ("SOL OI Base", "SOLUSDT", "$"),
+            ("AVAX OI Base", "AVAX-USD", "$")
+        ]
+    },
+    "4 - DeFi & Layer 1s": {
+        "tag": "DeFi / L1",
+        "assets": [
+            ("Uniswap", "UNI-USD", "$"),
+            ("Aave", "AAVE-USD", "$"),
+            ("Chainlink", "LINK-USD", "$"),
+            ("Avalanche", "AVAX-USD", "$")
+        ]
+    },
+    "5 - Stablecoins": {
+        "tag": "Stablecoins",
+        "assets": [
+            ("Tether USD", "USDT-USD", "$"),
+            ("USD Coin", "USDC-USD", "$"),
+            ("Tether BRL", "USDT-BRL", "R$"),
+            ("Dai", "DAI-USD", "$")
+        ]
+    }
+}
+
+CATEGORIES_TRADFI = {
+    "1 - ETFs (Crypto & Macro)": {
+        "tag": "ETFs",
+        "assets": [
+            ("IBIT (BlackRock)", "IBIT", "$"),
+            ("FBTC (Fidelity)", "FBTC", "$"),
+            ("ETHA (Ethereum)", "ETHA", "$"),
+            ("BITO (Futures)", "BITO", "$")
+        ]
+    },
+    "2 - Treasury & Ações": {
+        "tag": "Treasury",
+        "assets": [
+            ("MicroStrategy", "MSTR", "$"),
+            ("Marathon Digital", "MARA", "$"),
+            ("Riot Platforms", "RIOT", "$"),
+            ("Coinbase Global", "COIN", "$")
+        ]
+    },
+    "3 - Mineração & Hashrate": {
+        "tag": "Mining",
+        "assets": [
+            ("CleanSpark", "CLSK", "$"),
+            ("Hut 8", "HUT", "$"),
+            ("Bitfarms", "BITF", "$"),
+            ("Iris Energy", "IREN", "$")
+        ]
+    }
+}
 
 # -----------------------------------------------------------------------------
 # 1. CONFIGURAÇÃO DA PÁGINA & ESTILIZAÇÃO CSS INSTITUCIONAL
