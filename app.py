@@ -438,7 +438,8 @@ with col_left:
             f"Tendência estrutural alinhada ao horizonte de {horizonte_pred}. Monitoramento ativo de zonas de liquidez e alavancagem em derivativos para proteção de posições."
         ])
         output_content = "\n".join(report_lines)
-        st.text_area("", value=output_content, height=320)
+        # Altura ajustada para 410px para alinhar perfeitamente com os 5 cards da direita
+        st.text_area("", value=output_content, height=410)
         
         # Botões de Exportação Múltipla (TXT, JSON, PDF)
         st.markdown("**Opções de Exportação do Relatório:**")
@@ -485,7 +486,8 @@ with col_left:
             "Deixe o seu like, se inscreva no canal e ative as notificações. Bons trades e até a próxima!"
         ])
         script_text = "\n".join(script_lines)
-        st.text_area("", value=script_text, height=320)
+        # Altura ajustada para 410px também no modo B2C
+        st.text_area("", value=script_text, height=410)
         
         st.markdown("**Opções de Exportação do Roteiro:**")
         col_b1, col_b2, col_b3 = st.columns(3)
