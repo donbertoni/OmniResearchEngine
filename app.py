@@ -375,24 +375,33 @@ if selected_categories:
                             st.checkbox("", value=st.session_state.get(asset_key, True), key=asset_key, disabled=not cat_enabled, label_visibility="collapsed")
 
 st.markdown("---")
-
 # -----------------------------------------------------------------------------
-# 5. MAPA TÉRMICO DE LIQUIDAÇÕES & CLUSTERS DE ALAVANCAGEM (ORIGINAL AMPLO)
+# 5. MAPA TÉRMICO DE LIQUIDAÇÕES & CLUSTERS DE ALAVANCAGEM (100% DINÂMICO)
 # -----------------------------------------------------------------------------
 st.subheader("🔥 Mapa Térmico de Liquidações & Clusters de Alavancagem")
-st.caption("Perfil estrutural de liquidez e piscinas de alavancagem passiva em derivativos:")
+st.caption("Perfil estrutural de liquidez dinâmico ajustado ao preço em tempo real:")
 
 if PLOTLY_AVAILABLE:
     oi_asset_name = "BTCUSDT Liquidation Heatmap & Leverage Pools" if modulo == "Crypto" else "S&P 500 Liquidity Profile (ES=F)"
     oi_ticker = "BTC-USD" if modulo == "Crypto" else "ES=F"
-    base_price = quotes.get(oi_ticker, {"price": 77000.0 if modulo == "Crypto" else 5800.0}).get("price", 77000.0)
     
+    # 1. Captura o preço real-time do ativo principal
+    base_price = quotes.get(oi_ticker, {"price": 75000.0}).get("price", 75000.0)
+    if base_price == 0.0:
+        base_price = 75000.0 if modulo == "Crypto" else 5800.0
+
+    # 2. Define os limites de forma DINÂMICA baseados em porcentagem do spot atual
     if modulo == "Crypto":
-        min_p, max_p = 60000.0, 84000.0
-        step = 1000.0
+        spread_pct = 0.18  # 18% para cima e para baixo do preço atual
     else:
-        min_p, max_p = base_price * 0.85, base_price * 1.15
-        step = base_price * 0.01
+        spread_pct = 0.08  # 8% para ativos TradFi (menos voláteis)
+
+    min_p = base_price * (1.0 - spread_pct)
+    max_p = base_price * (1.0 + spread_pct)
+    
+    # Divide o range em 30 partições perfeitamente proporcionais
+    num_bins = 30
+    step = (max_p - min_p) / num_bins
 
     prices = []
     liq_volumes = []
@@ -400,12 +409,15 @@ if PLOTLY_AVAILABLE:
     curr = min_p
     while curr <= max_p:
         prices.append(curr)
-        dist_from_spot = curr - base_price
         
+        # Distância percentual em relação ao preço atual
+        dist_pct = abs(curr - base_price) / base_price
+        
+        # Lógica de distribuição de volume: maior intensidade próximo ao spot e nós de alavancagem
         if modulo == "Crypto":
-            base_vol = max(20.0, 600.0 - (curr - 60000.0) * 0.023) if curr <= base_price else max(15.0, 120.0 - (curr - base_price) * 0.012)
+            base_vol = max(30.0, 500.0 * (1.0 - dist_pct * 3.5)) if dist_pct < 0.15 else 40.0
         else:
-            base_vol = 50 + abs(dist_from_spot) * 0.05
+            base_vol = max(20.0, 250.0 * (1.0 - dist_pct * 5.0)) if dist_pct < 0.07 else 25.0
             
         liq_volumes.append(base_vol)
         curr += step
@@ -422,11 +434,12 @@ if PLOTLY_AVAILABLE:
             showscale=True,
             colorbar=dict(title="Volume Liq. ($M)", len=0.8, thickness=12, tickfont=dict(color="#C9D1D9"))
         ),
-        text=[f"Preço: {fmt_num(p)} | Volume: {v:.0f}M" for p, v in zip(prices, liq_volumes)],
+        text=[f"Preço: {fmt_num(p)} | Vol: {v:.0f}M" for p, v in zip(prices, liq_volumes)],
         hoverinfo='text',
         name="Clusters de Liquidez"
     ))
 
+    # Linha de destaque do Preço Spot Real-Time
     fig_oi.add_hline(
         y=base_price, 
         line_dash="dash", 
@@ -437,18 +450,18 @@ if PLOTLY_AVAILABLE:
     )
 
     fig_oi.update_layout(
-        title=f"Mapa de Densidade de Liquidez & Zonas de Alavancagem — {oi_asset_name}",
+        title=f"Mapa Dinâmico de Densidade de Liquidez — {oi_asset_name}",
         paper_bgcolor="#0B0E14", 
         plot_bgcolor="#161B22", 
         font=dict(color="#C9D1D9", size=12),
         margin=dict(l=20, r=20, t=40, b=20), 
         height=500,
-        yaxis=dict(gridcolor="#30363D", title="Níveis de Preço (USD)"),
+        yaxis=dict(gridcolor="#30363D", title="Níveis de Preço Dinâmicos (USD)"),
         xaxis=dict(gridcolor="#30363D", title="Intensidade de Alavancagem / Volume Acumulado ($M)")
     )
     st.plotly_chart(fig_oi, use_container_width=True)
 else:
-    st.warning("⚠️ O módulo Plotly não está disponível no momento. Certifique-se de incluir 'plotly' no arquivo `requirements.txt`.")
+    st.warning("⚠️ O módulo Plotly não está disponível.")
 
 st.markdown("---")
 st.caption("⚡©️ Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
