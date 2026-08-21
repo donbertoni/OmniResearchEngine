@@ -23,7 +23,7 @@ from backend import (
 )
 
 # -----------------------------------------------------------------------------
-# DEFINIÇÃO DE CATEGORIAS (8 CATEGORIAS OFICIAIS DO MÓDULO CRYPTO)
+# DEFINIÇÃO DE CATEGORIAS (MÓDULO CRYPTO - 8 CATEGORIAS)
 # -----------------------------------------------------------------------------
 CATEGORIES_CRYPTO = {
     "1 - Volume Spot (24 hs)": {
@@ -100,14 +100,43 @@ CATEGORIES_CRYPTO = {
     }
 }
 
+# -----------------------------------------------------------------------------
+# DEFINIÇÃO DE CATEGORIAS (MÓDULO TRADFI / MACRO - 4 CATEGORIAS RESTAURADAS)
+# -----------------------------------------------------------------------------
 CATEGORIES_TRADFI = {
-    "1 - Índices & Globais": {
+    "1 - Índices Globais": {
         "tag": "Indices",
         "assets": [
             ("S&P 500", "^GSPC", "$"),
             ("Nasdaq", "^IXIC", "$"),
             ("Dow Jones", "^DJI", "$"),
-            ("Dollar Index", "DX-Y.NYB", "$")
+            ("Russell 2000", "^RUT", "$")
+        ]
+    },
+    "2 - Commodities": {
+        "tag": "Commodities",
+        "assets": [
+            ("Ouro", "GC=F", "$"),
+            ("Petróleo WTI", "CL=F", "$"),
+            ("Cobre", "HG=F", "$"),
+            ("Gás Natural", "NG=F", "$")
+        ]
+    },
+    "3 - Câmbio & Moedas (FX)": {
+        "tag": "FX",
+        "assets": [
+            ("Dollar Index", "DX-Y.NYB", "$"),
+            ("Euro / Dólar", "EURUSD=X", "$"),
+            ("Dólar / Real", "USDBRL=X", "R$"),
+            ("Libra / Dólar", "GBPUSD=X", "$")
+        ]
+    },
+    "4 - Renda Fixa & Treasuries": {
+        "tag": "Bonds",
+        "assets": [
+            ("US 10Y Treasury", "^TNX", "%"),
+            ("US 2Y Treasury", "^IRX", "%"),
+            ("VIX (Volatilidade)", "^VIX", "$")
         ]
     }
 }
