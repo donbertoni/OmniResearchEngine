@@ -376,10 +376,10 @@ if selected_categories:
 
 st.markdown("---")
 # -------------------------------------------------------------
-# 7. MÓDULO: MAPA TÉRMICO DE LIQUIDEZ E VOLUME PROFILE
+# 5. MÓDULO: MAPA TÉRMICO DE LIQUIDEZ E VOLUME PROFILE
 # -------------------------------------------------------------
 if modulo == "Crypto":
-    st.subheader("🔥 Mapa de Alavancagem & Open Interest (Derivativos)")
+    st.subheader("🔥 Mapa de Alavancagem & Open Interest (Bitcoin / Derivativos)")
 else:
     st.subheader("📊 Mapa Térmico de Volume Profile (Mercado Tradicional)")
 
@@ -396,10 +396,10 @@ if PLOTLY_AVAILABLE:
     liq_volumes = []
     data_source = ""
     unit_label = "M" if modulo == "Crypto" else "B"
-    metric_label_type = "Open Interest / Liquidez Efetiva" if modulo == "Crypto" else "Volume Profile Institucional"
+    metric_label_type = "Open Interest / Liquidez Efetiva (Bitcoin)" if modulo == "Crypto" else "Volume Profile Institucional (S&P 500)"
 
     if modulo == "Crypto":
-        # --- MÓDULO CRIPTO: DADOS REAIS DA DERIBIT (QTY JÁ EM USD) ---
+        # --- MÓDULO CRIPTO: EXPLICITAMENTE BITCOIN (DERIBIT BTC-PERPETUAL) ---
         data_source = "Deribit API (BTC-PERPETUAL Order Book Real)"
         try:
             url = "https://www.deribit.com/api/v2/public/get_order_book?instrument_name=BTC-PERPETUAL&depth=250"
@@ -413,7 +413,6 @@ if PLOTLY_AVAILABLE:
                 df_book = pd.concat([bids, asks])
                 
                 if not df_book.empty:
-                    # Correção: Deribit perpetual qty já está em USD, dividimos direto por 1M para ter Milhões ($M)
                     df_book["notional_m"] = df_book["qty"] / 1_000_000
                     
                     min_p = base_price * 0.85
@@ -441,11 +440,12 @@ if PLOTLY_AVAILABLE:
             liq_volumes = [1.2, 4.8, 6.5, 3.1]
 
     else:
-        # --- MÓDULO TRADFI: VOLUME PROFILE REAL DOS FUTUROS DA S&P 500 (ES=F) ---
-        data_source = "Yahoo Finance API (S&P 500 Futures Histórico Real — ES=F)"
+        # --- MÓDULO TRADFI: PERÍODO AMPLIADO (3 MESES) PARA CAPTURAR HISTÓRICO ACIMA DO PREÇO ATUAL ---
+        data_source = "Yahoo Finance API (S&P 500 Futures Histórico Ampliado 3M — ES=F)"
         try:
             import yfinance as yf
-            df_es = yf.download("ES=F", period="1mo", interval="1h", progress=False)
+            # Ampliado para 3 meses para cobrir zonas de preço acima do spot atual
+            df_es = yf.download("ES=F", period="3mo", interval="1h", progress=False)
             
             if not df_es.empty:
                 if isinstance(df_es.columns, pd.MultiIndex):
@@ -453,11 +453,10 @@ if PLOTLY_AVAILABLE:
                 df_es = df_es.dropna(subset=['Close', 'Volume'])
                 
                 if not df_es.empty:
-                    min_p = base_price * 0.88
-                    max_p = base_price * 1.12
+                    min_p = base_price * 0.85
+                    max_p = base_price * 1.15
                     df_es = df_es[(df_es['Close'] >= min_p) & (df_es['Close'] <= max_p)]
                     
-                    # Volume notional real em Bilhões de USD
                     df_es["notional_b"] = (df_es['Close'] * df_es['Volume']) / 1_000_000_000
                     
                     num_bins = 25
@@ -525,7 +524,7 @@ if PLOTLY_AVAILABLE:
         annotation_font_color="#58A6FF"
     )
 
-    chart_title = "Mapa Térmico de Open Interest & Alavancagem (Crypto — $M)" if modulo == "Crypto" else "Mapa Térmico de Volume Profile & Liquidez (S&P 500 Futures — $B)"
+    chart_title = "Mapa Térmico de Open Interest & Alavancagem (Bitcoin / Deribit — $M)" if modulo == "Crypto" else "Mapa Térmico de Volume Profile & Liquidez (S&P 500 Futures 3M — $B)"
     xaxis_title = "Volume Notional Acumulado por Faixa ($ Milhões)" if modulo == "Crypto" else "Volume Notional Acumulado por Faixa ($ Bilhões)"
 
     fig_oi.update_layout(
