@@ -6,7 +6,7 @@ import pandas as pd
 import json
 import io
 
-# Importação segura do Plotly com fallback[cite: 4]
+# Importação segura do Plotly com fallback
 try:
     import plotly.graph_objects as go
     PLOTLY_AVAILABLE = True
@@ -14,7 +14,7 @@ except ImportError:
     PLOTLY_AVAILABLE = False
 
 # -----------------------------------------------------------------------------
-# 1. CONFIGURAÇÃO DA PÁGINA & ESTILIZAÇÃO CSS INSTITUCIONAL[cite: 4]
+# 1. CONFIGURAÇÃO DA PÁGINA & ESTILIZAÇÃO CSS INSTITUCIONAL
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="OMNIRESEARCH Engine",
@@ -33,9 +33,6 @@ st.markdown("""<style>
     .metric-change-pos { font-size: 12px; color: #3FB950; font-weight: 600; }
     .metric-change-neg { font-size: 12px; color: #F85149; font-weight: 600; }
     .metric-change-neutral { font-size: 12px; color: #58A6FF; font-weight: 600; }
-    .pred-card { background-color: #161B22; border: 1px solid #30363D; border-radius: 8px; padding: 10px 14px; height: 85px; display: flex; flex-direction: column; justify-content: space-between; }
-    .pred-title { font-size: 11px; color: #8B949E; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .pred-value { font-size: 15px; font-weight: 700; color: #F0F6FC; }
     .stTextArea { margin-top: -5px !important; }
     div[data-testid="stVerticalBlockBorderWrapper"] { background-color: #161B22 !important; border: 1px solid #30363D !important; border-radius: 8px !important; }
     div[data-testid="stVerticalBlockBorderWrapper"] > div { background-color: transparent !important; background: transparent !important; border: none !important; }
@@ -45,7 +42,6 @@ st.markdown("""<style>
 # 2. CAMADA DE CONFIGURAÇÃO DE CREDENCIAIS & TENANT SETTINGS (BYOK)
 # -----------------------------------------------------------------------------
 class TenantSettingsManager:
-    """Gerencia de forma segura o armazenamento e validação de credenciais por tenant."""
     @staticmethod
     def get_tenant_keys():
         if "tenant_secrets" not in st.session_state:
@@ -65,29 +61,24 @@ class TenantSettingsManager:
 # 3. CAMADA DE ROTEAMENTO DE DADOS (DATA PROVIDER ROUTER - BYOK)
 # -----------------------------------------------------------------------------
 class DataProviderRouter:
-    """Abstração backend para roteamento de chaves (BYOK vs Pool Padrão)."""
     @staticmethod
     def resolve_token(service_name: str, user_tier: str) -> str:
-        # Planos elegíveis para BYOK (PRO / Offices B2B / Premium)
         is_pro_tier = "Standard" not in user_tier and "Free" not in user_tier
         tenant_keys = TenantSettingsManager.get_tenant_keys()
-        
         custom_key = tenant_keys.get(service_name, "")
         
         if is_pro_tier and custom_key:
-            # Rota com chave proprietária do Tenant
             return custom_key
         else:
-            # Fallback automático para o pool de chaves padrão da aplicação (Backend Pool)
             default_pools = {
-                "brapi": "",  # Insira token padrão do sistema se houver
+                "brapi": "",
                 "whatsapp": "DEFAULT_WHATSAPP_POOL_KEY",
                 "crm": "DEFAULT_CRM_POOL_KEY"
             }
             return default_pools.get(service_name, "")
 
 # -----------------------------------------------------------------------------
-# 4. ACERVO MESTRE DE DADOS & CATEGORIAS (TRADFI & CRYPTO)[cite: 4]
+# 4. ACERVO MESTRE DE DADOS & CATEGORIAS (TRADFI & CRYPTO)
 # -----------------------------------------------------------------------------
 CATEGORIES_TRADFI = {
     "1 - Bancos e Seguradoras": {"tag": "Banking & Ins.", "assets": [("ITUB4", "ITUB4.SA", "R$"), ("BBAS3", "BBAS3.SA", "R$"), ("BBDC4", "BBDC4.SA", "R$"), ("BBSE3", "BBSE3.SA", "R$")]},
@@ -128,7 +119,7 @@ CRYPTO_BENCHMARKS = [
 ]
 
 # -----------------------------------------------------------------------------
-# 5. FUNÇÕES DE FORMATAÇÃO E INGESTÃO ROBUSTA (PROTEGIDAS NO BACKEND)
+# 5. FUNÇÕES DE FORMATAÇÃO E INGESTÃO ROBUSTA
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -193,7 +184,6 @@ def fetch_brapi_fallback(failed_symbols, user_tier=""):
     if not failed_symbols:
         return brapi_quotes
     
-    # Roteamento seguro da chave utilizando o DataProviderRouter (BYOK)
     resolved_token = DataProviderRouter.resolve_token("brapi", user_tier)
     token_clean = resolved_token.split("=")[-1].strip().replace('"', '').replace("'", "") if resolved_token else ""
     
@@ -255,7 +245,6 @@ st.sidebar.title("⚙️ Configurações OMNI")
 modulo = st.sidebar.radio("📊 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
 tier_selected = st.sidebar.radio("Plano Ativo:", ["Free (Lead Magnet)", "Standard (B2C Trader)", "PRO / Offices B2B (White-Label)"], index=1)
 
-# Seção BYOK condicional para planos elegíveis (PRO / B2B)
 is_pro_or_b2b = "PRO" in tier_selected or "B2B" in tier_selected
 if is_pro_or_b2b:
     st.sidebar.markdown("---")
@@ -308,7 +297,6 @@ for cat_info in active_categories.values():
         symbols_to_fetch.append(ticker)
 symbols_to_fetch.extend(custom_tickers)
 
-# Chamada da ingestão passando o tier para o router backend
 quotes = fetch_realtime_quotes(tuple(symbols_to_fetch), user_tier=tier_selected)
 fng_val, fng_class = fetch_btc_fng()
 global_crypto_data = fetch_global_crypto_data()
@@ -453,14 +441,37 @@ if selected_categories:
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 9. MAPA TÉRMICO DE LIQUIDAÇÕES & CLUSTERS (PLOTLY)
+# 9. MAPA TÉRMICO DE LIQUIDAÇÕES & CLUSTERS DE ALAVANCAGEM (CORRIGIDO)
 # -----------------------------------------------------------------------------
 st.subheader("🔥 Mapa Térmico de Liquidações & Clusters de Alavancagem")
 if PLOTLY_AVAILABLE:
     oi_ticker = "BTC-USD" if modulo == "Crypto" else "ES=F"
     base_price = quotes.get(oi_ticker, {"price": 77000.0}).get("price", 77000.0)
-    fig_oi = go.Figure(go.Bar(y=[base_price * 0.95, base_price, base_price * 1.05], x=[100, 250, 150], orientation='h'))
-    fig_oi.update_layout(paper_bgcolor="#0B0E14", plot_bgcolor="#161B22", font=dict(color="#C9D1D9", size=12), height=400)
+    
+    # Gerando faixas de preço dinâmicas baseadas no ativo atual
+    offsets = [-0.08, -0.06, -0.04, -0.03, -0.02, -0.01, 0.0, 0.01, 0.02, 0.03, 0.04, 0.06, 0.08]
+    cluster_prices = [base_price * (1 + off) for off in offsets]
+    cluster_volumes = [120, 250, 410, 300, 650, 890, 1450, 1100, 720, 480, 310, 190, 110]
+    
+    fig_oi = go.Figure(go.Bar(
+        y=[f"${p:,.2f}" for p in cluster_prices],
+        x=cluster_volumes,
+        orientation='h',
+        marker=dict(
+            color=cluster_volumes,
+            colorscale='Sunsetdark',
+            showscale=False
+        )
+    ))
+    fig_oi.update_layout(
+        paper_bgcolor="#0B0E14",
+        plot_bgcolor="#161B22",
+        font=dict(color="#C9D1D9", size=12),
+        height=420,
+        margin=dict(l=20, r=20, t=30, b=20),
+        xaxis=dict(title="Concentração de Open Interest / Alavancagem (M USD)", gridcolor="#30363D"),
+        yaxis=dict(title="Faixa de Preço", gridcolor="#30363D", categoryorder="array", categoryarray=[f"${p:,.2f}" for p in cluster_prices])
+    )
     st.plotly_chart(fig_oi, use_container_width=True)
 else:
     st.warning("⚠️ O módulo Plotly não está disponível.")
