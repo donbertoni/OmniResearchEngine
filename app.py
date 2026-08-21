@@ -376,7 +376,7 @@ if selected_categories:
 
 st.markdown("---")
 # -------------------------------------------------------------
-# 7. MÓDULO: MAPA DE ALAVANCAGEM & LIQUIDEZ (PADRÃO TÉRMICO INSTITUCIONAL)
+# 7. MÓDULO: MAPA DE ALAVANCAGEM & LIQUIDEZ (CALIBRADO & MÉTRICAS)
 # -------------------------------------------------------------
 st.subheader("🔥 Mapa de Alavancagem & Open Interest (Derivativos)")
 
@@ -395,7 +395,7 @@ if PLOTLY_AVAILABLE:
     headers = {"User-Agent": "Mozilla/5.0"}
 
     if modulo == "Crypto":
-        # --- BUSCA DE DADOS REAIS DERIBIT COM RANGE AMPLO ---
+        # --- DERIBIT COM FAIXA ÚTIL OTIMIZADA (-25% a +25%) ---
         try:
             url_book_deribit = "https://www.deribit.com/api/v2/public/get_order_book?instrument_name=BTC-PERPETUAL&depth=1000"
             res = requests.get(url_book_deribit, headers=headers, timeout=4)
@@ -407,19 +407,18 @@ if PLOTLY_AVAILABLE:
                 
                 df_book = pd.concat([bids, asks])
                 
-                # Amplitude ampla de preços para capturar clusters distantes (ex: -35% a +35%)
-                min_p = base_price * 0.65
-                max_p = base_price * 1.35
+                min_p = base_price * 0.75
+                max_p = base_price * 1.25
                 df_book = df_book[(df_book["price"] >= min_p) & (df_book["price"] <= max_p)]
-                
                 df_book["volume_m"] = df_book["qty"] / 1_000_000
                 
-                # 32 bins limpos para formar a estrutura de pirâmide de liquidez
-                df_book["price_bin"] = pd.cut(df_book["price"], bins=32)
+                # 20 bins para manter a visualização limpa e estruturada
+                df_book["price_bin"] = pd.cut(df_book["price"], bins=20)
                 grouped = df_book.groupby("price_bin", observed=False)["volume_m"].sum().reset_index()
+                grouped = grouped[grouped["volume_m"] > 0.05]
                 
                 prices = [interval.mid for interval in grouped["price_bin"]]
-                liq_volumes = grouped["volume_m"].fillna(0.0).tolist()
+                liq_volumes = grouped["volume_m"].tolist()
                 data_source = "Deribit Institutional (BTC-PERPETUAL)"
         except Exception:
             pass
@@ -429,18 +428,14 @@ if PLOTLY_AVAILABLE:
         else:
             st.warning("⚠️ Operando com perfil estrutural modelado para derivativos.")
 
-        # Fallback estrutural calibrado no formato de pirâmide de liquidez caso o book venha vazio
-        if not prices or not liq_volumes or sum(liq_volumes) == 0:
-            step = base_price * 0.02
-            for i in range(1, 17):
-                p_down = base_price - (i * step)
-                p_up = base_price + (i * step)
-                vol_profile = 50.0 + (i * 25.0)  
-                prices.extend([p_down, p_up])
-                liq_volumes.extend([vol_profile, vol_profile * 0.8])
+        if not prices or not liq_volumes:
+            step = base_price * 0.015
+            for i in range(1, 11):
+                prices.extend([base_price - (i * step), base_price + (i * step)])
+                liq_volumes.extend([50.0 / i, 60.0 / i])
 
     else:
-        # --- MÓDULO TRADFI: S&P 500 FUTURES (ES=F) COM AMPLITUDE IDEAL ---
+        # --- MÓDULO TRADFI: S&P 500 FUTURES (ES=F) ---
         try:
             import yfinance as yf
             es_data = yf.download("ES=F", period="1mo", interval="1h", progress=False)
@@ -450,14 +445,16 @@ if PLOTLY_AVAILABLE:
                 
                 es_data = es_data.dropna(subset=['Close', 'Volume'])
                 if not es_data.empty:
-                    min_p = base_price * 0.80
-                    max_p = base_price * 1.20
+                    min_p = base_price * 0.88
+                    max_p = base_price * 1.12
                     es_data = es_data[(es_data['Close'] >= min_p) & (es_data['Close'] <= max_p)]
                     
-                    es_data['price_bin'] = pd.cut(es_data['Close'], bins=30)
+                    es_data['price_bin'] = pd.cut(es_data['Close'], bins=16)
                     grouped = es_data.groupby('price_bin', observed=False)['Volume'].sum().reset_index()
+                    grouped = grouped[grouped['Volume'] > 0]
+                    
                     prices = [interval.mid for interval in grouped['price_bin']]
-                    liq_volumes = (grouped['Volume'] / 5_000).fillna(0.0).tolist()
+                    liq_volumes = (grouped['Volume'] / 5_000).tolist()
                     data_source = "Yahoo Finance S&P 500 Futures (ES=F)"
         except Exception:
             pass
@@ -466,16 +463,23 @@ if PLOTLY_AVAILABLE:
             st.success(f"🟢 **Fonte Oficial Ativa:** {data_source}")
         else:
             st.info("📊 **Fonte Ativa:** Modelo Estrutural S&P 500 Futures (ES=F)")
-            step = base_price * 0.012
-            for i in range(1, 16):
-                prices.append(base_price - (i * step))
-                liq_volumes.append(40.0 + (i * 15.0))
-                prices.append(base_price + (i * step))
-                liq_volumes.append(30.0 + (i * 10.0))
+            step = base_price * 0.01
+            for i in range(1, 10):
+                prices.extend([base_price - (i * step), base_price + (i * step)])
+                liq_volumes.extend([60.0 + (i * 10), 50.0 + (i * 10)])
 
     oi_asset_name = f"{data_source} Liquidity Profile" if data_source else "Asset Liquidity Profile"
 
-    # Plotagem padronizada com a paleta 'Jet' (O espectro clássico de heatmap térmico)
+    # --- IDENTIFICAÇÃO DINÂMICA DOS PRINCIPAIS CLUSTERS ACIMA E ABAIXO ---
+    df_clusters = pd.DataFrame({"price": prices, "volume": liq_volumes})
+    
+    df_above = df_clusters[df_clusters["price"] > base_price]
+    top_res = df_above.loc[df_above["volume"].idxmax()] if not df_above.empty else {"price": base_price * 1.04, "volume": 0}
+    
+    df_below = df_clusters[df_clusters["price"] < base_price]
+    top_sup = df_below.loc[df_below["volume"].idxmax()] if not df_below.empty else {"price": base_price * 0.96, "volume": 0}
+
+    # Plotagem limpa com escala Jet e hover informativo (sem poluição nas barras)
     fig_oi = go.Figure()
     fig_oi.add_trace(go.Bar(
         y=prices,
@@ -485,38 +489,50 @@ if PLOTLY_AVAILABLE:
             color=liq_volumes,
             colorscale='Jet',
             showscale=True,
-            colorbar=dict(
-                title="Intensidade ($M)", 
-                len=0.8, 
-                thickness=12, 
-                tickfont=dict(color="#C9D1D9")
-            )
+            colorbar=dict(title="Intensidade", len=0.8, thickness=12, tickfont=dict(color="#C9D1D9"))
         ),
-        text=[f"Preço: {fmt_num(p)} | Vol/Alavancagem: ${v:.2f}M" for p, v in zip(prices, liq_volumes)],
         hoverinfo='text',
-        name="Clusters de Alavancagem"
+        text=[f"Preço: {fmt_num(p)} | Densidade: ${v:.2f}M" for p, v in zip(prices, liq_volumes)],
+        name="Clusters de Liquidez"
     ))
 
     fig_oi.add_hline(
         y=base_price, 
         line_dash="dash", 
         line_color="#58A6FF", 
-        annotation_text=f"Spot/Atual: {fmt_num(base_price)}",
+        annotation_text=f"Spot Atual: {fmt_num(base_price)}",
         annotation_position="bottom right",
         annotation_font_color="#58A6FF"
     )
 
     fig_oi.update_layout(
-        title=f"Mapa Térmico de Liquidações & Clusters — {oi_asset_name}",
+        title=f"Mapa Térmico Estrutural — {oi_asset_name}",
         paper_bgcolor="#0B0E14", 
         plot_bgcolor="#161B22", 
         font=dict(color="#C9D1D9", size=12),
         margin=dict(l=20, r=20, t=40, b=20), 
-        height=540,
+        height=480,
         yaxis=dict(gridcolor="#30363D", title="Níveis de Preço (USD)"),
-        xaxis=dict(gridcolor="#30363D", title="Intensidade de Alavancagem / Volume Acumulado ($M)")
+        xaxis=dict(gridcolor="#30363D", title="Volume Acumulado / Densidade ($M)")
     )
     st.plotly_chart(fig_oi, use_container_width=True)
+
+    # --- EXIBIÇÃO EXPLÍCITA DOS PRINCIPAIS NÍVEIS ABAIXO DO GRÁFICO ---
+    st.markdown("### 🎯 Pontos Criticos de Liquidez & Defesa Institucional")
+    col_sup, col_res = st.columns(2)
+    
+    with col_sup:
+        st.metric(
+            label="🛡️ Principal Suporte / Alinhamento Abaixo",
+            value=fmt_num(top_sup["price"]),
+            delta=f"Volume: ${top_sup['volume']:.2f}M"
+        )
+    with col_res:
+        st.metric(
+            label="⚡ Principal Resistência / Alvo Acima",
+            value=fmt_num(top_res["price"]),
+            delta=f"Volume: ${top_res['volume']:.2f}M"
+        )
 else:
     st.warning("⚠️ O módulo Plotly não está disponível no momento.")
 
