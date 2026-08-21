@@ -376,7 +376,7 @@ if selected_categories:
 
 st.markdown("---")
 # -------------------------------------------------------------
-# 7. MÓDULO: MAPA DE ALAVANCAGEM & LIQUIDEZ (PADRONIZADO E FILTRADO)
+# 7. MÓDULO: MAPA DE ALAVANCAGEM & LIQUIDEZ (PADRÃO TÉRMICO INSTITUCIONAL)
 # -------------------------------------------------------------
 st.subheader("🔥 Mapa de Alavancagem & Open Interest (Derivativos)")
 
@@ -395,7 +395,7 @@ if PLOTLY_AVAILABLE:
     headers = {"User-Agent": "Mozilla/5.0"}
 
     if modulo == "Crypto":
-        # --- FONTE DIRETA: DERIBIT (Com filtro de range para eliminar outliers do book) ---
+        # --- BUSCA DE DADOS REAIS DERIBIT COM RANGE AMPLO ---
         try:
             url_book_deribit = "https://www.deribit.com/api/v2/public/get_order_book?instrument_name=BTC-PERPETUAL&depth=1000"
             res = requests.get(url_book_deribit, headers=headers, timeout=4)
@@ -407,14 +407,15 @@ if PLOTLY_AVAILABLE:
                 
                 df_book = pd.concat([bids, asks])
                 
-                # FILTRO DE FAIXA: Mantém apenas ordens entre -30% e +30% do spot para focar nos clusters reais
-                min_p = base_price * 0.70
-                max_p = base_price * 1.30
+                # Amplitude ampla de preços para capturar clusters distantes (ex: -35% a +35%)
+                min_p = base_price * 0.65
+                max_p = base_price * 1.35
                 df_book = df_book[(df_book["price"] >= min_p) & (df_book["price"] <= max_p)]
                 
                 df_book["volume_m"] = df_book["qty"] / 1_000_000
                 
-                df_book["price_bin"] = pd.cut(df_book["price"], bins=30)
+                # 32 bins limpos para formar a estrutura de pirâmide de liquidez
+                df_book["price_bin"] = pd.cut(df_book["price"], bins=32)
                 grouped = df_book.groupby("price_bin", observed=False)["volume_m"].sum().reset_index()
                 
                 prices = [interval.mid for interval in grouped["price_bin"]]
@@ -427,35 +428,36 @@ if PLOTLY_AVAILABLE:
             st.success(f"🟢 **Fonte Oficial Ativa:** {data_source}")
         else:
             st.warning("⚠️ Operando com perfil estrutural modelado para derivativos.")
-            
-        if not prices or not liq_volumes:
-            step = base_price * 0.015
-            for i in range(1, 16):
-                prices.append(base_price - (i * step))
-                liq_volumes.append(max(10.0, 180.0 / i))
-                prices.append(base_price + (i * step))
-                liq_volumes.append(max(10.0, 100.0 / i))
+
+        # Fallback estrutural calibrado no formato de pirâmide de liquidez caso o book venha vazio
+        if not prices or not liq_volumes or sum(liq_volumes) == 0:
+            step = base_price * 0.02
+            for i in range(1, 17):
+                p_down = base_price - (i * step)
+                p_up = base_price + (i * step)
+                vol_profile = 50.0 + (i * 25.0)  
+                prices.extend([p_down, p_up])
+                liq_volumes.extend([vol_profile, vol_profile * 0.8])
 
     else:
-        # --- MÓDULO TRADFI: S&P 500 FUTURES (ES=F) REAL ---
+        # --- MÓDULO TRADFI: S&P 500 FUTURES (ES=F) COM AMPLITUDE IDEAL ---
         try:
             import yfinance as yf
-            es_data = yf.download("ES=F", period="5d", interval="1h", progress=False)
+            es_data = yf.download("ES=F", period="1mo", interval="1h", progress=False)
             if not es_data.empty:
                 if isinstance(es_data.columns, pd.MultiIndex):
                     es_data.columns = es_data.columns.get_level_values(0)
                 
                 es_data = es_data.dropna(subset=['Close', 'Volume'])
                 if not es_data.empty:
-                    # Filtro de range proporcional para TradFi
-                    min_p = base_price * 0.85
-                    max_p = base_price * 1.15
+                    min_p = base_price * 0.80
+                    max_p = base_price * 1.20
                     es_data = es_data[(es_data['Close'] >= min_p) & (es_data['Close'] <= max_p)]
                     
                     es_data['price_bin'] = pd.cut(es_data['Close'], bins=30)
                     grouped = es_data.groupby('price_bin', observed=False)['Volume'].sum().reset_index()
                     prices = [interval.mid for interval in grouped['price_bin']]
-                    liq_volumes = (grouped['Volume'] / 10_000).fillna(0.0).tolist()
+                    liq_volumes = (grouped['Volume'] / 5_000).fillna(0.0).tolist()
                     data_source = "Yahoo Finance S&P 500 Futures (ES=F)"
         except Exception:
             pass
@@ -464,16 +466,16 @@ if PLOTLY_AVAILABLE:
             st.success(f"🟢 **Fonte Oficial Ativa:** {data_source}")
         else:
             st.info("📊 **Fonte Ativa:** Modelo Estrutural S&P 500 Futures (ES=F)")
-            step = base_price * 0.01
+            step = base_price * 0.012
             for i in range(1, 16):
                 prices.append(base_price - (i * step))
-                liq_volumes.append(max(10.0, 200.0 / i))
+                liq_volumes.append(40.0 + (i * 15.0))
                 prices.append(base_price + (i * step))
-                liq_volumes.append(max(10.0, 150.0 / i))
+                liq_volumes.append(30.0 + (i * 10.0))
 
     oi_asset_name = f"{data_source} Liquidity Profile" if data_source else "Asset Liquidity Profile"
 
-    # Plotagem padronizada com paleta de cores Inferno (Estilo Heatmap Clássico)
+    # Plotagem padronizada com a paleta 'Jet' (O espectro clássico de heatmap térmico)
     fig_oi = go.Figure()
     fig_oi.add_trace(go.Bar(
         y=prices,
@@ -481,13 +483,18 @@ if PLOTLY_AVAILABLE:
         orientation='h',
         marker=dict(
             color=liq_volumes,
-            colorscale='Inferno',
+            colorscale='Jet',
             showscale=True,
-            colorbar=dict(title="Volume", len=0.8, thickness=12, tickfont=dict(color="#C9D1D9"))
+            colorbar=dict(
+                title="Intensidade ($M)", 
+                len=0.8, 
+                thickness=12, 
+                tickfont=dict(color="#C9D1D9")
+            )
         ),
-        text=[f"Preço: {fmt_num(p)} | Volume: {v:.2f}" for p, v in zip(prices, liq_volumes)],
+        text=[f"Preço: {fmt_num(p)} | Vol/Alavancagem: ${v:.2f}M" for p, v in zip(prices, liq_volumes)],
         hoverinfo='text',
-        name="Clusters de Liquidez"
+        name="Clusters de Alavancagem"
     ))
 
     fig_oi.add_hline(
@@ -500,14 +507,14 @@ if PLOTLY_AVAILABLE:
     )
 
     fig_oi.update_layout(
-        title=f"Mapa Estrutural de Liquidez — {oi_asset_name}",
+        title=f"Mapa Térmico de Liquidações & Clusters — {oi_asset_name}",
         paper_bgcolor="#0B0E14", 
         plot_bgcolor="#161B22", 
         font=dict(color="#C9D1D9", size=12),
         margin=dict(l=20, r=20, t=40, b=20), 
-        height=520,
+        height=540,
         yaxis=dict(gridcolor="#30363D", title="Níveis de Preço (USD)"),
-        xaxis=dict(gridcolor="#30363D", title="Volume Acumulado")
+        xaxis=dict(gridcolor="#30363D", title="Intensidade de Alavancagem / Volume Acumulado ($M)")
     )
     st.plotly_chart(fig_oi, use_container_width=True)
 else:
