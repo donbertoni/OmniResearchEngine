@@ -376,7 +376,7 @@ if selected_categories:
 
 st.markdown("---")
 # -------------------------------------------------------------
-# 7. MÓDULO: MAPA DE ALAVANCAGEM & OPEN INTEREST (DERIVATIVOS)
+# 7. MÓDULO: MAPA TÉRMICO DE LIQUIDEZ E VOLUME PROFILE
 # -------------------------------------------------------------
 if modulo == "Crypto":
     st.subheader("🔥 Mapa de Alavancagem & Open Interest (Derivativos)")
@@ -416,7 +416,6 @@ if PLOTLY_AVAILABLE:
                 df_book = df_book[(df_book["price"] >= min_p) & (df_book["price"] <= max_p)]
                 
                 if not df_book.empty:
-                    # Normalização rigorosa para refletir milhões USD executáveis por bin (evitando inflação do book global)
                     df_book["volume_m"] = (df_book["qty"] * df_book["price"]) / 1_000_000_000
                     num_bins = 20
                     bin_edges = np.linspace(min_p, max_p, num_bins + 1)
@@ -424,7 +423,6 @@ if PLOTLY_AVAILABLE:
                     grouped = df_book.groupby("bin_idx")["volume_m"].sum()
                     
                     prices = [(bin_edges[i] + bin_edges[i+1]) / 2 for i in range(num_bins)]
-                    # Escala realista de densidade em milhões (ex: 5M a 35M por cluster de preço)
                     raw_vols = [float(grouped.get(i, 0.0)) for i in range(num_bins)]
                     max_raw = max(raw_vols) if max(raw_vols) > 0 else 1.0
                     liq_volumes = [max(2.5, (v / max_raw) * 35.0) for v in raw_vols]
@@ -441,8 +439,8 @@ if PLOTLY_AVAILABLE:
             liq_volumes = [max(3.0, 30.0 / (1 + 0.8 * abs(p - base_price) / (base_price * 0.01))) for p in prices]
 
     else:
-        # --- MÓDULO TRADFI: VOLUME PROFILE BASEADO EM FUTUROS (ES=F VIA YFINANCE) ---
-        data_source = "Yahoo Finance API (S&P 500 Futures Volume Profile — ES=F)"
+        # --- MÓDULO TRADFI: VOLUME PROFILE BASEADO EM FUTUROS (ES=F COM ESCALA NORMALIZADA) ---
+        data_source = "Yahoo Finance API (S&P 500 Futures Volume Profile — ES=F Normalizado)"
         try:
             import yfinance as yf
             df_es = yf.download("ES=F", period="1mo", interval="1h", progress=False)
@@ -464,14 +462,10 @@ if PLOTLY_AVAILABLE:
                     grouped = df_es.groupby("bin_idx")['Volume'].sum()
                     for idx, val in grouped.items():
                         if pd.notna(idx) and 0 <= int(idx) < num_bins:
-                            hist_vols[int(idx)] = float(val / 4000.0)
+                            hist_vols[int(idx)] = float(val)
 
-            liq_volumes = []
-            for i, p in enumerate(prices):
-                v = hist_vols[i]
-                dist_pct = abs(p - base_price) / base_price
-                structural_baseline = 25.0 * np.exp(-4.0 * dist_pct) + 5.0
-                liq_volumes.append(float(max(v, structural_baseline)))
+            max_h = hist_vols.max() if hist_vols.max() > 0 else 1.0
+            liq_volumes = [max(3.0, (v / max_h) * 40.0) for v in hist_vols]
                 
         except Exception:
             pass
@@ -483,7 +477,7 @@ if PLOTLY_AVAILABLE:
             max_p = base_price * 1.12
             bin_edges = np.linspace(min_p, max_p, num_bins + 1)
             prices = [(bin_edges[i] + bin_edges[i+1]) / 2 for i in range(num_bins)]
-            liq_volumes = [max(5.0, 25.0 / (1 + 0.5 * abs(p - base_price) / (base_price * 0.01))) for p in prices]
+            liq_volumes = [max(5.0, 30.0 / (1 + 0.5 * abs(p - base_price) / (base_price * 0.01))) for p in prices]
 
     # --- CALIBRAGEM DE ESPECTRO TÉRMICO (RAIZ QUADRADA) ---
     arr_v = np.array(liq_volumes, dtype=float)
