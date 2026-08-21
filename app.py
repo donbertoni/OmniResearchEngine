@@ -103,18 +103,22 @@ st.markdown("""<style>
 </style>""", unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 2. SIDEBAR: CONFIGURAÇÕES & MÓDULO BYOK
+# 2. SIDEBAR: CONFIGURAÇÕES & MÓDULO BYOK / CRM API
 # -----------------------------------------------------------------------------
 st.sidebar.title("⚙️ Configurações OMNI")
-modulo = st.sidebar.radio("📌 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
+modulo = st.sidebar.radio("📌 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=0)
 
-# Seção BYOK (Bring Your Own Key) no Sidebar
-with st.sidebar.expander("🔑 BYOK & Integração CRM", expanded=False):
+# Seção BYOK & Integração CRM Avançada
+with st.sidebar.expander("🔑 BYOK & API de CRM", expanded=False):
     brapi_token = st.text_input("BRAPI API Token:", value="", type="password")
     custom_data_api_key = st.text_input("Custom Market API Key:", value="", type="password")
     whatsapp_instance = st.text_input("WhatsApp Instance ID:", value="")
     whatsapp_token = st.text_input("WhatsApp API Token:", value="", type="password")
-    target_whatsapp_phone = st.text_input("Telefone Destino (CRM/Vendas):", value="")
+    
+    st.markdown("---")
+    st.markdown("**Integração Base de Contatos CRM**")
+    crm_api_endpoint = st.text_input("CRM API Endpoint (Contatos):", value="", placeholder="https://api.seu-crm.com/v1/contacts")
+    fallback_whatsapp_phone = st.text_input("Fallback Telefone Único:", value="")
 
 tier_selected = st.sidebar.radio("Plano Ativo:", ["Free (Lead Magnet)", "Standard (B2C Trader)", "Premium (B2B White-Label)"], index=1)
 
@@ -125,7 +129,10 @@ max_free_tickers = 5 if "Standard" in tier_selected else (999 if "Premium" in ti
 active_categories = CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI
 active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
 
-selected_categories = [key for key in active_categories.keys() if st.sidebar.checkbox(key, value=True)]
+# REMOVIDO: Checkboxes estáticos de categorias da barra lateral. 
+# O analista agora controla o conteúdo diretamente pelo layout do dashboard.
+selected_categories = list(active_categories.keys())
+
 custom_tickers = []
 if allow_customization:
     c_input = st.sidebar.text_input("Tickers extras (ex: WEGE3.SA, PEPE-USD):", value="")
@@ -136,11 +143,7 @@ horizonte_pred = st.sidebar.selectbox("Horizonte Temporário:", ["24 Horas", "48
 alvo_pct = st.sidebar.slider("Projeção de Resposta (%)", 0.5, 15.0, 3.0, 0.5)
 stop_pct = st.sidebar.slider("Zona de Suporte / Defesa (%)", 0.5, 15.0, 3.0, 0.5)
 
-# REINSERÇÃO DOS MODOS AUTO-PILOT E B2B
 formato = st.sidebar.radio(f"📊 Formato ({modulo}):", ["B2B (Relatório Analítico)", "B2C (YouTube Auto-Pilot)", "B2C (Telegram / WhatsApp Auto-Pilot)"], index=0)
-
-# Checkbox para incluir ou não a análise do Heat Map no relatório/roteiro
-include_heatmap_in_report = st.sidebar.checkbox("Incluir Análise do Heat Map no Report", value=True)
 
 company_name = "OMNIRESEARCH Engine"
 cnpi_code = "CNPI-T 0000"
@@ -154,7 +157,7 @@ for cat_info in active_categories.values():
         symbols_to_fetch.append(ticker)
 symbols_to_fetch.extend(custom_tickers)
 
-# Chamada das funções importadas do backend com BYOK
+# Chamada das funções do backend
 quotes = fetch_realtime_quotes(tuple(symbols_to_fetch), brapi_token=brapi_token, custom_api_key=custom_data_api_key)
 fng_val, fng_class = fetch_btc_fng()
 global_crypto_data = fetch_global_crypto_data()
@@ -165,8 +168,28 @@ if custom_tickers:
         "tag": "Custom Feed",
         "assets": [(t, t, "R$" if ".SA" in t else "$") for t in custom_tickers]
     }
-    if "0 - Tickers Personalizados" not in selected_categories:
-        selected_categories.insert(0, "0 - Tickers Personalizados")
+    selected_categories.insert(0, "0 - Tickers Personalizados")
+
+# Função para buscar contatos via API do CRM ou usar fallback
+def get_crm_contacts_list(api_url, fallback_ph):
+    contacts = []
+    if api_url:
+        try:
+            headers = {"Authorization": f"Bearer {whatsapp_token}"} if whatsapp_token else {}
+            res = requests.get(api_url, headers=headers, timeout=4)
+            if res.status_code == 200:
+                data = res.json()
+                # Espera-se uma lista de objetos [{ "name": "...", "phone": "..." }]
+                items = data if isinstance(data, list) else data.get("contacts", [])
+                for item in items:
+                    ph = item.get("phone") or item.get("whatsapp")
+                    if ph:
+                        contacts.append({"name": item.get("name", "Cliente"), "phone": str(ph)})
+        except Exception:
+            pass
+    if not contacts and fallback_ph:
+        contacts.append({"name": "Destinatário Único", "phone": fallback_ph})
+    return contacts
 
 # -----------------------------------------------------------------------------
 # 3. CORPO PRINCIPAL & LAYOUT DE DUAS COLUNAS
@@ -190,12 +213,17 @@ with col_btn_refresh:
 col_left, col_right = st.columns([1.3, 1])
 
 with col_left:
-    st.markdown('<div class="col-header-sync">', unsafe_allow_html=True)
-    st.subheader(f"📝 Entrega Padrão — {formato}")
-    st.caption("Relatório analítico gerado com dados consolidados em tempo real:")
-    st.markdown('</div>', unsafe_allow_html=True)
+    col_hdr, col_chk_map = st.columns([2.5, 1.5])
+    with col_hdr:
+        st.markdown(f'<div class="col-header-sync">', unsafe_allow_html=True)
+        st.subheader(f"📝 Relatório — {formato}")
+        st.markdown('</div>', unsafe_allow_html=True)
+    with col_chk_map:
+        st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+        # Checkbox para incluir ou omitir a análise do Heat Map no relatório
+        include_heatmap_in_report = st.checkbox("Incluir Heat Map no Report", value=True)
 
-    # Geração do texto dinâmico considerando a inclusão do Heat Map via checkbox
+    # Geração do texto dinâmico baseado nos ativos habilitados no dashboard
     if "B2B" in formato:
         report_lines = [
             f"=== RELATÓRIO INSTITUCIONAL {modulo.upper()} (B2B) ===",
@@ -204,7 +232,7 @@ with col_left:
             f"Horizonte Analítico: {horizonte_pred} | Alvo: +{alvo_pct}% | Stop Defesa: -{stop_pct}%",
             f"Sentimento de Mercado (Fear & Greed): {fng_val} ({fng_class})",
             "",
-            "--- SUMÁRIO DE ATIVOS E CATEGORIAS MONITORADAS ---"
+            "--- SUMÁRIO DE ATIVOS E CATEGORIAS SELECIONADAS ---"
         ]
         for cat_name in selected_categories:
             if cat_name in active_display_categories:
@@ -274,25 +302,30 @@ with col_left:
         ])
         output_content = "\n".join(script_lines)
 
-    st.text_area("", value=output_content, height=410, label_visibility="collapsed")
+    st.text_area("", value=output_content, height=390, label_visibility="collapsed")
     
-    st.markdown("**Opções de Exportação & Disparo CRM:**")
+    st.markdown("**Opções de Exportação & Disparo em Lote (CRM):**")
     col_b1, col_b2, col_b3, col_b4 = st.columns(4)
     with col_b1:
-        st.download_button("📥 Baixar (TXT)", data=output_content, file_name=f"OMNI_Report_{modulo}.txt", mime="text/plain", use_container_width=True)
+        st.download_button("📥 TXT", data=output_content, file_name=f"OMNI_Report_{modulo}.txt", mime="text/plain", use_container_width=True)
     with col_b2:
         json_data = json.dumps({"module": modulo, "timestamp": now_str, "content": output_content}, indent=4, ensure_ascii=False)
-        st.download_button("📥 Baixar (JSON)", data=json_data, file_name=f"OMNI_Report_{modulo}.json", mime="application/json", use_container_width=True)
+        st.download_button("📥 JSON", data=json_data, file_name=f"OMNI_Report_{modulo}.json", mime="application/json", use_container_width=True)
     with col_b3:
         pdf_bytes = generate_pdf_report(output_content, company_name, now_str)
-        st.download_button("📥 Baixar (PDF)", data=pdf_bytes, file_name=f"OMNI_Report_{modulo}.pdf", mime="application/pdf", use_container_width=True)
+        st.download_button("📥 PDF", data=pdf_bytes, file_name=f"OMNI_Report_{modulo}.pdf", mime="application/pdf", use_container_width=True)
     with col_b4:
-        if st.button("🚀 Enviar WhatsApp", use_container_width=True):
-            success, msg = send_whatsapp_report(target_whatsapp_phone, whatsapp_instance, whatsapp_token, output_content)
-            if success:
-                st.success(msg)
+        if st.button("🚀 Disparar CRM", use_container_width=True):
+            contacts_list = get_crm_contacts_list(crm_api_endpoint, fallback_whatsapp_phone)
+            if not contacts_list:
+                st.warning("Nenhum contato encontrado na API do CRM ou fallback.")
             else:
-                st.warning(msg)
+                success_count = 0
+                for contact in contacts_list:
+                    ok, _ = send_whatsapp_report(contact["phone"], whatsapp_instance, whatsapp_token, output_content)
+                    if ok:
+                        success_count += 1
+                st.success(f"Disparo concluído! Enviado para {success_count}/{len(contacts_list)} contatos da base CRM.")
 
 with col_right:
     st.markdown('<div class="col-header-sync">', unsafe_allow_html=True)
@@ -306,7 +339,6 @@ with col_right:
         
         if item.get("type") == "fng_api":
             val_str = fng_val
-            # APLICAÇÃO DA REGRA DE CORES ESTRITA PARA SENTIMENTO: Greed=Verde, Neutral=Azul, Fear=Vermelho
             cls_map = {"Greed": "color-green", "Neutral": "color-blue", "Fear": "color-red"}
             change_cls = cls_map.get(fng_class, "color-blue")
             chg_str = f"Sentimento: {fng_class}"
@@ -321,7 +353,6 @@ with col_right:
             val_str = f"{item.get('prefix', '')}{fmt_num(data['price'])}"
             chg_val = data["change"]
             chg_str = f"{fmt_pct(chg_val)} hoje"
-            # APLICAÇÃO DA REGRA DE CORES ESTRITA PARA PERFORMANCE: >0 Verde, <0 Vermelho, ==0 Azul
             change_cls = "color-green" if chg_val > 0 else ("color-red" if chg_val < 0 else "color-blue")
 
         st.markdown(f'<div class="metric-card"><div class="metric-title">{label}</div><div class="metric-value">{val_str}</div><div class="{change_cls}">{chg_str}</div></div>', unsafe_allow_html=True)
@@ -344,7 +375,7 @@ with c6:
     st.markdown(f'<div class="pred-card"><div class="pred-title">Delta OI</div><div class="pred-value">+5.82%</div></div>', unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 4. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA)
+# 4. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA COM TOGGLES INTERATIVOS)
 # -----------------------------------------------------------------------------
 st.subheader(f"📊 Painel de Análise Integrada das Categorias ({modulo})")
 if selected_categories:
@@ -367,8 +398,6 @@ if selected_categories:
                         q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                         asset_key = f"chk_asset_{cat_name}_{ticker}"
                         chg_val = q["change"]
-                        
-                        # APLICAÇÃO DA REGRA DE CORES ESTRITA NOS ATIVOS DO PAINEL
                         color_cls = "color-green" if chg_val > 0 else ("color-red" if chg_val < 0 else "color-blue")
                         
                         cA, cB = st.columns([3.2, 0.8])
