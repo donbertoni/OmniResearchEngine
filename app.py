@@ -376,26 +376,31 @@ if selected_categories:
 
 st.markdown("---")
 # -----------------------------------------------------------------------------
-# 5. MAPA TÉRMICO DE LIQUIDAÇÕES & CLUSTERS DE ALAVANCAGEM (ESTRUTURAL REAL)
+# 5. MAPA TÉRMICO DE LIQUIDAÇÕES & CLUSTERS DE ALAVANCAGEM (DINÂMICO COM PERFIL ORIGINAL)
 # -----------------------------------------------------------------------------
 st.subheader("🔥 Mapa Térmico de Liquidações & Clusters de Alavancagem")
-st.caption(f"Perfil estrutural de liquidez macro para o módulo: **{modulo}**")
+st.caption("Perfil estrutural de liquidez e piscinas de alavancagem passiva em derivativos:")
 
 if PLOTLY_AVAILABLE:
-    if modulo == "Crypto":
-        # Força a faixa macro ideal para o Bitcoin cobrindo do suporte profundo aos alvos (50k até 100k)
-        min_p, max_p = 50000.0, 100000.0
-        base_ticker = "BTC-USD"
-        step = 1250.0
-    else:
-        # Faixa macro para o S&P 500 / TradFi
-        min_p, max_p = 5000.0, 7000.0
-        base_ticker = "ES=F"
-        step = 50.0
-
-    base_price = quotes.get(base_ticker, {"price": 76000.0 if modulo == "Crypto" else 5800.0}).get("price", 0.0)
+    oi_asset_name = "BTCUSDT Liquidation Heatmap & Leverage Pools" if modulo == "Crypto" else "S&P 500 Liquidity Profile (ES=F)"
+    oi_ticker = "BTC-USD" if modulo == "Crypto" else "ES=F"
+    
+    # Captura o preço real-time
+    base_price = quotes.get(oi_ticker, {"price": 77000.0 if modulo == "Crypto" else 5800.0}).get("price", 77000.0)
     if base_price == 0.0:
-        base_price = 76000.0 if modulo == "Crypto" else 5800.0
+        base_price = 77000.0 if modulo == "Crypto" else 5800.0
+
+    # Lógica dinâmica mantendo a exata proporção da versão original (faixa de ~60k a ~84k quando o preço está em 77k)
+    if modulo == "Crypto":
+        min_p = base_price * 0.779  # Proporção exata da base inferior
+        max_p = base_price * 1.091  # Proporção exata da base superior
+        num_bins = 24
+        step = (max_p - min_p) / num_bins
+    else:
+        min_p = base_price * 0.85
+        max_p = base_price * 1.15
+        num_bins = 25
+        step = (max_p - min_p) / num_bins
 
     prices = []
     liq_volumes = []
@@ -404,13 +409,16 @@ if PLOTLY_AVAILABLE:
     while curr <= max_p:
         prices.append(curr)
         
-        # Injeta muros de liquidez reais em regiões psicológicas (ex: 60k, 70k, 80k no Bitcoin)
+        # Mantém a exata distribuição de volume da versão original (pico massivo nos shorts embaixo e decaimento gradual)
         if modulo == "Crypto":
-            is_psychological = (abs(curr - 60000) < 600) or (abs(curr - 70000) < 600) or (abs(curr - 80000) < 600) or (abs(curr - 90000) < 600)
-            base_vol = 320.0 if is_psychological else max(40.0, 180.0 * (1.0 - abs(curr - base_price) / base_price))
+            diff_from_min = curr - min_p
+            if curr <= base_price:
+                base_vol = max(20.0, 600.0 - (diff_from_min * 2.2))
+            else:
+                base_vol = max(15.0, 120.0 - ((curr - base_price) * 0.5))
         else:
-            is_psychological = (abs(curr - 5500) < 50) or (abs(curr - 6000) < 50) or (abs(curr - 6500) < 50)
-            base_vol = 250.0 if is_psychological else max(30.0, 140.0 * (1.0 - abs(curr - base_price) / base_price))
+            diff_from_min = curr - min_p
+            base_vol = max(20.0, 250.0 - (diff_from_min * 1.5))
             
         liq_volumes.append(base_vol)
         curr += step
@@ -427,12 +435,11 @@ if PLOTLY_AVAILABLE:
             showscale=True,
             colorbar=dict(title="Volume Liq. ($M)", len=0.8, thickness=12, tickfont=dict(color="#C9D1D9"))
         ),
-        text=[f"Preço: {fmt_num(p)} | Vol: {v:.0f}M" for p, v in zip(prices, liq_volumes)],
+        text=[f"Preço: {fmt_num(p)} | Volume: {v:.0f}M" for p, v in zip(prices, liq_volumes)],
         hoverinfo='text',
         name="Clusters de Liquidez"
     ))
 
-    # Linha de destaque do Preço Spot Real-Time
     fig_oi.add_hline(
         y=base_price, 
         line_dash="dash", 
@@ -443,18 +450,18 @@ if PLOTLY_AVAILABLE:
     )
 
     fig_oi.update_layout(
-        title=f"Mapa de Densidade e Muros de Liquidez — {modulo}",
+        title=f"Mapa de Densidade de Liquidez & Zonas de Alavancagem — {oi_asset_name}",
         paper_bgcolor="#0B0E14", 
         plot_bgcolor="#161B22", 
         font=dict(color="#C9D1D9", size=12),
         margin=dict(l=20, r=20, t=40, b=20), 
-        height=540,
-        yaxis=dict(gridcolor="#30363D", title="Níveis de Preço Estruturais (USD)"),
+        height=500,
+        yaxis=dict(gridcolor="#30363D", title="Níveis de Preço (USD)"),
         xaxis=dict(gridcolor="#30363D", title="Intensidade de Alavancagem / Volume Acumulado ($M)")
     )
     st.plotly_chart(fig_oi, use_container_width=True)
 else:
-    st.warning("⚠️ O módulo Plotly não está disponível.")
+    st.warning("⚠️ O módulo Plotly não está disponível no momento.")
 
 st.markdown("---")
 st.caption("⚡©️ Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
