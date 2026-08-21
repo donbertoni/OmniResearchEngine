@@ -390,7 +390,7 @@ if custom_tickers:
 # 5. CORPO PRINCIPAL & LAYOUT DE DUAS COLUNAS
 # -----------------------------------------------------------------------------
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
-    st.title(f"🏢 {company_name} — Terminal Quant")
+    st.title(f"🏛️ {company_name} — Terminal Quant")
     st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
 else:
     st.title("⚡ OMNIRESEARCH Engine")
@@ -438,14 +438,14 @@ with col_left:
             f"Tendência estrutural alinhada ao horizonte de {horizonte_pred}. Monitoramento ativo de zonas de liquidez e alavancagem em derivativos para proteção de posições."
         ])
         output_content = "\n".join(report_lines)
-        # Altura ajustada para 410px para alinhar perfeitamente com os 5 cards da direita
-        st.text_area("", value=output_content, height=410)
+        # Altura ajustada para 410px com label_visibility="collapsed" para alinhamento milimétrico
+        st.text_area("", value=output_content, height=410, label_visibility="collapsed")
         
         # Botões de Exportação Múltipla (TXT, JSON, PDF)
         st.markdown("**Opções de Exportação do Relatório:**")
         col_b1, col_b2, col_b3 = st.columns(3)
         with col_b1:
-            st.download_button("📥 Baixar (TXT)", data=output_content, file_name=f"OMNI_Relatorio_{modulo}.txt", mime="text/plain", use_container_width=True)
+            st.download_button("💾 Baixar (TXT)", data=output_content, file_name=f"OMNI_Relatorio_{modulo}.txt", mime="text/plain", use_container_width=True)
         with col_b2:
             json_data = json.dumps({
                 "module": modulo,
@@ -458,10 +458,10 @@ with col_left:
                 "sentiment": f"{fng_val} ({fng_class})",
                 "categories": {cat_name: {disp_name: quotes.get(ticker, {"price": 0.0, "change": 0.0})["price"] for disp_name, ticker, currency in active_display_categories[cat_name]["assets"]} for cat_name in selected_categories if cat_name in active_display_categories}
             }, indent=4, ensure_ascii=False)
-            st.download_button("📊 Baixar (JSON)", data=json_data, file_name=f"OMNI_Relatorio_{modulo}.json", mime="application/json", use_container_width=True)
+            st.download_button("📂 Baixar (JSON)", data=json_data, file_name=f"OMNI_Relatorio_{modulo}.json", mime="application/json", use_container_width=True)
         with col_b3:
             pdf_bytes = generate_pdf_report(output_content, company_name, now_str)
-            st.download_button("📄 Baixar (PDF)", data=pdf_bytes, file_name=f"OMNI_Relatorio_{modulo}.pdf", mime="application/pdf", use_container_width=True)
+            st.download_button("📥 Baixar (PDF)", data=pdf_bytes, file_name=f"OMNI_Relatorio_{modulo}.pdf", mime="application/pdf", use_container_width=True)
     else:
         script_lines = [
             f"=== ROTEIRO YOUTUBE AUTO-PILOT ({modulo.upper()}) ===",
@@ -486,19 +486,19 @@ with col_left:
             "Deixe o seu like, se inscreva no canal e ative as notificações. Bons trades e até a próxima!"
         ])
         script_text = "\n".join(script_lines)
-        # Altura ajustada para 410px também no modo B2C
-        st.text_area("", value=script_text, height=410)
+        # Altura ajustada para 410px com label_visibility="collapsed" também no modo B2C
+        st.text_area("", value=script_text, height=410, label_visibility="collapsed")
         
         st.markdown("**Opções de Exportação do Roteiro:**")
         col_b1, col_b2, col_b3 = st.columns(3)
         with col_b1:
-            st.download_button("📥 Baixar (TXT)", data=script_text, file_name=f"OMNI_Roteiro_{modulo}.txt", mime="text/plain", use_container_width=True)
+            st.download_button("💾 Baixar (TXT)", data=script_text, file_name=f"OMNI_Roteiro_{modulo}.txt", mime="text/plain", use_container_width=True)
         with col_b2:
             json_data = json.dumps({"module": modulo, "timestamp": now_str, "script": script_text}, indent=4, ensure_ascii=False)
-            st.download_button("📊 Baixar (JSON)", data=json_data, file_name=f"OMNI_Roteiro_{modulo}.json", mime="application/json", use_container_width=True)
+            st.download_button("📂 Baixar (JSON)", data=json_data, file_name=f"OMNI_Roteiro_{modulo}.json", mime="application/json", use_container_width=True)
         with col_b3:
             pdf_bytes = generate_pdf_report(script_text, company_name, now_str)
-            st.download_button("📄 Baixar (PDF)", data=pdf_bytes, file_name=f"OMNI_Roteiro_{modulo}.pdf", mime="application/pdf", use_container_width=True)
+            st.download_button("📥 Baixar (PDF)", data=pdf_bytes, file_name=f"OMNI_Roteiro_{modulo}.pdf", mime="application/pdf", use_container_width=True)
 
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
     st.markdown("### 🎯 Alvos Preditivos & Zonas Operacionais")
