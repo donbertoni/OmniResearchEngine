@@ -99,17 +99,9 @@ st.markdown("""
     }
     input[type="checkbox"]:checked { accent-color: #238636 !important; }
 
-    /* Ajuste milimétrico para alinhar o topo do text_area com a primeira caixa de métrica */
+    /* Ajuste milimétrico apenas para puxar o topo do relatório para a mesma linha */
     .stTextArea {
-        margin-top: -4px !important;
-    }
-    .stTextArea textarea {
-        background-color: #0B0E14 !important;
-        color: #C9D1D9 !important;
-        border: 1px solid #30363D !important;
-        border-radius: 8px !important;
-        font-family: 'Courier New', monospace !important;
-        font-size: 13px !important;
+        margin-top: -5px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -365,26 +357,7 @@ if custom_tickers:
     }
     if "0 - Tickers Personalizados" not in selected_categories:
         selected_categories.insert(0, "0 - Tickers Personalizados")
-# -----------------------------------------------------------------------------
-# 5. CORPO PRINCIPAL & LAYOUT DE DUAS COLUNAS + ALVOS PREDITIVOS EXPANDIDOS
-# -----------------------------------------------------------------------------
-if allow_white_label and company_name != "OMNIRESEARCH Engine":
-    st.title(f"🏢 {company_name} — Terminal Quant")
-    st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
-else:
-    st.title("⚡ OMNIRESEARCH Engine")
-    st.caption("Plataforma Integrada de Inteligência Financeira")
-
-now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
-col_status, col_btn_refresh = st.columns([3.5, 1])
-with col_status:
-    st.markdown(f'<div class="status-bar">🕒 <b>Dados consolidados às {now_str}</b> | Status API: <span style="color: #3FB950;">🟢 Online</span> | <b>Módulo:</b> {modulo}</div>', unsafe_allow_html=True)
-with col_btn_refresh:
-    if st.button("🔄 Atualizar Cotações"):
-        st.cache_data.clear()
-        st.rerun()
-
-col_left, col_right = st.columns([1.3, 1])
+import json # Necessário para o botão de exportar JSON
 
 with col_left:
     st.subheader(f"📋 Entrega Padrão — {formato}")
@@ -415,9 +388,20 @@ with col_left:
             f"Tendência estrutural alinhada ao horizonte de {horizonte_pred}. Monitoramento ativo de zonas de liquidez e alavancagem em derivativos para proteção de posições."
         ])
         output_content = "\n".join(report_lines)
-        # Altura exata (415px) para alinhar perfeitamente com as 5 caixas de métricas
-        st.text_area("", value=output_content, height=415, label_visibility="collapsed")
-        st.download_button("📥 Baixar Relatório (TXT)", data=output_content, file_name=f"OMNI_Relatorio_{modulo}.txt", mime="text/plain")
+        
+        # ALTURA AJUSTADA (aprox. 350px) para alinhar a base do text_area com a 4ª caixa de métrica
+        st.text_area("", value=output_content, height=350, label_visibility="collapsed")
+        
+        # BOTÕES DE DOWNLOAD ALINHADOS (Ocupando a altura da 5ª caixa)
+        btn_col1, btn_col2, btn_col3 = st.columns(3)
+        with btn_col1:
+            st.download_button("📄 Baixar (TXT)", data=output_content, file_name=f"OMNI_{modulo}.txt", mime="text/plain", use_container_width=True)
+        with btn_col2:
+            st.download_button("📕 Baixar (PDF)", data=output_content, file_name=f"OMNI_{modulo}.pdf", mime="application/pdf", use_container_width=True)
+        with btn_col3:
+            json_data = json.dumps({"relatorio": output_content})
+            st.download_button("📊 Baixar (JSON)", data=json_data, file_name=f"OMNI_{modulo}.json", mime="application/json", use_container_width=True)
+
     else:
         script_lines = [
             f"=== ROTEIRO YOUTUBE AUTO-PILOT ({modulo.upper()}) ===",
@@ -442,8 +426,17 @@ with col_left:
             "Deixe o seu like, se inscreva no canal e ative as notificações. Bons trades e até a próxima!"
         ])
         script_text = "\n".join(script_lines)
-        st.text_area("", value=script_text, height=415, label_visibility="collapsed")
-        st.download_button("📥 Baixar Roteiro YouTube (TXT)", data=script_text, file_name=f"OMNI_Roteiro_{modulo}.txt", mime="text/plain")
+        
+        st.text_area("", value=script_text, height=350, label_visibility="collapsed")
+        
+        btn_col1, btn_col2, btn_col3 = st.columns(3)
+        with btn_col1:
+            st.download_button("📄 Baixar (TXT)", data=script_text, file_name=f"OMNI_Roteiro_{modulo}.txt", mime="text/plain", use_container_width=True)
+        with btn_col2:
+            st.download_button("📕 Baixar (PDF)", data=script_text, file_name=f"OMNI_Roteiro_{modulo}.pdf", mime="application/pdf", use_container_width=True)
+        with btn_col3:
+            json_data = json.dumps({"roteiro": script_text})
+            st.download_button("📊 Baixar (JSON)", data=json_data, file_name=f"OMNI_Roteiro_{modulo}.json", mime="application/json", use_container_width=True)
 
 with col_right:
     st.subheader(f"📊 Métricas Agregadas ({modulo})")
@@ -466,8 +459,10 @@ with col_right:
 
         st.markdown(f'<div class="metric-card"><div class="metric-title">{label}</div><div class="metric-value">{val_str}</div><div class="{change_cls}">{chg_str}</div></div>', unsafe_allow_html=True)
 
-# Seção Full-Width Abaixo com 6 Cards Preditivos
-st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
+# -----------------------------------------------------------------------------
+# Seção Full-Width Abaixo: Alvos Preditivos
+# -----------------------------------------------------------------------------
+st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
 st.markdown("### 🎯 Alvos Preditivos & Zonas Operacionais")
 p_cols = st.columns(6)
 main_q = quotes.get("BTC-USD" if modulo == "Crypto" else "^GSPC", {"price": 77000.0 if modulo == "Crypto" else 5800.0}).get("price", 77000.0)
@@ -483,8 +478,7 @@ with p_cols[3]:
 with p_cols[4]:
     st.markdown(f'<div class="pred-card"><div class="pred-title">Volatilidade</div><div class="pred-value" style="font-size:15px;">Média-Alta</div></div>', unsafe_allow_html=True)
 with p_cols[5]:
-    st.markdown(f'<div class="pred-card"><div class="pred-title">Delta OI (24h)</div><div class="pred-value" style="font-size:15px;">+4.85%</div></div>', unsafe_allow_html=True)
-        
+    st.markdown(f'<div class="pred-card"><div class="pred-title">Delta OI (24h)</div><div class="pred-value" style="font-size:15px;">+4.85%</div></div>', unsafe_allow_html=True)        
 # 6. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA)
 # -----------------------------------------------------------------------------
 st.subheader(f"🧩 Painel de Análise Integrada das Categorias ({modulo})")
