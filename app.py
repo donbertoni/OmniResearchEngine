@@ -54,15 +54,6 @@ st.markdown("""<style>
         color: #94A3B8;
         font-size: 13px;
     }
-    .metric-card {
-        background-color: #161B22;
-        border: 1px solid #30363D;
-        border-radius: 8px;
-        padding: 12px 16px;
-        margin-bottom: 12px;
-    }
-    .metric-title { font-size: 12px; color: #8B949E; font-weight: 600; }
-    .metric-value { font-size: 18px; font-weight: 700; color: #F0F6FC; margin: 4px 0; }
     
     /* REGRAS DE CORES ESTRITAS */
     .color-green { color: #3FB950 !important; font-weight: 600; }
@@ -118,7 +109,7 @@ with st.sidebar.expander("🔑 BYOK & API de CRM", expanded=False):
     st.markdown("---")
     st.markdown("**Integração Base de Contatos CRM**")
     crm_api_endpoint = st.text_input("CRM API Endpoint (Contatos):", value="", placeholder="https://api.seu-crm.com/v1/contacts")
-    fallback_whatsapp_phone = st.text_input("Fallback Telefone Único:", value="")
+    fallback_whatsapp_phone = st.text_input("Telefones Manuais (separados por vírgula):", value="", placeholder="+5548999999999, +554888888888")
 
 tier_selected = st.sidebar.radio("Plano Ativo:", ["Free (Lead Magnet)", "Standard (B2C Trader)", "Premium (B2B White-Label)"], index=1)
 
@@ -129,8 +120,6 @@ max_free_tickers = 5 if "Standard" in tier_selected else (999 if "Premium" in ti
 active_categories = CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI
 active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
 
-# REMOVIDO: Checkboxes estáticos de categorias da barra lateral. 
-# O analista agora controla o conteúdo diretamente pelo layout do dashboard.
 selected_categories = list(active_categories.keys())
 
 custom_tickers = []
@@ -170,7 +159,7 @@ if custom_tickers:
     }
     selected_categories.insert(0, "0 - Tickers Personalizados")
 
-# Função para buscar contatos via API do CRM ou usar fallback
+# Função para buscar contatos via API do CRM ou lista manual separada por vírgula
 def get_crm_contacts_list(api_url, fallback_ph):
     contacts = []
     if api_url:
@@ -179,7 +168,6 @@ def get_crm_contacts_list(api_url, fallback_ph):
             res = requests.get(api_url, headers=headers, timeout=4)
             if res.status_code == 200:
                 data = res.json()
-                # Espera-se uma lista de objetos [{ "name": "...", "phone": "..." }]
                 items = data if isinstance(data, list) else data.get("contacts", [])
                 for item in items:
                     ph = item.get("phone") or item.get("whatsapp")
@@ -187,8 +175,10 @@ def get_crm_contacts_list(api_url, fallback_ph):
                         contacts.append({"name": item.get("name", "Cliente"), "phone": str(ph)})
         except Exception:
             pass
-    if not contacts and fallback_ph:
-        contacts.append({"name": "Destinatário Único", "phone": fallback_ph})
+    if fallback_ph:
+        raw_phones = [p.strip() for p in fallback_ph.split(",") if p.strip()]
+        for idx, ph in enumerate(raw_phones):
+            contacts.append({"name": f"Contato Manual {idx+1}", "phone": ph})
     return contacts
 
 # -----------------------------------------------------------------------------
@@ -213,15 +203,7 @@ with col_btn_refresh:
 col_left, col_right = st.columns([1.3, 1])
 
 with col_left:
-    col_hdr, col_chk_map = st.columns([2.5, 1.5])
-    with col_hdr:
-        st.markdown(f'<div class="col-header-sync">', unsafe_allow_html=True)
-        st.subheader(f"📝 Relatório — {formato}")
-        st.markdown('</div>', unsafe_allow_html=True)
-    with col_chk_map:
-        st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
-        # Checkbox para incluir ou omitir a análise do Heat Map no relatório
-        include_heatmap_in_report = st.checkbox("Incluir Heat Map no Report", value=True)
+    st.subheader(f"📝 Relatório — {formato}")
 
     # Geração do texto dinâmico baseado nos ativos habilitados no dashboard
     if "B2B" in formato:
@@ -248,7 +230,9 @@ with col_left:
                     q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                     report_lines.append(f"  • {disp_name} ({ticker}): {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
         
-        if include_heatmap_in_report:
+        # O estado do checkbox do Heat Map é lido aqui de forma segura
+        include_heatmap = st.session_state.get("chk_include_heatmap", True)
+        if include_heatmap:
             report_lines.extend([
                 "",
                 "--- ANÁLISE TÉCNICA DO HEAT MAP / LIQUIDEZ ---",
@@ -288,7 +272,8 @@ with col_left:
                     q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                     script_lines.append(f" - {disp_name} a {currency} {fmt_num(q['price'])}, variando {fmt_pct(q['change'])} hoje.")
         
-        if include_heatmap_in_report:
+        include_heatmap = st.session_state.get("chk_include_heatmap", True)
+        if include_heatmap:
             script_lines.extend([
                 "",
                 "[DESTAQUE TÉCNICO - HEAT MAP]",
@@ -302,7 +287,7 @@ with col_left:
         ])
         output_content = "\n".join(script_lines)
 
-    st.text_area("", value=output_content, height=390, label_visibility="collapsed")
+    st.text_area("", value=output_content, height=415, label_visibility="collapsed")
     
     st.markdown("**Opções de Exportação & Disparo em Lote (CRM):**")
     col_b1, col_b2, col_b3, col_b4 = st.columns(4)
@@ -318,20 +303,18 @@ with col_left:
         if st.button("🚀 Disparar CRM", use_container_width=True):
             contacts_list = get_crm_contacts_list(crm_api_endpoint, fallback_whatsapp_phone)
             if not contacts_list:
-                st.warning("Nenhum contato encontrado na API do CRM ou fallback.")
+                st.warning("Nenhum contato encontrado na API do CRM ou telefones manuais.")
             else:
                 success_count = 0
                 for contact in contacts_list:
                     ok, _ = send_whatsapp_report(contact["phone"], whatsapp_instance, whatsapp_token, output_content)
                     if ok:
                         success_count += 1
-                st.success(f"Disparo concluído! Enviado para {success_count}/{len(contacts_list)} contatos da base CRM.")
+                st.success(f"Disparo concluído! Enviado para {success_count}/{len(contacts_list)} contatos.")
 
 with col_right:
-    st.markdown('<div class="col-header-sync">', unsafe_allow_html=True)
     st.subheader(f"📈 Métricas Agregadas ({modulo})")
     st.caption(f"Atualizado às {datetime.now().strftime('%H:%M:%S BRT')}")
-    st.markdown('</div>', unsafe_allow_html=True)
 
     for item in active_benchmarks:
         label = item["label"]
@@ -410,10 +393,17 @@ st.markdown("---")
 # -------------------------------------------------------------
 # 5. MÓDULO: MAPA TÉRMICO DE LIQUIDEZ E VOLUME PROFILE
 # -------------------------------------------------------------
-if modulo == "Crypto":
-    st.subheader("🔥 Mapa de Alavancagem & Open Interest (Bitcoin / Derivativos)")
-else:
-    st.subheader("📊 Mapa Térmico de Volume Profile (Mercado Tradicional)")
+
+# CABEÇALHO DA SEÇÃO COM CHECKBOX ALINHADO AO LADO DO TÍTULO
+col_sec_title, col_sec_chk = st.columns([4, 1])
+with col_sec_title:
+    if modulo == "Crypto":
+        st.subheader("🔥 Mapa de Alavancagem & Open Interest (Bitcoin / Derivativos)")
+    else:
+        st.subheader("📊 Mapa Térmico de Volume Profile (Mercado Tradicional)")
+with col_sec_chk:
+    st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
+    st.checkbox("Incluir no Report", value=True, key="chk_include_heatmap")
 
 if PLOTLY_AVAILABLE:
     import requests
