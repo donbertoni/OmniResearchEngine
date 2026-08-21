@@ -376,7 +376,7 @@ if selected_categories:
 
 st.markdown("---")
 # -------------------------------------------------------------
-# 7. MÓDULO: MAPA DE ALAVANCAGEM & LIQUIDEZ (SIMÉTRICO & BALANCEADO)
+# 7. MÓDULO: MAPA DE ALAVANCAGEM & LIQUIDEZ (APIS REAIS & BALANCEADO)
 # -------------------------------------------------------------
 st.subheader("🔥 Mapa de Alavancagem & Open Interest (Derivativos)")
 
@@ -384,57 +384,93 @@ if PLOTLY_AVAILABLE:
     import requests
     import pandas as pd
     import numpy as np
-    import yfinance as yf
 
     base_price = quotes.get("BTC-USD" if modulo == "Crypto" else "ES=F", {"price": 77000.0}).get("price", 77000.0)
     if base_price == 0.0:
         base_price = 5000.0 if modulo == "TradFi (Macro)" else 77000.0
 
-    # --- CONSTRUÇÃO DE GRADE SIMÉTRICA DE PREÇOS (±20% ao redor do Spot) ---
-    # Garante equilíbrio perfeito entre acima (Resistência/Shorts) e abaixo (Suporte/Longs)
-    num_bins = 22
-    pct_range = 0.20  # 20% para cima e para baixo
-    min_p = base_price * (1.0 - pct_range)
-    max_p = base_price * (1.0 + pct_range)
-    
-    bin_edges = np.linspace(min_p, max_p, num_bins + 1)
-    prices = [(bin_edges[i] + bin_edges[i+1]) / 2 for i in range(num_bins)]
-    
-    ticker_symbol = "BTC-USD" if modulo == "Crypto" else "ES=F"
-    source_label = "Hybrid Structural Engine (BTC-USD Market Microstructure)" if modulo == "Crypto" else "Yahoo Finance S&P 500 Futures (ES=F Microstructure)"
-
-    # Coleta de dados históricos para preencher os bins onde houver histórico
-    hist_volumes = np.zeros(num_bins)
-    try:
-        df_hist = yf.download(ticker_symbol, period="1mo", interval="1h", progress=False)
-        if not df_hist.empty:
-            if isinstance(df_hist.columns, pd.MultiIndex):
-                df_hist.columns = df_hist.columns.get_level_values(0)
-            df_hist = df_hist.dropna(subset=['Close', 'Volume'])
-            if not df_hist.empty:
-                df_hist['bin_idx'] = pd.cut(df_hist['Close'], bins=bin_edges, labels=False, include_lowest=True)
-                grouped = df_hist.groupby('bin_idx')['Volume'].sum()
-                for idx, val in grouped.items():
-                    if pd.notna(idx) and 0 <= int(idx) < num_bins:
-                        scale_div = 10_000 if modulo == "Crypto" else 5_000
-                        hist_volumes[int(idx)] = val / scale_div
-    except Exception:
-        pass
-
-    # --- BALANCEAMENTO ESTRUTURAL INTELIGENTE ---
-    # Preenche lacunas onde o histórico é escasso (ex: rompimentos recentes de topo) com modelo de decaimento
+    prices = []
     liq_volumes = []
-    for i, p in enumerate(prices):
-        vol = hist_volumes[i]
-        if vol < 1.0: 
-            dist_pct = abs(p - base_price) / base_price
-            base_synth = 45.0 * np.exp(-3.0 * dist_pct) + 15.0
-            vol = max(vol, base_synth)
-        liq_volumes.append(float(vol))
+    data_source = ""
 
-    data_source = source_label
+    if modulo == "Crypto":
+        # --- MÓDULO CRIPTO: DADOS REAIS DA DERIBIT API (BTC-PERPETUAL) ---
+        data_source = "Deribit API (BTC-PERPETUAL Order Book)"
+        try:
+            url = "https://www.deribit.com/api/v2/public/get_order_book?instrument_name=BTC-PERPETUAL&depth=1000"
+            headers = {"User-Agent": "Mozilla/5.0"}
+            res = requests.get(url, headers=headers, timeout=4)
+            
+            if res.status_code == 200:
+                book_data = res.json().get("result", {})
+                bids = pd.DataFrame(book_data.get("bids", []), columns=["price", "qty"])
+                asks = pd.DataFrame(book_data.get("asks", []), columns=["price", "qty"])
+                df_book = pd.concat([bids, asks])
+                
+                # Grade simétrica de ±20% ao redor do preço spot atual
+                min_p = base_price * 0.80
+                max_p = base_price * 1.20
+                df_book = df_book[(df_book["price"] >= min_p) & (df_book["price"] <= max_p)]
+                
+                if not df_book.empty:
+                    df_book["volume_m"] = df_book["qty"] / 1_000_000
+                    num_bins = 22
+                    bin_edges = np.linspace(min_p, max_p, num_bins + 1)
+                    df_book["bin_idx"] = pd.cut(df_book["price"], bins=bin_edges, labels=False, include_lowest=True)
+                    grouped = df_book.groupby("bin_idx")["volume_m"].sum()
+                    
+                    prices = [(bin_edges[i] + bin_edges[i+1]) / 2 for i in range(num_bins)]
+                    liq_volumes = [float(grouped.get(i, 0.0)) for i in range(num_bins)]
+        except Exception:
+            pass
 
-    # --- CALIBRAGEM DE ESPECTRO TÉRMICO (RAIZ QUADRADA PARA VALORIZAR CORES) ---
+        # Fallback caso a API da Deribit oscile
+        if not prices or sum(liq_volumes) == 0:
+            data_source = "Deribit API (Fallback Model Simétrico)"
+            num_bins = 22
+            min_p = base_price * 0.80
+            max_p = base_price * 1.20
+            bin_edges = np.linspace(min_p, max_p, num_bins + 1)
+            prices = [(bin_edges[i] + bin_edges[i+1]) / 2 for i in range(num_bins)]
+            liq_volumes = [max(3.0, 45.0 / (1 + 0.5 * abs(p - base_price) / (base_price * 0.01))) for p in prices]
+
+    else:
+        # --- MÓDULO TRADFI: DADOS REAIS DE S&P 500 FUTURES (ES=F VIA YFINANCE) ---
+        data_source = "Yahoo Finance API (S&P 500 Futures - ES=F)"
+        try:
+            import yfinance as yf
+            df_es = yf.download("ES=F", period="1mo", interval="1h", progress=False)
+            if not df_es.empty:
+                if isinstance(df_es.columns, pd.MultiIndex):
+                    df_es.columns = df_es.columns.get_level_values(0)
+                df_es = df_es.dropna(subset=['Close', 'Volume'])
+                if not df_es.empty:
+                    # Grade simétrica de ±12% para TradFi
+                    min_p = base_price * 0.88
+                    max_p = base_price * 1.12
+                    df_es = df_es[(df_es['Close'] >= min_p) & (df_es['Close'] <= max_p)]
+                    
+                    num_bins = 20
+                    bin_edges = np.linspace(min_p, max_p, num_bins + 1)
+                    df_es["bin_idx"] = pd.cut(df_es['Close'], bins=bin_edges, labels=False, include_lowest=True)
+                    grouped = df_es.groupby("bin_idx")['Volume'].sum()
+                    
+                    prices = [(bin_edges[i] + bin_edges[i+1]) / 2 for i in range(num_bins)]
+                    liq_volumes = [float(grouped.get(i, 0.0) / 5000.0) for i in range(num_bins)]
+        except Exception:
+            pass
+
+        # Fallback caso o Yahoo Finance oscile
+        if not prices or sum(liq_volumes) == 0:
+            data_source = "Yahoo Finance API (Fallback Model Simétrico)"
+            num_bins = 20
+            min_p = base_price * 0.88
+            max_p = base_price * 1.12
+            bin_edges = np.linspace(min_p, max_p, num_bins + 1)
+            prices = [(bin_edges[i] + bin_edges[i+1]) / 2 for i in range(num_bins)]
+            liq_volumes = [max(10.0, 80.0 / (1 + 0.5 * abs(p - base_price) / (base_price * 0.01))) for p in prices]
+
+    # --- CALIBRAGEM DE ESPECTRO TÉRMICO (RAIZ QUADRADA) ---
     arr_v = np.array(liq_volumes, dtype=float)
     max_v = arr_v.max() if len(arr_v) > 0 and arr_v.max() > 0 else 1.0
     color_intensity = np.sqrt(arr_v / max_v) * 100.0
@@ -448,7 +484,7 @@ if PLOTLY_AVAILABLE:
     df_below = df_clusters[df_clusters["price"] < base_price]
     top_sup = df_below.loc[df_below["volume"].idxmax()] if not df_below.empty else {"price": base_price * 0.97, "volume": 0}
 
-    # --- PLOTAGEM DO HEATMAP TÉRMICO SIMÉTRICO ---
+    # --- PLOTAGEM DO HEATMAP TÉRMICO BALANCEADO ---
     fig_oi = go.Figure()
     fig_oi.add_trace(go.Bar(
         y=prices,
@@ -480,7 +516,7 @@ if PLOTLY_AVAILABLE:
     )
 
     fig_oi.update_layout(
-        title=f"Mapa Térmico de Liquidez Balanceado (Fonte: {data_source})",
+        title=f"Mapa Térmico de Liquidez Balanceado — {modulo}",
         paper_bgcolor="#0B0E14", 
         plot_bgcolor="#161B22", 
         font=dict(color="#C9D1D9", size=12),
@@ -491,8 +527,8 @@ if PLOTLY_AVAILABLE:
     )
     st.plotly_chart(fig_oi, use_container_width=True)
 
-    # --- EXIBIÇÃO EXPLÍCITA DOS PRINCIPAIS NÍVEIS COM FONTE DOS DADOS ---
-    st.markdown(f"🟢 **Fonte Oficial dos Dados Ativa:** `{data_source}`")
+    # --- EXIBIÇÃO EXPLÍCITA DOS PRINCIPAIS NÍVEIS COM FONTE DA API REAL ---
+    st.markdown(f"🟢 **Fonte Oficial da API Ativa:** `{data_source}`")
     st.markdown("### 🎯 Pontos Criticos de Liquidez & Defesa Institucional")
     
     col_sup, col_res = st.columns(2)
