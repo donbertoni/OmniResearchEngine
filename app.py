@@ -376,13 +376,14 @@ if selected_categories:
 
 st.markdown("---")
 # -------------------------------------------------------------
-# 7. MÓDULO: MAPA DE ALAVANCAGEM & LIQUIDEZ (LIMPO E DIRETO)
+# 7. MÓDULO: MAPA DE ALAVANCAGEM & LIQUIDEZ (PADRONIZADO E FILTRADO)
 # -------------------------------------------------------------
 st.subheader("🔥 Mapa de Alavancagem & Open Interest (Derivativos)")
 
 if PLOTLY_AVAILABLE:
     import requests
     import pandas as pd
+    import numpy as np
 
     base_price = quotes.get("BTC-USD" if modulo == "Crypto" else "ES=F", {"price": 77000.0}).get("price", 77000.0)
     if base_price == 0.0:
@@ -394,7 +395,7 @@ if PLOTLY_AVAILABLE:
     headers = {"User-Agent": "Mozilla/5.0"}
 
     if modulo == "Crypto":
-        # --- FONTE DIRETA: DERIBIT (Funciona perfeitamente na nuvem) ---
+        # --- FONTE DIRETA: DERIBIT (Com filtro de range para eliminar outliers do book) ---
         try:
             url_book_deribit = "https://www.deribit.com/api/v2/public/get_order_book?instrument_name=BTC-PERPETUAL&depth=1000"
             res = requests.get(url_book_deribit, headers=headers, timeout=4)
@@ -405,6 +406,12 @@ if PLOTLY_AVAILABLE:
                 asks = pd.DataFrame(book_data.get("asks", []), columns=["price", "qty"])
                 
                 df_book = pd.concat([bids, asks])
+                
+                # FILTRO DE FAIXA: Mantém apenas ordens entre -30% e +30% do spot para focar nos clusters reais
+                min_p = base_price * 0.70
+                max_p = base_price * 1.30
+                df_book = df_book[(df_book["price"] >= min_p) & (df_book["price"] <= max_p)]
+                
                 df_book["volume_m"] = df_book["qty"] / 1_000_000
                 
                 df_book["price_bin"] = pd.cut(df_book["price"], bins=30)
@@ -440,6 +447,11 @@ if PLOTLY_AVAILABLE:
                 
                 es_data = es_data.dropna(subset=['Close', 'Volume'])
                 if not es_data.empty:
+                    # Filtro de range proporcional para TradFi
+                    min_p = base_price * 0.85
+                    max_p = base_price * 1.15
+                    es_data = es_data[(es_data['Close'] >= min_p) & (es_data['Close'] <= max_p)]
+                    
                     es_data['price_bin'] = pd.cut(es_data['Close'], bins=30)
                     grouped = es_data.groupby('price_bin', observed=False)['Volume'].sum().reset_index()
                     prices = [interval.mid for interval in grouped['price_bin']]
@@ -461,7 +473,7 @@ if PLOTLY_AVAILABLE:
 
     oi_asset_name = f"{data_source} Liquidity Profile" if data_source else "Asset Liquidity Profile"
 
-    # Plotagem
+    # Plotagem padronizada com paleta de cores Inferno (Estilo Heatmap Clássico)
     fig_oi = go.Figure()
     fig_oi.add_trace(go.Bar(
         y=prices,
@@ -469,7 +481,7 @@ if PLOTLY_AVAILABLE:
         orientation='h',
         marker=dict(
             color=liq_volumes,
-            colorscale='Plasma',
+            colorscale='Inferno',
             showscale=True,
             colorbar=dict(title="Volume", len=0.8, thickness=12, tickfont=dict(color="#C9D1D9"))
         ),
