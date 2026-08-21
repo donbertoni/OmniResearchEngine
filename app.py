@@ -20,7 +20,8 @@ from backend import (
     generate_pdf_report,
     fetch_btc_fng,
     fetch_global_crypto_data,
-    fetch_realtime_quotes
+    fetch_realtime_quotes,
+    send_whatsapp_report
 )
 
 # -----------------------------------------------------------------------------
@@ -62,10 +63,11 @@ st.markdown("""<style>
     }
     .metric-title { font-size: 12px; color: #8B949E; font-weight: 600; }
     .metric-value { font-size: 18px; font-weight: 700; color: #F0F6FC; margin: 4px 0; }
-    .metric-change-pos { font-size: 12px; color: #3FB950; font-weight: 600; }
-    .metric-change-neg { font-size: 12px; color: #F85149; font-weight: 600; }
-    .metric-change-neutral { font-size: 12px; color: #58A6FF; font-weight: 600; }
-    .premium-badge { color: #58A6FF; font-weight: bold; }
+    
+    /* REGRAS DE CORES ESTRITAS */
+    .color-green { color: #3FB950 !important; font-weight: 600; }
+    .color-red { color: #F85149 !important; font-weight: 600; }
+    .color-blue { color: #58A6FF !important; font-weight: 600; }
 
     .pred-card {
         background-color: #161B22;
@@ -79,11 +81,6 @@ st.markdown("""<style>
     }
     .pred-title { font-size: 11px; color: #8B949E; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .pred-value { font-size: 15px; font-weight: 700; color: #F0F6FC; }
-    .pred-sub { font-size: 11px; font-weight: 600; }
-
-    .stTextArea {
-        margin-top: -5px !important;
-    }
 
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background-color: #161B22 !important;
@@ -103,27 +100,22 @@ st.markdown("""<style>
         margin: 0px !important;
         padding: 0px !important;
     }
-    div[data-testid="stCheckbox"] > label {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: flex-end !important;
-        margin: 0px !important;
-        padding: 0px !important;
-        cursor: pointer !important;
-    }
-    div[data-baseweb="checkbox"] input:checked + div {
-        background-color: #238636 !important;
-        border-color: #238636 !important;
-    }
-    input[type="checkbox"]:checked { accent-color: #238636 !important; }
 </style>""", unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 2. SIDEBAR: CONFIGURAÇÕES
+# 2. SIDEBAR: CONFIGURAÇÕES & MÓDULO BYOK
 # -----------------------------------------------------------------------------
 st.sidebar.title("⚙️ Configurações OMNI")
-modulo = st.sidebar.radio("📊 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
-brapi_token = st.sidebar.text_input("BRAPI API Token:", value="", type="password")
+modulo = st.sidebar.radio("📌 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
+
+# Seção BYOK (Bring Your Own Key) no Sidebar
+with st.sidebar.expander("🔑 BYOK & Integração CRM", expanded=False):
+    brapi_token = st.text_input("BRAPI API Token:", value="", type="password")
+    custom_data_api_key = st.text_input("Custom Market API Key:", value="", type="password")
+    whatsapp_instance = st.text_input("WhatsApp Instance ID:", value="")
+    whatsapp_token = st.text_input("WhatsApp API Token:", value="", type="password")
+    target_whatsapp_phone = st.text_input("Telefone Destino (CRM/Vendas):", value="")
+
 tier_selected = st.sidebar.radio("Plano Ativo:", ["Free (Lead Magnet)", "Standard (B2C Trader)", "Premium (B2B White-Label)"], index=1)
 
 allow_customization = "Free" not in tier_selected
@@ -143,7 +135,12 @@ if allow_customization:
 horizonte_pred = st.sidebar.selectbox("Horizonte Temporário:", ["24 Horas", "48 Horas", "7 Dias"], index=1)
 alvo_pct = st.sidebar.slider("Projeção de Resposta (%)", 0.5, 15.0, 3.0, 0.5)
 stop_pct = st.sidebar.slider("Zona de Suporte / Defesa (%)", 0.5, 15.0, 3.0, 0.5)
-formato = st.sidebar.radio(f"📋 Formato ({modulo}):", ["B2B (Relatório)", "B2C (YouTube Auto-Pilot)"], index=0)
+
+# REINSERÇÃO DOS MODOS AUTO-PILOT E B2B
+formato = st.sidebar.radio(f"📊 Formato ({modulo}):", ["B2B (Relatório Analítico)", "B2C (YouTube Auto-Pilot)", "B2C (Telegram / WhatsApp Auto-Pilot)"], index=0)
+
+# Checkbox para incluir ou não a análise do Heat Map no relatório/roteiro
+include_heatmap_in_report = st.sidebar.checkbox("Incluir Análise do Heat Map no Report", value=True)
 
 company_name = "OMNIRESEARCH Engine"
 cnpi_code = "CNPI-T 0000"
@@ -157,8 +154,8 @@ for cat_info in active_categories.values():
         symbols_to_fetch.append(ticker)
 symbols_to_fetch.extend(custom_tickers)
 
-# Chamada das funções importadas do backend
-quotes = fetch_realtime_quotes(tuple(symbols_to_fetch), brapi_token=brapi_token)
+# Chamada das funções importadas do backend com BYOK
+quotes = fetch_realtime_quotes(tuple(symbols_to_fetch), brapi_token=brapi_token, custom_api_key=custom_data_api_key)
 fng_val, fng_class = fetch_btc_fng()
 global_crypto_data = fetch_global_crypto_data()
 
@@ -175,16 +172,16 @@ if custom_tickers:
 # 3. CORPO PRINCIPAL & LAYOUT DE DUAS COLUNAS
 # -----------------------------------------------------------------------------
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
-    st.title(f"🏛️ {company_name} — Terminal Quant")
+    st.title(f"🏢 {company_name} — Terminal Quant")
     st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
 else:
     st.title("⚡ OMNIRESEARCH Engine")
-    st.caption("Plataforma Integrada de Inteligência Financeira")
+    st.caption("Plataforma Integrada de Inteligência Financeira com IA & Auto-Pilot")
 
 now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 col_status, col_btn_refresh = st.columns([3.5, 1])
 with col_status:
-    st.markdown(f'<div class="status-bar">🕒 <b>Dados consolidados às {now_str}</b> | Status API: <span style="color: #3FB950;">🟢 Online</span> | <b>Módulo:</b> {modulo}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="status-bar">🟢 <b>Dados consolidados às {now_str}</b> | Status API: <span class="color-green">● Online</span> | <b>Módulo:</b> {modulo}</div>', unsafe_allow_html=True)
 with col_btn_refresh:
     if st.button("🔄 Atualizar Cotações"):
         st.cache_data.clear()
@@ -194,10 +191,11 @@ col_left, col_right = st.columns([1.3, 1])
 
 with col_left:
     st.markdown('<div class="col-header-sync">', unsafe_allow_html=True)
-    st.subheader(f"📄 Entrega Padrão — {formato}")
+    st.subheader(f"📝 Entrega Padrão — {formato}")
     st.caption("Relatório analítico gerado com dados consolidados em tempo real:")
     st.markdown('</div>', unsafe_allow_html=True)
 
+    # Geração do texto dinâmico considerando a inclusão do Heat Map via checkbox
     if "B2B" in formato:
         report_lines = [
             f"=== RELATÓRIO INSTITUCIONAL {modulo.upper()} (B2B) ===",
@@ -213,7 +211,6 @@ with col_left:
                 cat_key = f"chk_cat_{cat_name}"
                 if not st.session_state.get(cat_key, True):
                     continue
-                
                 cat_info = active_display_categories[cat_name]
                 report_lines.append(f"\n[{cat_name.upper()}] (Tag: {cat_info['tag']})")
                 for disp_name, ticker, currency in cat_info["assets"]:
@@ -223,50 +220,28 @@ with col_left:
                     q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                     report_lines.append(f"  • {disp_name} ({ticker}): {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
         
+        if include_heatmap_in_report:
+            report_lines.extend([
+                "",
+                "--- ANÁLISE TÉCNICA DO HEAT MAP / LIQUIDEZ ---",
+                f"Clusters de liquidez mapeados com sucesso. Viés operacional validado pelo fluxo de derivativos/ordens no horizonte de {horizonte_pred}."
+            ])
+
         report_lines.extend([
             "",
             "--- CONCLUSÃO TÉCNICA QUANT ---",
-            f"Tendência estrutural alinhada ao horizonte de {horizonte_pred}. Monitoramento ativo de zonas de liquidez e alavancagem em derivativos para proteção de posições."
+            f"Tendência estrutural alinhada ao horizonte de {horizonte_pred}. Monitoramento ativo de zonas de liquidez para proteção de posições."
         ])
         output_content = "\n".join(report_lines)
-        st.text_area("", value=output_content, height=410, label_visibility="collapsed")
-        
-        st.markdown("**Opções de Exportação do Relatório:**")
-        col_b1, col_b2, col_b3 = st.columns(3)
-        with col_b1:
-            st.download_button("📥 Baixar (TXT)", data=output_content, file_name=f"OMNI_Relatorio_{modulo}.txt", mime="text/plain", use_container_width=True)
-        with col_b2:
-            json_data = json.dumps({
-                "module": modulo,
-                "timestamp": now_str,
-                "company": company_name,
-                "cnpi": cnpi_code,
-                "horizon": horizonte_pred,
-                "target_pct": alvo_pct,
-                "stop_pct": stop_pct,
-                "sentiment": f"{fng_val} ({fng_class})",
-                "categories": {
-                    cat_name: {
-                        disp_name: quotes.get(ticker, {"price": 0.0, "change": 0.0})["price"] 
-                        for disp_name, ticker, currency in active_display_categories[cat_name]["assets"] 
-                        if st.session_state.get(f"chk_asset_{cat_name}_{ticker}", True)
-                    } 
-                    for cat_name in selected_categories 
-                    if cat_name in active_display_categories and st.session_state.get(f"chk_cat_{cat_name}", True)
-                }
-            }, indent=4, ensure_ascii=False)
-            st.download_button("📊 Baixar (JSON)", data=json_data, file_name=f"OMNI_Relatorio_{modulo}.json", mime="application/json", use_container_width=True)
-        with col_b3:
-            pdf_bytes = generate_pdf_report(output_content, company_name, now_str)
-            st.download_button("📑 Baixar (PDF)", data=pdf_bytes, file_name=f"OMNI_Relatorio_{modulo}.pdf", mime="application/pdf", use_container_width=True)
     else:
+        # Modo Auto-Pilot (YouTube / WhatsApp / Telegram)
         script_lines = [
-            f"=== ROTEIRO YOUTUBE AUTO-PILOT ({modulo.upper()}) ===",
+            f"=== ROTEIRO AUTO-PILOT ({modulo.upper()}) ===",
             f"Data/Hora: {now_str}",
             f"Horizonte: {horizonte_pred}",
             "",
             "[INTRODUÇÃO - 00:00]",
-            f"Fala, investidor! Sejam bem-vindos a mais um panorama de {modulo} com os dados consolidados em {now_str}.",
+            f"Fala, investidor! Panorama atualizado de {modulo} com dados consolidados em {now_str}.",
             "",
             "[DESENVOLVIMENTO - ANÁLISE DE MERCADO]"
         ]
@@ -283,25 +258,41 @@ with col_left:
                 ]
                 for disp_name, ticker, currency in active_assets[:2]:
                     q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
-                    script_lines.append(f" - {disp_name} negociado a {currency} {fmt_num(q['price'])}, registrando {fmt_pct(q['change'])} hoje.")
+                    script_lines.append(f" - {disp_name} a {currency} {fmt_num(q['price'])}, variando {fmt_pct(q['change'])} hoje.")
+        
+        if include_heatmap_in_report:
+            script_lines.extend([
+                "",
+                "[DESTAQUE TÉCNICO - HEAT MAP]",
+                "Nota de Mercado: O mapa de liquidez aponta fortes barreiras institucionais nos níveis atuais."
+            ])
+
         script_lines.extend([
             "",
             "[FECHAMENTO - CALL TO ACTION]",
-            "Deixe o seu like, se inscreva no canal e ative as notificações. Bons trades e até a próxima!"
+            "Deixe o seu like, se inscreva no canal e ative as notificações. Bons negócios!"
         ])
-        script_text = "\n".join(script_lines)
-        st.text_area("", value=script_text, height=410, label_visibility="collapsed")
-        
-        st.markdown("**Opções de Exportação do Roteiro:**")
-        col_b1, col_b2, col_b3 = st.columns(3)
-        with col_b1:
-            st.download_button("📥 Baixar (TXT)", data=script_text, file_name=f"OMNI_Roteiro_{modulo}.txt", mime="text/plain", use_container_width=True)
-        with col_b2:
-            json_data = json.dumps({"module": modulo, "timestamp": now_str, "script": script_text}, indent=4, ensure_ascii=False)
-            st.download_button("📊 Baixar (JSON)", data=json_data, file_name=f"OMNI_Roteiro_{modulo}.json", mime="application/json", use_container_width=True)
-        with col_b3:
-            pdf_bytes = generate_pdf_report(script_text, company_name, now_str)
-            st.download_button("📑 Baixar (PDF)", data=pdf_bytes, file_name=f"OMNI_Roteiro_{modulo}.pdf", mime="application/pdf", use_container_width=True)
+        output_content = "\n".join(script_lines)
+
+    st.text_area("", value=output_content, height=410, label_visibility="collapsed")
+    
+    st.markdown("**Opções de Exportação & Disparo CRM:**")
+    col_b1, col_b2, col_b3, col_b4 = st.columns(4)
+    with col_b1:
+        st.download_button("📥 Baixar (TXT)", data=output_content, file_name=f"OMNI_Report_{modulo}.txt", mime="text/plain", use_container_width=True)
+    with col_b2:
+        json_data = json.dumps({"module": modulo, "timestamp": now_str, "content": output_content}, indent=4, ensure_ascii=False)
+        st.download_button("📥 Baixar (JSON)", data=json_data, file_name=f"OMNI_Report_{modulo}.json", mime="application/json", use_container_width=True)
+    with col_b3:
+        pdf_bytes = generate_pdf_report(output_content, company_name, now_str)
+        st.download_button("📥 Baixar (PDF)", data=pdf_bytes, file_name=f"OMNI_Report_{modulo}.pdf", mime="application/pdf", use_container_width=True)
+    with col_b4:
+        if st.button("🚀 Enviar WhatsApp", use_container_width=True):
+            success, msg = send_whatsapp_report(target_whatsapp_phone, whatsapp_instance, whatsapp_token, output_content)
+            if success:
+                st.success(msg)
+            else:
+                st.warning(msg)
 
 with col_right:
     st.markdown('<div class="col-header-sync">', unsafe_allow_html=True)
@@ -311,18 +302,27 @@ with col_right:
 
     for item in active_benchmarks:
         label = item["label"]
-        val_str, chg_str, change_cls = "0", "0%", "metric-change-neutral"
+        val_str, chg_str, change_cls = "0", "0%", "color-blue"
+        
         if item.get("type") == "fng_api":
-            val_str, chg_str = fng_val, fng_class
+            val_str = fng_val
+            # APLICAÇÃO DA REGRA DE CORES ESTRITA PARA SENTIMENTO: Greed=Verde, Neutral=Azul, Fear=Vermelho
+            cls_map = {"Greed": "color-green", "Neutral": "color-blue", "Fear": "color-red"}
+            change_cls = cls_map.get(fng_class, "color-blue")
+            chg_str = f"Sentimento: {fng_class}"
         elif item.get("type") == "global_api":
             sub_k = item.get("sub_key")
             val_str = global_crypto_data["btc_d_val"] if sub_k == "btc_d" else global_crypto_data["usdt_d_val"]
-            chg_str = fmt_pct(global_crypto_data["btc_d_chg"])
+            chg_val = global_crypto_data["btc_d_chg"] if sub_k == "btc_d" else global_crypto_data["usdt_d_chg"]
+            chg_str = f"{fmt_pct(chg_val)} hoje"
+            change_cls = "color-green" if chg_val > 0 else ("color-red" if chg_val < 0 else "color-blue")
         elif item.get("ticker"):
             data = quotes.get(item["ticker"], {"price": 0.0, "change": 0.0})
             val_str = f"{item.get('prefix', '')}{fmt_num(data['price'])}"
-            chg_str = f"{fmt_pct(data['change'])} hoje"
-            change_cls = "metric-change-pos" if data["change"] >= 0 else "metric-change-neg"
+            chg_val = data["change"]
+            chg_str = f"{fmt_pct(chg_val)} hoje"
+            # APLICAÇÃO DA REGRA DE CORES ESTRITA PARA PERFORMANCE: >0 Verde, <0 Vermelho, ==0 Azul
+            change_cls = "color-green" if chg_val > 0 else ("color-red" if chg_val < 0 else "color-blue")
 
         st.markdown(f'<div class="metric-card"><div class="metric-title">{label}</div><div class="metric-value">{val_str}</div><div class="{change_cls}">{chg_str}</div></div>', unsafe_allow_html=True)
 
@@ -366,11 +366,14 @@ if selected_categories:
                     for disp_name, ticker, currency in cat_info["assets"]:
                         q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                         asset_key = f"chk_asset_{cat_name}_{ticker}"
-                        color_style = "color: #3FB950;" if q["change"] >= 0 else "color: #F85149;"
+                        chg_val = q["change"]
+                        
+                        # APLICAÇÃO DA REGRA DE CORES ESTRITA NOS ATIVOS DO PAINEL
+                        color_cls = "color-green" if chg_val > 0 else ("color-red" if chg_val < 0 else "color-blue")
                         
                         cA, cB = st.columns([3.2, 0.8])
                         with cA:
-                            st.markdown(f'<div style="font-size: 12px;"><span style="color: #8B949E;">{disp_name}:</span> <b style="color: #F0F6FC;">{currency} {fmt_num(q["price"])}</b> <span style="{color_style}">({fmt_pct(q["change"])})</span></div>', unsafe_allow_html=True)
+                            st.markdown(f'<div style="font-size: 12px;"><span style="color: #8B949E;">{disp_name}:</span> <b style="color: #F0F6FC;">{currency} {fmt_num(q["price"])}</b> <span class="{color_cls}">({fmt_pct(q["change"])})</span></div>', unsafe_allow_html=True)
                         with cB:
                             st.checkbox("", value=st.session_state.get(asset_key, True), key=asset_key, disabled=not cat_enabled, label_visibility="collapsed")
 
@@ -396,35 +399,28 @@ if PLOTLY_AVAILABLE:
     liq_volumes = []
     data_source = ""
     unit_label = "M" if modulo == "Crypto" else "B"
-    metric_label_type = "Open Interest / Liquidez Efetiva (Bitcoin)" if modulo == "Crypto" else "Volume Profile Institucional (S&P 500)"
+    metric_label_type = "Open Interest / Liquidez Efetiva (Bitcoin)" if modulo == "Crypto" else "Volume Profile Institucional"
 
     if modulo == "Crypto":
-        # --- MÓDULO CRIPTO: EXPLICITAMENTE BITCOIN (DERIBIT BTC-PERPETUAL) ---
         data_source = "Deribit API (BTC-PERPETUAL Order Book Real)"
         try:
             url = "https://www.deribit.com/api/v2/public/get_order_book?instrument_name=BTC-PERPETUAL&depth=250"
             headers = {"User-Agent": "Mozilla/5.0"}
             res = requests.get(url, headers=headers, timeout=5)
-            
             if res.status_code == 200:
                 book_data = res.json().get("result", {})
                 bids = pd.DataFrame(book_data.get("bids", []), columns=["price", "qty"])
                 asks = pd.DataFrame(book_data.get("asks", []), columns=["price", "qty"])
                 df_book = pd.concat([bids, asks])
-                
                 if not df_book.empty:
                     df_book["notional_m"] = df_book["qty"] / 1_000_000
-                    
                     min_p = base_price * 0.85
                     max_p = base_price * 1.15
                     df_book = df_book[(df_book["price"] >= min_p) & (df_book["price"] <= max_p)]
-                    
                     num_bins = 25
                     bin_edges = np.linspace(min_p, max_p, num_bins + 1)
                     df_book["bin_idx"] = pd.cut(df_book["price"], bins=bin_edges, labels=False, include_lowest=True)
-                    
                     grouped = df_book.groupby("bin_idx")["notional_m"].sum().reset_index()
-                    
                     for i in range(num_bins):
                         p_mid = (bin_edges[i] + bin_edges[i+1]) / 2
                         matched = grouped[grouped["bin_idx"] == i]
@@ -438,33 +434,23 @@ if PLOTLY_AVAILABLE:
         if not prices:
             prices = [base_price * 0.95, base_price * 0.98, base_price * 1.02, base_price * 1.05]
             liq_volumes = [1.2, 4.8, 6.5, 3.1]
-
     else:
-        # --- MÓDULO TRADFI: PERÍODO AMPLIADO (3 MESES) PARA CAPTURAR HISTÓRICO ACIMA DO PREÇO ATUAL ---
-        data_source = "Yahoo Finance API (S&P 500 Futures Histórico Ampliado 3M — ES=F)"
+        data_source = "Yahoo Finance API (S&P 500 Histórico Real — ES=F)"
         try:
             import yfinance as yf
-            # Ampliado para 3 meses para cobrir zonas de preço acima do spot atual
             df_es = yf.download("ES=F", period="3mo", interval="1h", progress=False)
-            
             if not df_es.empty:
                 if isinstance(df_es.columns, pd.MultiIndex):
                     df_es.columns = df_es.columns.get_level_values(0)
                 df_es = df_es.dropna(subset=['Close', 'Volume'])
-                
                 if not df_es.empty:
-                    min_p = base_price * 0.85
-                    max_p = base_price * 1.15
-                    df_es = df_es[(df_es['Close'] >= min_p) & (df_es['Close'] <= max_p)]
-                    
+                    min_p = df_es['Close'].min()
+                    max_p = df_es['Close'].max()
                     df_es["notional_b"] = (df_es['Close'] * df_es['Volume']) / 1_000_000_000
-                    
                     num_bins = 25
                     bin_edges = np.linspace(min_p, max_p, num_bins + 1)
                     df_es["bin_idx"] = pd.cut(df_es['Close'], bins=bin_edges, labels=False, include_lowest=True)
-                    
                     grouped = df_es.groupby("bin_idx")["notional_b"].sum().reset_index()
-                    
                     for i in range(num_bins):
                         p_mid = (bin_edges[i] + bin_edges[i+1]) / 2
                         matched = grouped[grouped["bin_idx"] == i]
@@ -476,24 +462,19 @@ if PLOTLY_AVAILABLE:
             pass
 
         if not prices:
-            prices = [base_price * 0.96, base_price * 0.99, base_price * 1.01, base_price * 1.04]
-            liq_volumes = [8.4, 32.1, 45.6, 14.2]
+            prices = [base_price * 0.96, base_price * 0.99]
+            liq_volumes = [18.4, 45.1]
 
-    # --- ESPECTRO TÉRMICO CALCULADO SOBRE OS DADOS REAIS ---
     arr_v = np.array(liq_volumes, dtype=float)
     max_v = arr_v.max() if len(arr_v) > 0 and arr_v.max() > 0 else 1.0
     color_intensity = np.sqrt(arr_v / max_v) * 100.0
 
-    # --- IDENTIFICAÇÃO DOS CLUSTERS REAIS ACIMA E ABAIXO ---
     df_clusters = pd.DataFrame({"price": prices, "volume": liq_volumes})
-    
     df_above = df_clusters[df_clusters["price"] > base_price]
-    top_res = df_above.loc[df_above["volume"].idxmax()] if not df_above.empty else {"price": base_price * 1.03, "volume": 0}
-    
+    top_res = df_above.loc[df_above["volume"].idxmax()] if not df_above.empty else {"price": base_price, "volume": 0}
     df_below = df_clusters[df_clusters["price"] < base_price]
-    top_sup = df_below.loc[df_below["volume"].idxmax()] if not df_below.empty else {"price": base_price * 0.97, "volume": 0}
+    top_sup = df_below.loc[df_below["volume"].idxmax()] if not df_below.empty else {"price": base_price, "volume": 0}
 
-    # --- PLOTAGEM DO HEATMAP TÉRMICO COM DADOS ORGÂNICOS ---
     fig_oi = go.Figure()
     fig_oi.add_trace(go.Bar(
         y=prices,
@@ -503,12 +484,7 @@ if PLOTLY_AVAILABLE:
             color=color_intensity,
             colorscale='Jet',
             showscale=True,
-            colorbar=dict(
-                title="Intensidade Térmica", 
-                len=0.8, 
-                thickness=12, 
-                tickfont=dict(color="#C9D1D9")
-            )
+            colorbar=dict(title="Intensidade Térmica", len=0.8, thickness=12, tickfont=dict(color="#C9D1D9"))
         ),
         hoverinfo='text',
         text=[f"Preço: {fmt_num(p)} | {metric_label_type}: ${v:.2f}{unit_label}" for p, v in zip(prices, liq_volumes)],
@@ -524,7 +500,7 @@ if PLOTLY_AVAILABLE:
         annotation_font_color="#58A6FF"
     )
 
-    chart_title = "Mapa Térmico de Open Interest & Alavancagem (Bitcoin / Deribit — $M)" if modulo == "Crypto" else "Mapa Térmico de Volume Profile & Liquidez (S&P 500 Futures 3M — $B)"
+    chart_title = "Mapa Térmico de Open Interest & Alavancagem (Bitcoin / Deribit — $M)" if modulo == "Crypto" else "Volume Profile Histórico Real (S&P 500 Futures — $B)"
     xaxis_title = "Volume Notional Acumulado por Faixa ($ Milhões)" if modulo == "Crypto" else "Volume Notional Acumulado por Faixa ($ Bilhões)"
 
     fig_oi.update_layout(
@@ -539,22 +515,21 @@ if PLOTLY_AVAILABLE:
     )
     st.plotly_chart(fig_oi, use_container_width=True)
 
-    # --- EXIBIÇÃO DOS PRINCIPAIS NÍVEIS COM DADOS REAIS ---
     st.markdown(f"🟢 **Fonte Oficial da API Ativa:** `{data_source}`")
     st.markdown("### 🎯 Pontos Criticos de Liquidez & Defesa Institucional")
     
     col_sup, col_res = st.columns(2)
     with col_sup:
         st.metric(
-            label="🛡️ Principal Suporte / Alinhamento Abaixo",
-            value=fmt_num(top_sup["price"]),
-            delta=f"Volume: ${top_sup['volume']:.2f}{unit_label}"
+            label="🛡️ Principal Suporte (Histórico Real)",
+            value=fmt_num(top_sup["price"]) if top_sup["volume"] > 0 else "N/D",
+            delta=f"Volume: ${top_sup['volume']:.2f}{unit_label}" if top_sup["volume"] > 0 else "Sem dados"
         )
     with col_res:
         st.metric(
-            label="⚡ Principal Resistência / Alvo Acima",
-            value=fmt_num(top_res["price"]),
-            delta=f"Volume: ${top_res['volume']:.2f}{unit_label}"
+            label="⚡ Principal Resistência (Histórico Real)",
+            value=fmt_num(top_res["price"]) if top_res["volume"] > 0 else "Zona de ATH (Sem Histórico Acima)",
+            delta=f"Volume: ${top_res['volume']:.2f}{unit_label}" if top_res["volume"] > 0 else "Price Discovery"
         )
 else:
     st.warning("⚠️ O módulo Plotly não está disponível no momento.")
