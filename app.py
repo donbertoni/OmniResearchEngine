@@ -379,16 +379,60 @@ col_left, col_right = st.columns([1.3, 1])
 with col_left:
     st.markdown('<div class="col-header-sync">', unsafe_allow_html=True)
     st.subheader(f"📋 Entrega Padrão — {formato}")
-    st.caption("Indicadores e cotações integrados em tempo real via API:")
+    st.caption("Relatório analítico gerado com dados consolidados em tempo real:")
     st.markdown('</div>', unsafe_allow_html=True)
 
+    # Geração Dinâmica e Completa do Conteúdo do Relatório / Roteiro
     if "B2B" in formato:
-        report_lines = [f"=== RELATÓRIO INSTITUCIONAL {modulo.upper()} (B2B) ===", f"Data/Hora: {now_str}", ""]
+        report_lines = [
+            f"=== RELATÓRIO INSTITUCIONAL {modulo.upper()} (B2B) ===",
+            f"Emitente: {company_name} | Responsável: {cnpi_code}",
+            f"Data/Hora de Emissão: {now_str}",
+            f"Horizonte Analítico: {horizonte_pred} | Alvo: +{alvo_pct}% | Stop Defesa: -{stop_pct}%",
+            f"Sentimento de Mercado (Fear & Greed): {fng_val} ({fng_class})",
+            "",
+            "--- SUMÁRIO DE ATIVOS E CATEGORIAS MONITORADAS ---"
+        ]
+        for cat_name in selected_categories:
+            if cat_name in active_display_categories:
+                cat_info = active_display_categories[cat_name]
+                report_lines.append(f"\n[{cat_name.upper()}] (Tag: {cat_info['tag']})")
+                for disp_name, ticker, currency in cat_info["assets"]:
+                    q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
+                    report_lines.append(f"  • {disp_name} ({ticker}): {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
+        
+        report_lines.extend([
+            "",
+            "--- CONCLUSÃO TÉCNICA QUANT ---",
+            f"Tendência estrutural alinhada ao horizonte de {horizonte_pred}. Monitoramento ativo de zonas de liquidez e alavancagem em derivativos para proteção de posições."
+        ])
         output_content = "\n".join(report_lines)
         st.text_area("", value=output_content, height=350)
         st.download_button("📥 Baixar Relatório (TXT)", data=output_content, file_name=f"OMNI_Relatorio_{modulo}.txt", mime="text/plain")
     else:
-        script_text = f"=== ROTEIRO YOUTUBE AUTO-PILOT ({modulo.upper()}) ===\nData/Hora: {now_str}\n"
+        script_lines = [
+            f"=== ROTEIRO YOUTUBE AUTO-PILOT ({modulo.upper()}) ===",
+            f"Data/Hora: {now_str}",
+            f"Horizonte: {horizonte_pred}",
+            "",
+            "[INTRODUÇÃO - 00:00]",
+            f"Fala, investidor! Sejam bem-vindos a mais um panorama de {modulo} com os dados consolidados em {now_str}.",
+            "",
+            "[DESENVOLVIMENTO - ANÁLISE DE MERCADO]"
+        ]
+        for cat_name in selected_categories:
+            if cat_name in active_display_categories:
+                cat_info = active_display_categories[cat_name]
+                script_lines.append(f"Destaques em {cat_name}:")
+                for disp_name, ticker, currency in cat_info["assets"][:2]:
+                    q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
+                    script_lines.append(f" - {disp_name} negociado a {currency} {fmt_num(q['price'])}, registrando {fmt_pct(q['change'])} hoje.")
+        script_lines.extend([
+            "",
+            "[FECHAMENTO - CALL TO ACTION]",
+            "Deixe o seu like, se inscreva no canal e ative as notificações. Bons trades e até a próxima!"
+        ])
+        script_text = "\n".join(script_lines)
         st.text_area("", value=script_text, height=350)
         st.download_button("📥 Baixar Roteiro YouTube (TXT)", data=script_text, file_name=f"OMNI_Roteiro_{modulo}.txt", mime="text/plain")
 
@@ -427,9 +471,6 @@ with col_right:
             change_cls = "metric-change-pos" if data["change"] >= 0 else "metric-change-neg"
 
         st.markdown(f'<div class="metric-card"><div class="metric-title">{label}</div><div class="metric-value">{val_str}</div><div class="{change_cls}">{chg_str}</div></div>', unsafe_allow_html=True)
-
-st.markdown("---")
-
 # -----------------------------------------------------------------------------
 # 6. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA)
 # -----------------------------------------------------------------------------
