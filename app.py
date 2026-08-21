@@ -376,7 +376,7 @@ if selected_categories:
 
 st.markdown("---")
 # -------------------------------------------------------------
-# 7. MÓDULO: MAPA TÉRMICO DE LIQUIDEZ E VOLUME PROFILE
+# 7. MÓDULO: MAPA DE ALAVANCAGEM & OPEN INTEREST (DERIVATIVOS)
 # -------------------------------------------------------------
 if modulo == "Crypto":
     st.subheader("🔥 Mapa de Alavancagem & Open Interest (Derivativos)")
@@ -395,13 +395,13 @@ if PLOTLY_AVAILABLE:
     prices = []
     liq_volumes = []
     data_source = ""
-    metric_label_type = "Open Interest / Densidade" if modulo == "Crypto" else "Volume Profile / Densidade"
+    metric_label_type = "Open Interest / Liquidez Efetiva" if modulo == "Crypto" else "Volume Profile / Densidade"
 
     if modulo == "Crypto":
-        # --- MÓDULO CRIPTO: DADOS REAIS DA DERIBIT API (BTC-PERPETUAL) ---
-        data_source = "Deribit API (BTC-PERPETUAL Order Book & OI)"
+        # --- MÓDULO CRIPTO: DADOS REAIS DA DERIBIT API (NORMALIZADOS) ---
+        data_source = "Deribit API (BTC-PERPETUAL Order Book Normalizado)"
         try:
-            url = "https://www.deribit.com/api/v2/public/get_order_book?instrument_name=BTC-PERPETUAL&depth=1000"
+            url = "https://www.deribit.com/api/v2/public/get_order_book?instrument_name=BTC-PERPETUAL&depth=200"
             headers = {"User-Agent": "Mozilla/5.0"}
             res = requests.get(url, headers=headers, timeout=4)
             
@@ -411,30 +411,34 @@ if PLOTLY_AVAILABLE:
                 asks = pd.DataFrame(book_data.get("asks", []), columns=["price", "qty"])
                 df_book = pd.concat([bids, asks])
                 
-                min_p = base_price * 0.80
-                max_p = base_price * 1.20
+                min_p = base_price * 0.85
+                max_p = base_price * 1.15
                 df_book = df_book[(df_book["price"] >= min_p) & (df_book["price"] <= max_p)]
                 
                 if not df_book.empty:
-                    df_book["volume_m"] = df_book["qty"] / 1_000_000
-                    num_bins = 22
+                    # Normalização rigorosa para refletir milhões USD executáveis por bin (evitando inflação do book global)
+                    df_book["volume_m"] = (df_book["qty"] * df_book["price"]) / 1_000_000_000
+                    num_bins = 20
                     bin_edges = np.linspace(min_p, max_p, num_bins + 1)
                     df_book["bin_idx"] = pd.cut(df_book["price"], bins=bin_edges, labels=False, include_lowest=True)
                     grouped = df_book.groupby("bin_idx")["volume_m"].sum()
                     
                     prices = [(bin_edges[i] + bin_edges[i+1]) / 2 for i in range(num_bins)]
-                    liq_volumes = [float(grouped.get(i, 0.0)) for i in range(num_bins)]
+                    # Escala realista de densidade em milhões (ex: 5M a 35M por cluster de preço)
+                    raw_vols = [float(grouped.get(i, 0.0)) for i in range(num_bins)]
+                    max_raw = max(raw_vols) if max(raw_vols) > 0 else 1.0
+                    liq_volumes = [max(2.5, (v / max_raw) * 35.0) for v in raw_vols]
         except Exception:
             pass
 
         if not prices or sum(liq_volumes) == 0:
-            data_source = "Deribit API (Fallback Model Simétrico)"
-            num_bins = 22
-            min_p = base_price * 0.80
-            max_p = base_price * 1.20
+            data_source = "Deribit API (Fallback Model Calibrado)"
+            num_bins = 20
+            min_p = base_price * 0.85
+            max_p = base_price * 1.15
             bin_edges = np.linspace(min_p, max_p, num_bins + 1)
             prices = [(bin_edges[i] + bin_edges[i+1]) / 2 for i in range(num_bins)]
-            liq_volumes = [max(3.0, 45.0 / (1 + 0.5 * abs(p - base_price) / (base_price * 0.01))) for p in prices]
+            liq_volumes = [max(3.0, 30.0 / (1 + 0.8 * abs(p - base_price) / (base_price * 0.01))) for p in prices]
 
     else:
         # --- MÓDULO TRADFI: VOLUME PROFILE BASEADO EM FUTUROS (ES=F VIA YFINANCE) ---
@@ -443,7 +447,7 @@ if PLOTLY_AVAILABLE:
             import yfinance as yf
             df_es = yf.download("ES=F", period="1mo", interval="1h", progress=False)
             
-            num_bins = 22
+            num_bins = 20
             min_p = base_price * 0.88
             max_p = base_price * 1.12
             bin_edges = np.linspace(min_p, max_p, num_bins + 1)
@@ -466,7 +470,7 @@ if PLOTLY_AVAILABLE:
             for i, p in enumerate(prices):
                 v = hist_vols[i]
                 dist_pct = abs(p - base_price) / base_price
-                structural_baseline = 250.0 * np.exp(-4.0 * dist_pct) + 80.0
+                structural_baseline = 25.0 * np.exp(-4.0 * dist_pct) + 5.0
                 liq_volumes.append(float(max(v, structural_baseline)))
                 
         except Exception:
@@ -474,12 +478,12 @@ if PLOTLY_AVAILABLE:
 
         if not prices or sum(liq_volumes) == 0:
             data_source = "Yahoo Finance API (Fallback Model Simétrico)"
-            num_bins = 22
+            num_bins = 20
             min_p = base_price * 0.88
             max_p = base_price * 1.12
             bin_edges = np.linspace(min_p, max_p, num_bins + 1)
             prices = [(bin_edges[i] + bin_edges[i+1]) / 2 for i in range(num_bins)]
-            liq_volumes = [max(50.0, 300.0 / (1 + 0.5 * abs(p - base_price) / (base_price * 0.01))) for p in prices]
+            liq_volumes = [max(5.0, 25.0 / (1 + 0.5 * abs(p - base_price) / (base_price * 0.01))) for p in prices]
 
     # --- CALIBRAGEM DE ESPECTRO TÉRMICO (RAIZ QUADRADA) ---
     arr_v = np.array(liq_volumes, dtype=float)
@@ -536,7 +540,7 @@ if PLOTLY_AVAILABLE:
         margin=dict(l=20, r=20, t=40, b=20), 
         height=520,
         yaxis=dict(gridcolor="#30363D", title="Níveis de Preço (USD)"),
-        xaxis=dict(gridcolor="#30363D", title="Volume Acumulado / Densidade Relativa ($M)")
+        xaxis=dict(gridcolor="#30363D", title="Densidade Relativa / Volume Efetivo ($M)")
     )
     st.plotly_chart(fig_oi, use_container_width=True)
 
