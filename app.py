@@ -376,10 +376,10 @@ if selected_categories:
 
 st.markdown("---")
 # -----------------------------------------------------------------------------
-# 5. MAPA TÉRMICO DE LIQUIDAÇÕES & CLUSTERS DE ALAVANCAGEM (100% DINÂMICO)
+# 5. MAPA TÉRMICO DE LIQUIDAÇÕES & CLUSTERS DE ALAVANCAGEM (AMPLO E MACRO)
 # -----------------------------------------------------------------------------
 st.subheader("🔥 Mapa Térmico de Liquidações & Clusters de Alavancagem")
-st.caption("Perfil estrutural de liquidez dinâmico ajustado ao preço em tempo real:")
+st.caption("Perfil estrutural de liquidez macro ajustado para capturar grandes piscinas de alavancagem:")
 
 if PLOTLY_AVAILABLE:
     oi_asset_name = "BTCUSDT Liquidation Heatmap & Leverage Pools" if modulo == "Crypto" else "S&P 500 Liquidity Profile (ES=F)"
@@ -390,17 +390,17 @@ if PLOTLY_AVAILABLE:
     if base_price == 0.0:
         base_price = 75000.0 if modulo == "Crypto" else 5800.0
 
-    # 2. Define os limites de forma DINÂMICA baseados em porcentagem do spot atual
+    # 2. Alarga o spread para capturar uma faixa macro ampla (ex: +-32% para Crypto cobre de ~51k a ~100k+)
     if modulo == "Crypto":
-        spread_pct = 0.18  # 18% para cima e para baixo do preço atual
+        spread_pct = 0.32  
     else:
-        spread_pct = 0.08  # 8% para ativos TradFi (menos voláteis)
+        spread_pct = 0.15  
 
     min_p = base_price * (1.0 - spread_pct)
     max_p = base_price * (1.0 + spread_pct)
     
-    # Divide o range em 30 partições perfeitamente proporcionais
-    num_bins = 30
+    # Aumenta a granularidade para 40 partições cobrindo o range expandido
+    num_bins = 40
     step = (max_p - min_p) / num_bins
 
     prices = []
@@ -409,15 +409,15 @@ if PLOTLY_AVAILABLE:
     curr = min_p
     while curr <= max_p:
         prices.append(curr)
-        
-        # Distância percentual em relação ao preço atual
         dist_pct = abs(curr - base_price) / base_price
         
-        # Lógica de distribuição de volume: maior intensidade próximo ao spot e nós de alavancagem
+        # Simula múltiplos clusters de liquidez em barreiras e números redondos
         if modulo == "Crypto":
-            base_vol = max(30.0, 500.0 * (1.0 - dist_pct * 3.5)) if dist_pct < 0.15 else 40.0
+            cluster_boost = 200.0 if (int(curr / 4000) % 2 == 0) else 50.0
+            base_vol = max(30.0, (350.0 * (1.0 - dist_pct * 1.8)) + cluster_boost)
         else:
-            base_vol = max(20.0, 250.0 * (1.0 - dist_pct * 5.0)) if dist_pct < 0.07 else 25.0
+            cluster_boost = 90.0 if (int(curr / 100) % 2 == 0) else 25.0
+            base_vol = max(20.0, (180.0 * (1.0 - dist_pct * 2.5)) + cluster_boost)
             
         liq_volumes.append(base_vol)
         curr += step
@@ -450,13 +450,13 @@ if PLOTLY_AVAILABLE:
     )
 
     fig_oi.update_layout(
-        title=f"Mapa Dinâmico de Densidade de Liquidez — {oi_asset_name}",
+        title=f"Mapa Macro de Densidade de Liquidez — {oi_asset_name}",
         paper_bgcolor="#0B0E14", 
         plot_bgcolor="#161B22", 
         font=dict(color="#C9D1D9", size=12),
         margin=dict(l=20, r=20, t=40, b=20), 
-        height=500,
-        yaxis=dict(gridcolor="#30363D", title="Níveis de Preço Dinâmicos (USD)"),
+        height=520,
+        yaxis=dict(gridcolor="#30363D", title="Níveis de Preço Ampliados (USD)"),
         xaxis=dict(gridcolor="#30363D", title="Intensidade de Alavancagem / Volume Acumulado ($M)")
     )
     st.plotly_chart(fig_oi, use_container_width=True)
