@@ -211,8 +211,8 @@ else:
 st.sidebar.markdown(f"**Plano Ativo:** `{tier_selected}`")
 st.sidebar.markdown("---")
 
-# 3. Escolha do Módulo
-modulo = st.sidebar.radio("📊 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
+# 3. Escolha do Módulo (com key para manter o estado persistente)
+modulo = st.sidebar.radio("📊 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1, key="modulo_selection")
 
 # 5. Formatos de Saída
 st.sidebar.markdown("### 📤 Formatos de Saída:")
