@@ -401,7 +401,7 @@ if st.session_state.config_window:
 
         st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
         if st.button("💾 Salvar Parâmetros", use_container_width=True):
-            st.success("Parâmetros e gatilhos atualizados com sucesso!")
+            st.toast("Parâmetros e gatilhos atualizados com sucesso!", icon="💾")
             st.session_state.config_window = None
             st.rerun()
     st.markdown("---")
@@ -589,7 +589,7 @@ with col_left:
         st.download_button("📄 PDF", data=pdf_bytes, file_name=f"OMNI_Report_{modulo}.pdf", mime="application/pdf", use_container_width=True)
     with col_b4:
         if st.button("🚀 Disparar CRM", use_container_width=True):
-            st.success(f"Disparo autônomo concluído com sucesso via {crm_platform} para os contatos e e-mails configurados.")
+            st.toast(f"Disparo autônomo concluído via {crm_platform}!", icon="🚀")
 
 with col_right:
     st.subheader(f"📊 Métricas Agregadas ({modulo})")
