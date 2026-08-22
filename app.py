@@ -168,10 +168,10 @@ st.markdown("""<style>
 # -----------------------------------------------------------------------------
 # 2. SIDEBAR: FLUXO LIMPO (LOGIN -> PLANO -> MÓDULO -> FORMATOS -> GATILHO -> LISTA VERTICAL)
 # -----------------------------------------------------------------------------
-st.sidebar.title("🔐 OMNI Terminal")
+st.sidebar.title("⚡ OMNI Terminal")
 
 # 1. Login / Senha / Manter-se conectado
-with st.sidebar.expander("👤 Login do Analista", expanded=False):
+with st.sidebar.expander("🔐 Login do Analista", expanded=False):
     login_user = st.text_input("Usuário / E-mail:", value="analista@omni.com")
     login_pass = st.text_input("Senha:", value="••••••••", type="password")
     login_keep = st.checkbox("Manter-se conectado", value=True)
@@ -188,10 +188,10 @@ st.sidebar.markdown(f"**Plano Ativo:** `{tier_selected}`")
 st.sidebar.markdown("---")
 
 # 3. Escolha do Módulo
-modulo = st.sidebar.radio("📌 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
+modulo = st.sidebar.radio("📊 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
 
 # 5. Formatos de Saída
-st.sidebar.markdown("### 📊 Formatos de Saída:")
+st.sidebar.markdown("### 📤 Formatos de Saída:")
 fmt_b2b = st.sidebar.checkbox("B2B (Relatório Analítico)", value=True)
 fmt_yt = st.sidebar.checkbox("B2C (YouTube Auto-Pilot)", value=False)
 fmt_wapp = st.sidebar.checkbox("B2C (WhatsApp Auto-Pilot)", value=False)
@@ -208,11 +208,11 @@ st.sidebar.markdown("### ⚙️ Configurações Avançadas")
 if "config_window" not in st.session_state:
     st.session_state.config_window = None
 
-if st.sidebar.button("📬 Automações", use_container_width=True):
+if st.sidebar.button("🤖 Automações", use_container_width=True):
     st.session_state.config_window = "automations"
-if st.sidebar.button("⚡ Gatilhos de Report", use_container_width=True):
+if st.sidebar.button("🎯 Gatilhos de Report", use_container_width=True):
     st.session_state.config_window = "triggers"
-if st.sidebar.button("🛠️ Calibragem da Engine", use_container_width=True):
+if st.sidebar.button("🎛️ Calibragem da Engine", use_container_width=True):
     st.session_state.config_window = "calibration"
 
 allow_customization = "Free" not in tier_selected
@@ -257,11 +257,11 @@ if st.session_state.config_window:
         col_w_title, col_w_close = st.columns([5, 1])
         with col_w_title:
             if st.session_state.config_window == "automations":
-                st.subheader("📬 Configuração de Automações & Integradores de CRM")
+                st.subheader("🤖 Configuração de Automações & Integradores de CRM")
             elif st.session_state.config_window == "triggers":
-                st.subheader("⚡ Configuração de Gatilhos de Report Automático")
+                st.subheader("🎯 Configuração de Gatilhos de Report Automático")
             elif st.session_state.config_window == "calibration":
-                st.subheader("🛠️ Calibragem da Engine, APIs & Tickers Personalizados")
+                st.subheader("🎛️ Calibragem da Engine, APIs & Tickers Personalizados")
         with col_w_close:
             if st.button("❌ Fechar", use_container_width=True):
                 st.session_state.config_window = None
@@ -433,7 +433,7 @@ with col_left:
         wapp_lines = [
             f"=== MENSAGEM WHATSAPP (AUTO-PILOT) ===",
             f"Alerta OMNI - {now_str}",
-            "📊 Resumo executivo de mercado:"
+            "💬 Resumo executivo de mercado:"
         ]
         for cat_name in selected_categories:
             if cat_name in active_display_categories:
@@ -451,7 +451,7 @@ with col_left:
     if fmt_tg:
         tg_lines = [
             f"=== MENSAGEM TELEGRAM (AUTO-PILOT) ===",
-            f"🚀 Canal Oficial OMNI | {now_str}"
+            f"📢 Canal Oficial OMNI | {now_str}"
         ]
         for cat_name in selected_categories:
             if cat_name in active_display_categories:
@@ -461,7 +461,7 @@ with col_left:
                 cat_info = active_display_categories[cat_name]
                 for disp_name, ticker, currency in cat_info["assets"][:1]:
                     q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
-                    tg_lines.append(f"▪️ {disp_name}: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
+                    tg_lines.append(f"🔹 {disp_name}: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
         outputs_generated.append(("B2C (Telegram)", "\n".join(tg_lines)))
 
     if not outputs_generated:
@@ -481,10 +481,10 @@ with col_left:
     st.markdown("**Opções de Exportação & Disparo Multicanal:**")
     col_b1, col_b2, col_b3, col_b4 = st.columns(4)
     with col_b1:
-        st.download_button("📥 TXT", data=primary_output_text, file_name=f"OMNI_Report_{modulo}.txt", mime="text/plain", use_container_width=True)
+        st.download_button("📄 TXT", data=primary_output_text, file_name=f"OMNI_Report_{modulo}.txt", mime="text/plain", use_container_width=True)
     with col_b2:
         json_data = json.dumps({"module": modulo, "timestamp": now_str, "content": primary_output_text}, indent=4, ensure_ascii=False)
-        st.download_button("📥 JSON", data=json_data, file_name=f"OMNI_Report_{modulo}.json", mime="application/json", use_container_width=True)
+        st.download_button("📊 JSON", data=json_data, file_name=f"OMNI_Report_{modulo}.json", mime="application/json", use_container_width=True)
     with col_b3:
         pdf_bytes = generate_pdf_report(primary_output_text, company_name, now_str)
         st.download_button("📥 PDF", data=pdf_bytes, file_name=f"OMNI_Report_{modulo}.pdf", mime="application/pdf", use_container_width=True)
@@ -493,7 +493,7 @@ with col_left:
             st.success(f"Disparo autônomo concluído com sucesso via {crm_platform} para os contatos e e-mails configurados.")
 
 with col_right:
-    st.subheader(f"📈 Métricas Agregadas ({modulo})")
+    st.subheader(f"📊 Métricas Agregadas ({modulo})")
     st.caption(f"Atualizado às {datetime.now().strftime('%H:%M:%S BRT')} | Fonte: APIs Oficiais")
 
     for item in active_benchmarks:
@@ -523,7 +523,7 @@ with col_right:
 # -----------------------------------------------------------------------------
 # 4. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA COM TOGGLES)
 # -----------------------------------------------------------------------------
-st.subheader(f"📊 Painel de Análise Integrada das Categorias ({modulo})")
+st.subheader(f"🗂️ Painel de Análise Integrada das Categorias ({modulo})")
 if selected_categories:
     cols = st.columns(min(len(selected_categories), 4))
     for idx, cat_name in enumerate(selected_categories):
@@ -562,7 +562,7 @@ with col_sec_title:
     if modulo == "Crypto":
         st.subheader("🔥 Mapa de Alavancagem & Open Interest (Bitcoin / Derivativos)")
     else:
-        st.subheader("📈 Mapa Térmico de Volume Profile & Liquidez Institucional (S&P 500 Futures / TradFi)")
+        st.subheader("🗺️ Mapa Térmico de Volume Profile & Liquidez Institucional (S&P 500 Futures / TradFi)")
 with col_sec_chk:
     st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
     st.checkbox("Incluir no Report", value=True, key="chk_include_heatmap")
@@ -686,7 +686,7 @@ if PLOTLY_AVAILABLE:
     )
     st.plotly_chart(fig_oi, use_container_width=True)
 
-    st.markdown(f"🟢 **Fonte Oficial da API Ativa:** `{data_source}`")
+    st.markdown(f"🔍 **Fonte Oficial da API Ativa:** `{data_source}`")
 else:
     st.warning("⚠️ O módulo Plotly não está disponível no momento.")
 
