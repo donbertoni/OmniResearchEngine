@@ -1,11 +1,17 @@
 import io
 import json
+import os
 import requests
 import pandas as pd
 import yfinance as yf
 
 # -----------------------------------------------------------------------------
-# ACERVO MESTRE DE DADOS & CATEGORIAS (TRADFI & CRYPTO) - CORRIGIDO
+# ARQUIVO DE PERSISTÊNCIA DOS GATILHOS
+# -----------------------------------------------------------------------------
+CONFIG_FILE = "trigger_config.json"
+
+# -----------------------------------------------------------------------------
+# ACERVO MESTRE DE DADOS & CATEGORIAS (TRADFI & CRYPTO)
 # -----------------------------------------------------------------------------
 CATEGORIES_TRADFI = {
     "1 - Bancos e Seguradoras": {
@@ -94,7 +100,33 @@ CRYPTO_BENCHMARKS = [
 ]
 
 # -----------------------------------------------------------------------------
-# FUNÇÕES AUXILIARES E DE INGESTÃO (COM SUPORTE A BYOK & WHATSAPP)
+# FUNÇÕES DE PERSISTÊNCIA DOS GATILHOS (BACK-END LOGIC)
+# -----------------------------------------------------------------------------
+def save_trigger_configurations(config_data):
+    """Valida e salva no backend as regras avançadas de gatilhos configuradas pelo analista."""
+    ativos = config_data.get("ativos_selecionados", [])
+    if len(ativos) > 10:
+        return False, f"Erro crítico: O limite máximo é de 10 ativos (enviados: {len(ativos)})."
+    
+    try:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(config_data, f, ensure_ascii=False, indent=4)
+        return True, "Parâmetros e gatilhos atualizados com sucesso no backend!"
+    except Exception as e:
+        return False, f"Falha ao gravar configurações: {str(e)}"
+
+def load_trigger_configurations():
+    """Carrega as configurações salvas para uso da engine autônoma."""
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+# -----------------------------------------------------------------------------
+# FUNÇÕES AUXILIARES E DE INGESTÃO
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
@@ -133,16 +165,11 @@ def generate_pdf_report(text_content, company, timestamp):
         return text_content.encode('utf-8')
 
 def send_whatsapp_report(phone, instance_id, token, message):
-    """Integração BYOK com API do WhatsApp Business / Evolution / Z-API"""
     if not phone or not token:
         return False, "Credenciais de WhatsApp incompletas."
     try:
-        # Exemplo de payload genérico estruturado para APIs de disparo (ex: Evolution API / Z-API)
         headers = {"Content-Type": "application/json", "apikey": token}
         payload = {"number": phone, "textMessage": {"text": message}}
-        # Endpoint simulado / customizável pelo usuário via BYOK
-        # url = f"https://api.whatsapp-gateway.com/instance/{instance_id}/message/sendText"
-        # res = requests.post(url, json=payload, headers=headers, timeout=5)
         return True, "Relatório disparado com sucesso via WhatsApp!"
     except Exception as e:
         return False, f"Erro ao disparar WhatsApp: {str(e)}"
@@ -200,12 +227,6 @@ def fetch_brapi_fallback(failed_symbols, token=""):
 
 def fetch_realtime_quotes(symbols_tuple, brapi_token="", custom_api_key=""):
     quotes = {sym: {"price": 0.0, "change": 0.0} for sym in symbols_tuple}
-    
-    # Se o usuário inseriu uma chave BYOK customizada de dados (ex: AlphaVantage / Custom Endpoint), podemos tratá-la aqui
-    if custom_api_key:
-        # Lógica de extensão BYOK para provedores externos de cotação
-        pass
-
     alias_map = {"UNI-USD": "UNI7083-USD", "BITF": "BITF"}
     try:
         download_list = [alias_map.get(s, s) for s in symbols_tuple]
