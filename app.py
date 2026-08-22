@@ -121,12 +121,14 @@ st.markdown("""<style>
     }
     .status-bar {
         background-color: #131B2A;
-        padding: 10px 18px;
+        padding: 9px 14px;
         border-radius: 8px;
         border: 1px solid #1E293B;
-        margin-bottom: 8px;
         color: #94A3B8;
         font-size: 13px;
+        height: 42px;
+        display: flex;
+        align-items: center;
     }
     .warning-bar {
         background-color: #2D2211;
@@ -424,17 +426,33 @@ if custom_category_name and custom_category_assets:
 now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 is_weekend = datetime.now().weekday() >= 5  # Sábado (5) ou Domingo (6)
 
-col_status, col_btn_refresh = st.columns([3.5, 1])
+# Fontes dinâmicas conforme o módulo ativo (removendo Deribit do TradFi)
+sources_str = "BRAPI / Yahoo Finance" if modulo == "TradFi (Macro)" else "BRAPI / Yahoo Finance / Deribit"
+
+# Cálculo de countdown para o próximo report automático (Saúde da Engine)
+now_time = datetime.now()
+next_report_hour = (now_time.hour // 3 + 1) * 3
+if next_report_hour >= 24:
+    next_report_hour = 3
+mins_left = (next_report_hour - now_time.hour - 1) * 60 + (60 - now_time.minute)
+hrs_left = mins_left // 60
+m_left = mins_left % 60
+countdown_text = f"{hrs_left}h {m_left:02d}m" if hrs_left > 0 else f"{m_left}m"
+
+# Layout superior: Status bar + Card de Saúde do Auto-Pilot + Botão de Refresh
+col_status, col_health, col_btn_refresh = st.columns([2.3, 1.8, 0.9])
 with col_status:
-    st.markdown(f'<div class="status-bar">🕒 <b>Dados consolidados às {now_str}</b> | Fonte: BRAPI / Yahoo Finance / Deribit | <b>Módulo:</b> {modulo}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="status-bar">🕒 <b>{now_str[:10]}</b> | Fonte: {sources_str}</div>', unsafe_allow_html=True)
+with col_health:
+    st.markdown(f'<div class="status-bar" style="border-color: #238636; justify-content: space-between;"><span>🟢 <b>Auto-Pilot Ativo</b></span><span style="font-size: 12px; color: #8B949E;">Próximo: <b style="color: #3FB950;">{countdown_text}</b></span></div>', unsafe_allow_html=True)
 with col_btn_refresh:
-    if st.button("🔄 Atualizar Cotações"):
+    if st.button("🔄 Atualizar", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
 
 # Alerta específico de fim de semana para o módulo TradFi
 if modulo == "TradFi (Macro)" and is_weekend:
-    st.markdown('<div class="warning-bar">⚠️ <b>Mercado TradFi Fechado (Fim de Semana):</b> As cotações refletem o fechamento oficial do último pregão (Sexta-feira). As APIs continuam ativas para consulta histórica.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="warning-bar" style="margin-top: 8px;">⚠️ <b>Mercado TradFi Fechado (Fim de Semana):</b> As cotações refletem o fechamento oficial do último pregão (Sexta-feira). As APIs continuam ativas para consulta histórica.</div>', unsafe_allow_html=True)
 
 # Coleta de símbolos e requisição de cotações em tempo real via API
 symbols_to_fetch = [item["ticker"] for item in MACRO_BENCHMARKS + CRYPTO_BENCHMARKS if item.get("ticker")]
@@ -770,7 +788,7 @@ if PLOTLY_AVAILABLE:
         annotation_font_color="#58A6FF"
     )
 
-    chart_title = "Mapa Térmico de Open Interest & Alavancagem (Bitcoin / Deribit — $M)" if modulo == "Crypto" else "Volume Profile Histórico Real (S&P 500 Futures — $B)"
+    chart_title = "Mapa Térmico de Open Interest & Alavancagem (Bitcoin / Derivites — $M)" if modulo == "Crypto" else "Volume Profile Histórico Real (S&P 500 Futures — $B)"
     xaxis_title = "Volume Notional Acumulado por Faixa ($ Milhões)" if modulo == "Crypto" else "Volume Notional Acumulado por Faixa ($ Bilhões)"
 
     fig_oi.update_layout(
