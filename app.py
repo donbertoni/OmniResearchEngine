@@ -374,21 +374,11 @@ if st.session_state.config_window:
                     whatsapp_token = st.text_input("WhatsApp API Token:", value="", type="password")
 
                 st.markdown("---")
-                st.markdown("### 📦 2. Adicionar, Remover e Editar Ativos")
-                st.caption("Gerencie o banco geral de ativos disponíveis no sistema para posterior alocação nas categorias.")
+                st.markdown("### 📦 2. Adicionar e Remover Ativos")
+                st.caption("Cadastre novos ativos ou gerencie o pool global de ativos disponíveis no sistema.")
                 
-                updated_pool = []
-                st.markdown("**Ativos Atualmente Cadastrados no Pool:**")
-                for idx_p, (disp_p, tk_p, cur_p) in enumerate(current_asset_pool):
-                    col_ap1, col_ap2 = st.columns([3, 1])
-                    with col_ap1:
-                        st.text(f"{disp_p} ({tk_p}) [{cur_p}]")
-                    with col_ap2:
-                        keep_p = st.checkbox("Manter", value=True, key=f"form_keep_pool_{modulo}_{tk_p}_{idx_p}")
-                        if keep_p:
-                            updated_pool.append((disp_p, tk_p, cur_p))
-                
-                st.markdown("#### ➕ Cadastrar Novo Ativo no Sistema")
+                # ORDEM CORRIGIDA: Adicionar vem ANTES de remover/gerenciar
+                st.markdown("#### ➕ Adicionar Novo Ativo")
                 col_na1, col_na2, col_na3 = st.columns(3)
                 with col_na1:
                     new_asset_name_input = st.text_input("Nome Amigável:", value="", placeholder="Ex: Ethereum", key="form_new_asset_name")
@@ -396,6 +386,20 @@ if st.session_state.config_window:
                     new_asset_ticker_input = st.text_input("Ticker:", value="", placeholder="Ex: ETH-USD", key="form_new_asset_ticker")
                 with col_na3:
                     new_asset_curr_input = st.selectbox("Moeda:", ["$", "R$"], key="form_new_asset_curr")
+
+                st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+                st.markdown("#### 🗑️ Gerenciar / Remover Ativos Existentes")
+                st.caption("Use a caixa abaixo para visualizar e remover ativos existentes do pool (basta desmarcar/remover da caixa).")
+                
+                pool_labels_map = {f"{disp} ({tk}) [{cur}]": (disp, tk, cur) for disp, tk, cur in current_asset_pool}
+                default_pool_labels = list(pool_labels_map.keys())
+                
+                selected_pool_labels = st.multiselect(
+                    "Ativos atualmente no pool (mantenha selecionados ou remova os que deseja excluir):",
+                    options=default_pool_labels,
+                    default=default_pool_labels,
+                    key=f"form_pool_multiselect_{modulo}"
+                )
 
                 st.markdown("---")
                 st.markdown("### 📁 3. Adicionar, Remover e Editar Categorias")
@@ -407,7 +411,7 @@ if st.session_state.config_window:
                     new_cat_name_input = st.text_input("Nome da Nova Categoria:", value="", placeholder="Ex: 9 - DeFi & Web3", key="form_new_cat_name")
                     new_cat_tag_input = st.text_input("Tag da Categoria:", value="", placeholder="Ex: DeFi", key="form_new_cat_tag")
                     
-                    pool_options = [f"{d} ({t}) [{c}]" for d, t, c in updated_pool]
+                    pool_options = [f"{d} ({t}) [{c}]" for d, t, c in current_asset_pool]
                     selected_new_cat_labels = st.multiselect(
                         "Selecione os ativos para esta nova categoria:",
                         options=pool_options,
@@ -420,8 +424,8 @@ if st.session_state.config_window:
                         renamed_cat = st.text_input("Renomear Categoria:", value=cat_to_edit, key="calib_rename_cat")
                         
                         current_cat_tickers = {t for _, t, _ in c_data["assets"]}
-                        pool_options = [f"{d} ({t}) [{c}]" for d, t, c in updated_pool]
-                        default_selected_pool = [f"{d} ({t}) [{c}]" for d, t, c in updated_pool if t in current_cat_tickers]
+                        pool_options = [f"{d} ({t}) [{c}]" for d, t, c in current_asset_pool]
+                        default_selected_pool = [f"{d} ({t}) [{c}]" for d, t, c in current_asset_pool if t in current_cat_tickers]
                         
                         selected_edit_cat_labels = st.multiselect(
                             "Selecione os ativos pertencentes a esta categoria:",
@@ -435,7 +439,10 @@ if st.session_state.config_window:
                 submitted_calib = st.form_submit_button("💾 Salvar Parâmetros", use_container_width=True)
                 
                 if submitted_calib:
-                    # 1. Atualizar Pool de Ativos com novo cadastro (se houver)
+                    # 1. Montar o pool atualizado com base na seleção do multiselect
+                    updated_pool = [pool_labels_map[lbl] for lbl in selected_pool_labels if lbl in pool_labels_map]
+
+                    # 2. Adicionar novo ativo ao pool (se preenchido)
                     n_name = st.session_state.get("form_new_asset_name", "").strip()
                     n_tk = st.session_state.get("form_new_asset_ticker", "").strip().upper()
                     n_cur = st.session_state.get("form_new_asset_curr", "$")
@@ -446,7 +453,7 @@ if st.session_state.config_window:
                     st.session_state[pool_state_key] = updated_pool
                     label_to_tuple = {f"{d} ({t}) [{c}]": (d, t, c) for d, t, c in updated_pool}
 
-                    # 2. Atualizar Categorias
+                    # 3. Atualizar Categorias
                     if cat_action_mode == "Criar Nova Categoria":
                         n_cat_n = st.session_state.get("form_new_cat_name", "").strip()
                         n_cat_t = st.session_state.get("form_new_cat_tag", "").strip()
@@ -793,4 +800,4 @@ else:
     st.warning("⚠️ O módulo Plotly não está disponível no momento.")
 
 st.markdown("---")
-st.caption("©️ Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
+st.caption("⚡©️ Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
