@@ -27,7 +27,7 @@ from backend import (
 )
 
 # -----------------------------------------------------------------------------
-# DEFINIÇÃO DE CATEGORIAS (MÓDULO TRADFI - 8 CATEGORIAS ORIGINAIS)
+# DEFINIÇÃO DE CATEGORIAS TRADFI (8 CATEGORIAS ORIGINAIS)
 # -----------------------------------------------------------------------------
 CATEGORIES_TRADFI = {
     "1 - Bancos e Seguradoras": {
@@ -104,7 +104,13 @@ CATEGORIES_TRADFI = {
     }
 }
 
-# Função auxiliar para determinar a API de origem de cada ativo
+# Inicialização do Estado Dinâmico para Categorias
+if "dyn_categories_crypto" not in st.session_state:
+    st.session_state.dyn_categories_crypto = {k: {"tag": v["tag"], "assets": list(v["assets"])} for k, v in CATEGORIES_CRYPTO.items()}
+
+if "dyn_categories_tradfi" not in st.session_state:
+    st.session_state.dyn_categories_tradfi = {k: {"tag": v["tag"], "assets": list(v["assets"])} for k, v in CATEGORIES_TRADFI.items()}
+
 def get_asset_source(ticker: str) -> str:
     return "BRAPI" if ".SA" in ticker else "Yahoo"
 
@@ -117,7 +123,7 @@ def get_benchmark_source(item) -> str:
         return "Yahoo"
 
 # -----------------------------------------------------------------------------
-# 1. CONFIGURAÇÃO DA PÁGINA & ESTILIZAÇÃO CSS INSTITUCIONAL
+# 1. CONFIGURAÇÃO DA PÁGINA & ESTILIZAÇÃO CSS
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="OMNIRESEARCH Engine",
@@ -176,7 +182,6 @@ st.markdown("""<style>
         white-space: nowrap;
         display: inline-block;
     }
-
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background-color: #161B22 !important;
         border: 1px solid #30363D !important;
@@ -190,17 +195,15 @@ st.markdown("""<style>
 </style>""", unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 2. SIDEBAR: FLUXO LIMPO (LOGIN -> PLANO -> MÓDULO -> FORMATOS -> GATILHO -> LISTA VERTICAL)
+# 2. SIDEBAR
 # -----------------------------------------------------------------------------
 st.sidebar.title("⚡ OMNI Terminal")
 
-# 1. Login / Senha / Manter-se conectado
 with st.sidebar.expander("🔒 Login do Analista", expanded=False):
     login_user = st.text_input("Usuário / E-mail:", value="analista@omni.com")
     login_pass = st.text_input("Senha:", value="••••••••", type="password")
     login_keep = st.checkbox("Manter-se conectado", value=True)
 
-# 2. Plano ativo (atribuído conforme o login)
 if "admin" in login_user.lower() or "white" in login_user.lower():
     tier_selected = "Premium (B2B White-Label)"
 elif "free" in login_user.lower():
@@ -211,24 +214,20 @@ else:
 st.sidebar.markdown(f"**Plano Ativo:** `{tier_selected}`")
 st.sidebar.markdown("---")
 
-# 3. Escolha do Módulo (com key para manter o estado persistente)
-modulo = st.sidebar.radio("📊 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1, key="modulo_selection")
+modulo = st.sidebar.radio("📊 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=0, key="modulo_selection")
 
-# 5. Formatos de Saída
 st.sidebar.markdown("### 📤 Formatos de Saída:")
 fmt_b2b = st.sidebar.checkbox("B2B (Relatório Analítico)", value=True)
 fmt_yt = st.sidebar.checkbox("B2C (YouTube Auto-Pilot)", value=False)
 fmt_wapp = st.sidebar.checkbox("B2C (WhatsApp Auto-Pilot)", value=False)
 fmt_tg = st.sidebar.checkbox("B2C (Telegram Auto-Pilot)", value=False)
 
-# 6. Botão de acionar produção automática
 st.sidebar.markdown("<div style='margin-top: 6px;'></div>", unsafe_allow_html=True)
 trigger_production = st.sidebar.button("🚀 Acionar Produção Automática", use_container_width=True)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### ⚙️ Configurações Avançadas")
 
-# Gerenciamento de janelas específicas no corpo principal (Formato Lista)
 if "config_window" not in st.session_state:
     st.session_state.config_window = None
 
@@ -241,19 +240,15 @@ if st.sidebar.button("🛠️ Calibragem da Engine", use_container_width=True):
 
 allow_customization = "Free" not in tier_selected
 allow_white_label = "Premium" in tier_selected
-max_free_tickers = 5 if "Standard" in tier_selected else (999 if "Premium" in tier_selected else 0)
 
-active_categories = (CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI).copy()
+# Seleciona o dicionário dinâmico correspondente ao módulo ativo
+active_categories = st.session_state.dyn_categories_crypto if modulo == "Crypto" else st.session_state.dyn_categories_tradfi
 active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
 
-# Variáveis padrão para configurações avançadas
 brapi_token = ""
 custom_data_api_key = ""
 whatsapp_instance = ""
 whatsapp_token = ""
-custom_tickers = []
-custom_category_name = ""
-custom_category_assets = ""
 auto_emails = "mesa@gestora.com, compliance@gestora.com"
 auto_urls = ""
 crm_platform = "HubSpot"
@@ -266,7 +261,7 @@ if allow_white_label:
     cnpi_code = "CNPI-T 3421"
 
 # -----------------------------------------------------------------------------
-# 3. CORPO PRINCIPAL & JANELAS ESPECÍFICAS DE CONFIGURAÇÃO
+# 3. CORPO PRINCIPAL & JANELAS DE CONFIGURAÇÃO AVANÇADA
 # -----------------------------------------------------------------------------
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.title(f"🏛️ {company_name} — Terminal Quant")
@@ -275,7 +270,6 @@ else:
     st.title("⚡ OMNIRESEARCH Engine")
     st.caption("Plataforma Integrada de Inteligência Financeira com IA & Auto-Pilot")
 
-# Exibição da Janela Específica Selecionada (Em formato expansivo no corpo principal)
 if st.session_state.config_window:
     with st.container(border=True):
         col_w_title, col_w_close = st.columns([5, 1])
@@ -285,7 +279,7 @@ if st.session_state.config_window:
             elif st.session_state.config_window == "triggers":
                 st.subheader("🎯 Configuração Avançada de Gatilhos de Report Automático")
             elif st.session_state.config_window == "calibration":
-                st.subheader("🛠️ Calibragem da Engine, APIs & Tickers Personalizados")
+                st.subheader("🛠️ Calibragem Avançada da Engine & Gestão de Categorias")
         with col_w_close:
             if st.button("❌ Fechar", use_container_width=True):
                 st.session_state.config_window = None
@@ -304,143 +298,116 @@ if st.session_state.config_window:
 
         elif st.session_state.config_window == "triggers":
             st.markdown(f"**Módulo Ativo:** `{modulo}`")
-            
-            st.markdown("**📅 1. Dias da Semana para Geração Automática**")
-            selected_days = st.multiselect(
-                "Escolha quais dias da semana os gatilhos dispararão relatórios:",
-                options=["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"],
-                default=["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira"],
-                key="trig_days"
-            )
-            
-            st.markdown("---")
-            st.markdown("**⏰ 2 & 3. Frequência Diária e Horários dos Reports**")
-            freq_reports = st.slider("Frequência (Nº de reports diários):", min_value=1, max_value=5, value=2, key="trig_freq")
-            
-            st.markdown(f"Defina os horários para cada um dos **{freq_reports}** reports diários:")
-            report_times = []
-            time_cols = st.columns(min(freq_reports, 5))
-            default_times_str = ["09:00", "12:00", "15:00", "18:00", "21:00"]
-            for i in range(freq_reports):
-                with time_cols[i % len(time_cols)]:
-                    def_t = datetime.strptime(default_times_str[i], "%H:%M").time() if i < len(default_times_str) else datetime.strptime("12:00", "%H:%M").time()
-                    t_val = st.time_input(f"Horário Report {i+1}", value=def_t, key=f"trig_time_{i+1}")
-                    report_times.append(t_val)
-            
-            st.markdown("---")
-            st.markdown("**🪙 4. Seleção de Ativos Monitorados (Máx. 10)**")
-            all_module_assets = []
-            for cat_name, cat_info in active_categories.items():
-                for disp_name, ticker, currency in cat_info["assets"]:
-                    all_module_assets.append((f"{disp_name} ({ticker}) — [{cat_name}]", ticker))
-            
-            asset_labels = [item[0] for item in all_module_assets]
-            ticker_map = {item[0]: item[1] for item in all_module_assets}
-            
-            selected_trigger_assets = st.multiselect(
-                "Selecione os ativos que os gatilhos vão considerar (Máximo de 10):",
-                options=asset_labels,
-                max_selections=10,
-                default=asset_labels[:min(5, len(asset_labels))],
-                key="trig_assets"
-            )
-            
-            st.markdown("---")
-            st.markdown("**📈 5 & 6. Variação Percentual & Anomalia de Volume por Ativo**")
-            if selected_trigger_assets:
-                for sel_label in selected_trigger_assets:
-                    ticker = ticker_map[sel_label]
-                    with st.expander(f"Parâmetros para: {sel_label}", expanded=False):
-                        col_v1, col_v2 = st.columns(2)
-                        with col_v1:
-                            st.number_input(f"Variação % p/ Gatilho ({ticker})", min_value=0.1, max_value=30.0, value=5.0, step=0.5, key=f"trig_var_{ticker}")
-                        with col_v2:
-                            st.checkbox(f"Ativar Anomalia de Volume ({ticker})", value=True, key=f"trig_vol_anom_{ticker}")
-            else:
-                st.info("Selecione pelo menos um ativo acima para configurar seus limiares de variação e volume.")
-            
-            st.markdown("---")
-            st.markdown("**🌡️ 7. Índice Fear & Greed (Sentimento)**")
-            if modulo == "Crypto":
-                st.checkbox("Considerar Fear & Greed Index de Crypto (F&G BTC) nos gatilhos", value=True, key="trig_fng_crypto_opt")
-            else:
-                st.checkbox("Considerar Fear & Greed Index do S&P 500 (F&G SPX) nos gatilhos", value=True, key="trig_fng_tradfi_opt")
-            
-            st.markdown("---")
-            st.markdown("**📰 8. Breaking News & Varredura de Price Action (Até 5 Fontes)**")
-            
-            if "num_news_sources" not in st.session_state:
-                st.session_state.num_news_sources = 1
-
-            col_btn_add, col_btn_rem, _ = st.columns([1.5, 1.5, 3])
-            with col_btn_add:
-                if st.session_state.num_news_sources < 5:
-                    if st.button("➕ Adicionar Fonte", use_container_width=True, key="btn_add_news"):
-                        st.session_state.num_news_sources += 1
-                        st.rerun()
-            with col_btn_rem:
-                if st.session_state.num_news_sources > 1:
-                    if st.button("➖ Remover Fonte", use_container_width=True, key="btn_rem_news"):
-                        st.session_state.num_news_sources -= 1
-                        st.rerun()
-
-            st.markdown("<div style='margin-top: 4px;'></div>", unsafe_allow_html=True)
-            for i in range(st.session_state.num_news_sources):
-                st.markdown(f"<span style='font-size: 12px; color: #58A6FF; font-weight: 600;'>🔗 Fonte de Notícia #{i+1}</span>", unsafe_allow_html=True)
-                col_n1, col_n2 = st.columns(2)
-                default_url = "https://api.trustednews.com/v1/scan" if i == 0 else ""
-                with col_n1:
-                    st.text_input(f"URL da API (Fonte {i+1}):", value=default_url, key=f"trig_news_api_url_{i}")
-                with col_n2:
-                    st.text_input(f"Chave de API (Fonte {i+1}):", value="", type="password", key=f"trig_news_api_key_{i}")
-                if i < st.session_state.num_news_sources - 1:
-                    st.markdown("<div style='margin-bottom: 4px; border-bottom: 1px dashed #30363D;'></div>", unsafe_allow_html=True)
+            st.markdown("📅 **Dias da Semana & Frequência**")
+            selected_days = st.multiselect("Dias ativos:", ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"], default=["Segunda", "Quarta", "Sexta"], key="trig_days_opt")
+            freq_reports = st.slider("Reports diários:", 1, 5, 2, key="trig_freq_opt")
+            st.checkbox("Considerar Fear & Greed Index nos gatilhos", value=True, key="trig_fng_opt")
 
         elif st.session_state.config_window == "calibration":
-            col_c1, col_c2 = st.columns(2)
-            with col_c1:
-                st.markdown("**Credenciais de API Próprias (Compliance):**")
+            st.markdown("🔑 **Credenciais de API Próprias (Compliance & Conectividade):**")
+            col_cr1, col_cr2 = st.columns(2)
+            with col_cr1:
                 brapi_token = st.text_input("BRAPI API Token:", value="", type="password")
                 custom_data_api_key = st.text_input("Custom Market API Key:", value="", type="password")
+            with col_cr2:
                 whatsapp_instance = st.text_input("WhatsApp Instance ID:", value="")
-                whatsapp_token = st.text_input("WhatsApp API Token:", value="")
-            with col_c2:
-                st.markdown("**Ativos & Categorias Customizadas:**")
-                c_input = st.text_input("Tickers extras (ex: WEGE3.SA, PEPE-USD):", value="")
-                custom_category_name = st.text_input("Nome da Nova Categoria:", value="", placeholder="Ex: 9 - Defi & Web3")
-                custom_category_assets = st.text_input("Ativos (Ticker: Nome, ...):", value="", placeholder="SOL-USD: Solana")
-                if c_input and allow_customization:
-                    custom_tickers = [t.strip().upper() for t in c_input.split(",") if t.strip()][:max_free_tickers]
+                whatsapp_token = st.text_input("WhatsApp API Token:", value="", type="password")
+
+            st.markdown("---")
+            st.markdown(f"📂 **Gestão de Categorias e Ativos ({modulo})** — *Máx: 10 Categorias | Máx: 10 Ativos por Categoria*")
+            
+            # Sub-abas para gerenciar categorias existentes ou criar novas
+            current_cats = st.session_state.dyn_categories_crypto if modulo == "Crypto" else st.session_state.dyn_categories_tradfi
+            
+            # Seção de Edição das Categorias Existentes
+            st.markdown("### ✏️ Editar Categorias Atuais")
+            cat_to_edit = st.selectbox("Selecione a Categoria para Gerenciar:", list(current_cats.keys()), key="calib_sel_cat")
+            
+            if cat_to_edit:
+                c_data = current_cats[cat_to_edit]
+                new_cat_name = st.text_input("Renomear Categoria:", value=cat_to_edit, key="calib_rename_cat")
+                
+                st.markdown(f"**Ativos Atuais em `{cat_to_edit}` (Total: {len(c_data['assets'])}/10):**")
+                assets_to_keep = []
+                for idx_a, (disp_n, tk_n, cur_n)p in enumerate(c_data["assets"]):
+                    col_ea1, col_ea2, col_ea3 = st.columns([3, 1, 1])
+                    with col_ea1:
+                        st.text(f"{disp_n} ({tk_n}) [{cur_n}]")
+                    with col_ea2:
+                        keep_it = st.checkbox("Manter", value=True, key=f"keep_asset_{cat_to_edit}_{tk_n}_{idx_a}")
+                    if keep_it:
+                        assets_to_keep.append((disp_n, tk_n, cur_n))
+
+                # Botão para atualizar edição da categoria
+                if st.button("💾 Salvar Alterações na Categoria", key="btn_save_cat_edit"):
+                    if new_cat_name and new_cat_name != cat_to_edit:
+                        if new_cat_name in current_cats:
+                            st.error("Já existe uma categoria com esse nome!")
+                        else:
+                            current_cats[new_cat_name] = {"tag": c_data["tag"], "assets": assets_to_keep}
+                            del current_cats[cat_to_edit]
+                            st.success(f"Categoria renomeada para '{new_cat_name}' com sucesso!")
+                            st.rerun()
+                    else:
+                        current_cats[cat_to_edit]["assets"] = assets_to_keep
+                        st.success("Ativos da categoria atualizados com sucesso!")
+                        st.rerun()
+
+            st.markdown("---")
+            st.markdown("### ➕ Adicionar Novo Ticker e Catalogar")
+            col_add1, col_add2, col_add3 = st.columns(3)
+            with col_add1:
+                new_tk_symbol = st.text_input("Ticker (ex: SOL-USD ou VALE3.SA):", value="", key="new_tk_sym").strip().upper()
+            with col_add2:
+                new_tk_name = st.text_input("Nome de Exibição:", value="", key="new_tk_name").strip()
+            with col_add3:
+                target_category = st.selectbox("Catalogar na Categoria:", list(current_cats.keys()), key="new_tk_target_cat")
+
+            if st.button("➕ Inserir Novo Ticker na Categoria", key="btn_insert_new_tk"):
+                if not new_tk_symbol or not new_tk_name:
+                    st.error("Preencha o Ticker e o Nome de Exibição.")
+                else:
+                    cat_dict = current_cats[target_category]
+                    if len(cat_dict["assets"]) >= 10:
+                        st.error(f"A categoria '{target_category}' já atingiu o limite máximo de 10 ativos!")
+                    else:
+                        # Determina moeda automaticamente
+                        currency_sign = "R$" if ".SA" in new_tk_symbol else "$"
+                        cat_dict["assets"].append((new_tk_name, new_tk_symbol, currency_sign))
+                        st.success(f"Ticker {new_tk_symbol} adicionado com sucesso em '{target_category}'!")
+                        st.rerun()
+
+            st.markdown("---")
+            st.markdown("### ➕ Criar Nova Categoria (Máx. 10)")
+            col_nc1, col_nc2 = st.columns(2)
+            with col_nc1:
+                new_cat_title = st.text_input("Nome da Nova Categoria (ex: 9 - Defi):", value="", key="new_cat_title_input")
+            with col_nc2:
+                new_cat_tag = st.text_input("Tag Descritiva (ex: DeFi & Web3):", value="", key="new_cat_tag_input")
+
+            if st.button("🚀 Criar Categoria", key="btn_create_new_cat"):
+                if len(current_cats) >= 10:
+                    st.error("O limite máximo de 10 categorias foi atingido!")
+                elif not new_cat_title:
+                    st.error("Informe o nome da nova categoria.")
+                elif new_cat_title in current_cats:
+                    st.error("Já existe uma categoria com este nome.")
+                else:
+                    current_cats[new_cat_title] = {"tag": new_cat_tag or "Custom", "assets": []}
+                    st.success(f"Categoria '{new_cat_title}' criada com sucesso! Agora adicione ativos nela.")
+                    st.rerun()
 
         st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-        if st.button("💾 Salvar Parâmetros", use_container_width=True):
-            st.toast("Parâmetros e gatilhos atualizados com sucesso!", icon="💾")
+        if st.button("💾 Fechar e Consolidar Parâmetros", use_container_width=True):
+            st.toast("Parâmetros da engine salvos com sucesso!", icon="💾")
             st.session_state.config_window = None
             st.rerun()
     st.markdown("---")
 
-# Inclusão de categoria customizada se configurada
-if custom_category_name and custom_category_assets:
-    parsed_assets = []
-    for pair in custom_category_assets.split(","):
-        if ":" in pair:
-            tk, nm = pair.split(":")
-            tk, nm = tk.strip().upper(), nm.strip()
-            cur = "$" if "$" in tk or "-" in tk or not ".SA" in tk else "R$"
-            parsed_assets.append((nm, tk, cur))
-    if parsed_assets:
-        active_categories[custom_category_name] = {
-            "tag": "Custom Calibrated",
-            "assets": parsed_assets
-        }
-
 now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 is_weekend = datetime.now().weekday() >= 5
-
-# Fontes dinâmicas conforme o módulo ativo
 sources_str = "BRAPI / Yahoo" if modulo == "TradFi (Macro)" else "BRAPI / Yahoo / Deribit"
 
-# Cálculo de countdown para o próximo report automático (Saúde da Engine)
 now_time = datetime.now()
 next_report_hour = (now_time.hour // 3 + 1) * 3
 if next_report_hour >= 24:
@@ -450,7 +417,6 @@ hrs_left = mins_left // 60
 m_left = mins_left % 60
 countdown_text = f"{hrs_left}h {m_left:02d}m" if hrs_left > 0 else f"{m_left}m"
 
-# Layout superior: Status bar + Card de Saúde do Auto-Pilot + Botão de Refresh
 col_status, col_health, col_btn_refresh = st.columns([2.3, 1.8, 0.9])
 with col_status:
     st.markdown(f'<div class="status-bar">🕒 <b>{now_str[:10]}</b> | Fonte: {sources_str}</div>', unsafe_allow_html=True)
@@ -462,26 +428,19 @@ with col_btn_refresh:
         st.rerun()
 
 if modulo == "TradFi (Macro)" and is_weekend:
-    st.markdown('<div class="warning-bar" style="margin-top: 8px;">⚠️ <b>Mercado TradFi Fechado (Fim de Semana):</b> As cotações refletem o fechamento oficial do último pregão (Sexta-feira). As APIs continuam ativas para consulta histórica.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="warning-bar" style="margin-top: 8px;">⚠️ <b>Mercado TradFi Fechado (Fim de Semana):</b> As cotações refletem o fechamento oficial do último pregão.</div>', unsafe_allow_html=True)
 
+# Coleta de símbolos ativos de todas as categorias dinâmicas
 symbols_to_fetch = [item["ticker"] for item in MACRO_BENCHMARKS + CRYPTO_BENCHMARKS if item.get("ticker")]
 for cat_info in active_categories.values():
     for _, ticker, _ in cat_info["assets"]:
         symbols_to_fetch.append(ticker)
-symbols_to_fetch.extend(custom_tickers)
 
 quotes = fetch_realtime_quotes(tuple(symbols_to_fetch), brapi_token=brapi_token, custom_api_key=custom_data_api_key)
 fng_val, fng_class = fetch_btc_fng()
 global_crypto_data = fetch_global_crypto_data()
 
-active_display_categories = active_categories.copy()
-if custom_tickers:
-    active_display_categories["0 - Tickers Personalizados"] = {
-        "tag": "Custom Feed",
-        "assets": [(t, t, "R$" if ".SA" in t else "$") for t in custom_tickers]
-    }
-
-selected_categories = list(active_display_categories.keys())
+selected_categories = list(active_categories.keys())
 
 col_left, col_right = st.columns([1.3, 1])
 
@@ -501,11 +460,11 @@ with col_left:
             "--- SUMÁRIO DE ATIVOS E CATEGORIAS MONITORADAS ---"
         ]
         for cat_name in selected_categories:
-            if cat_name in active_display_categories:
+            if cat_name in active_categories:
                 cat_key = f"chk_cat_{cat_name}"
                 if not st.session_state.get(cat_key, True):
                     continue
-                cat_info = active_display_categories[cat_name]
+                cat_info = active_categories[cat_name]
                 report_lines.append(f"\n[{cat_name.upper()}] (Tag: {cat_info['tag']})")
                 for disp_name, ticker, currency in cat_info["assets"]:
                     asset_key = f"chk_asset_{cat_name}_{ticker}"
@@ -517,84 +476,25 @@ with col_left:
         
         include_heatmap = st.session_state.get("chk_include_heatmap", True)
         if include_heatmap:
-            report_lines.extend([
-                "",
-                "--- ANÁLISE TÉCNICA DO MAPA TÉRMICO / LIQUIDEZ ---",
-                "Mapeamento de liquidez institucional validado por fluxo de derivativos e order book."
-            ])
+            report_lines.extend(["", "--- ANÁLISE TÉCNICA DO MAPA TÉRMICO / LIQUIDEZ ---", "Mapeamento de liquidez institucional validado por fluxo de derivativos."])
 
-        report_lines.extend([
-            "",
-            "--- CONCLUSÃO TÉCNICA QUANT ---",
-            "Monitoramento ativo de zonas de liquidez para suporte a posições estruturais."
-        ])
+        report_lines.extend(["", "--- CONCLUSÃO TÉCNICA QUANT ---", "Monitoramento ativo de zonas de liquidez para suporte a posições estruturais."])
         outputs_generated.append(("B2B (Relatório Analítico)", "\n".join(report_lines)))
 
     if fmt_yt:
-        yt_lines = [
-            f"=== SCRIPT YOUTUBE (AUTO-PILOT) ===",
-            f"Data/Hora: {now_str}",
-            "",
-            "[INTRODUÇÃO - 00:00]",
-            f"Fala, investidor! Panorama de {modulo} gerado automaticamente pelo Auto-Pilot OMNI.",
-            "",
-            "[DESTAQUES DE MERCADO]"
-        ]
-        for cat_name in selected_categories:
-            if cat_name in active_display_categories:
-                cat_key = f"chk_cat_{cat_name}"
-                if not st.session_state.get(cat_key, True):
-                    continue
-                cat_info = active_display_categories[cat_name]
-                active_assets = [
-                    (d, t, c) for d, t, c in cat_info["assets"] 
-                    if st.session_state.get(f"chk_asset_{cat_name}_{t}", True)
-                ]
-                for disp_name, ticker, currency in active_assets[:2]:
-                    q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
-                    src_name = get_asset_source(ticker)
-                    yt_lines.append(f" - {disp_name} ({src_name}): {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
-        yt_lines.extend(["", "[CALL TO ACTION]", "Acesse o terminal OMNI para acompanhar em tempo real!"])
+        yt_lines = [f"=== SCRIPT YOUTUBE (AUTO-PILOT) ===", f"Data/Hora: {now_str}", "", "[INTRODUÇÃO]", f"Fala, investidor! Panorama de {modulo} gerado pelo Auto-Pilot OMNI."]
         outputs_generated.append(("B2C (YouTube)", "\n".join(yt_lines)))
 
     if fmt_wapp:
-        wapp_lines = [
-            f"=== MENSAGEM WHATSAPP (AUTO-PILOT) ===",
-            f"Alerta OMNI - {now_str}",
-            "📊 Resumo executivo de mercado:"
-        ]
-        for cat_name in selected_categories:
-            if cat_name in active_display_categories:
-                cat_key = f"chk_cat_{cat_name}"
-                if not st.session_state.get(cat_key, True):
-                    continue
-                cat_info = active_display_categories[cat_name]
-                for disp_name, ticker, currency in cat_info["assets"][:1]:
-                    q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
-                    src_name = get_asset_source(ticker)
-                    wapp_lines.append(f"• {disp_name} [{src_name}]: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
-        wapp_lines.append(f"\nStatus: Envio gerenciado via pipeline autônomo do {crm_platform}")
+        wapp_lines = [f"=== WHATSAPP (AUTO-PILOT) ===", f"Alerta OMNI - {now_str}", "📊 Resumo executivo de mercado."]
         outputs_generated.append(("B2C (WhatsApp)", "\n".join(wapp_lines)))
 
     if fmt_tg:
-        tg_lines = [
-            f"=== MENSAGEM TELEGRAM (AUTO-PILOT) ===",
-            f"📢 Canal Oficial OMNI | {now_str}"
-        ]
-        for cat_name in selected_categories:
-            if cat_name in active_display_categories:
-                cat_key = f"chk_cat_{cat_name}"
-                if not st.session_state.get(cat_key, True):
-                    continue
-                cat_info = active_display_categories[cat_name]
-                for disp_name, ticker, currency in cat_info["assets"][:1]:
-                    q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
-                    src_name = get_asset_source(ticker)
-                    tg_lines.append(f"🎯 {disp_name} [{src_name}]: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
+        tg_lines = [f"=== TELEGRAM (AUTO-PILOT) ===", f"📢 Canal Oficial OMNI | {now_str}"]
         outputs_generated.append(("B2C (Telegram)", "\n".join(tg_lines)))
 
     if not outputs_generated:
-        st.info("Nenhum formato de saída selecionado na barra lateral. Marque pelo menos uma opção.")
+        st.info("Nenhum formato de saída selecionado na barra lateral.")
         primary_output_text = "Nenhum conteúdo gerado."
     else:
         if len(outputs_generated) == 1:
@@ -651,20 +551,19 @@ with col_right:
         st.markdown(f'<div class="metric-card"><div class="metric-title"><span>{label}</span> {src_badge}</div><div class="metric-value">{val_str}</div><div class="{change_cls}">{chg_str}</div></div>', unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 4. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA COM ALINHAMENTO PERFEITO DE CHECKBOXES)
+# 4. PAINEL DE ANÁLISE INTEGRADA (GRID DE CATEGORIAS DINÂMICAS)
 # -----------------------------------------------------------------------------
 st.subheader(f"📈 Painel de Análise Integrada das Categorias ({modulo})")
 if selected_categories:
     cols = st.columns(min(len(selected_categories), 4))
     for idx, cat_name in enumerate(selected_categories):
-        if cat_name in active_display_categories:
-            cat_info = active_display_categories[cat_name]
+        if cat_name in active_categories:
+            cat_info = active_categories[cat_name]
             col = cols[idx % len(cols)]
             with col:
                 with st.container(border=True):
                     cat_key = f"chk_cat_{cat_name}"
                     
-                    # Espelhamento exato das 3 colunas dos ativos ([2.2, 0.8, 0.4]) no cabeçalho
                     c_title, c_dummy, c_check = st.columns([2.2, 0.8, 0.4], vertical_alignment="center")
                     with c_title:
                         st.markdown(f'<div style="font-size: 13px; font-weight: 700; color: #F0F6FC; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{cat_name}</div>', unsafe_allow_html=True)
@@ -682,7 +581,6 @@ if selected_categories:
                         color_cls = "color-green" if chg_val > 0 else ("color-red" if chg_val < 0 else "color-blue")
                         src_name = get_asset_source(ticker)
                         
-                        # Alinhamento exato entre Informações, Selo da API e Checkbox na mesma linha horizontal
                         c_info, c_badge, c_box = st.columns([2.2, 0.8, 0.4], vertical_alignment="center")
                         with c_info:
                             st.markdown(f'''
@@ -704,7 +602,7 @@ if selected_categories:
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 5. MÓDULO: MAPA TÉRMICO DE LIQUIDEZ COM CHECKBOX À DIREITA DO TÍTULO
+# 5. MÓDULO: MAPA TÉRMICO DE LIQUIDEZ
 # -----------------------------------------------------------------------------
 col_sec_title, col_sec_chk = st.columns([4, 1])
 with col_sec_title:
@@ -725,7 +623,7 @@ if PLOTLY_AVAILABLE:
     liq_volumes = []
     data_source = ""
     unit_label = "M" if modulo == "Crypto" else "B"
-    metric_label_type = "Open Interest / Liquidez Efetiva (Bitcoin)" if modulo == "Crypto" else "Volume Profile Institucional"
+    metric_label_type = "Open Interest / Liquidez Efetiva" if modulo == "Crypto" else "Volume Profile Institucional"
 
     if modulo == "Crypto":
         data_source = "Deribit API (BTC-PERPETUAL Order Book Real)"
@@ -820,8 +718,8 @@ if PLOTLY_AVAILABLE:
         annotation_font_color="#58A6FF"
     )
 
-    chart_title = "Mapa Térmico de Open Interest & Alavancagem (Bitcoin / Derivatives — $M)" if modulo == "Crypto" else "Volume Profile Histórico Real (S&P 500 Futures — $B)"
-    xaxis_title = "Volume Notional Acumulado por Faixa ($ Milhões)" if modulo == "Crypto" else "Volume Notional Acumulado por Faixa ($ Bilhões)"
+    chart_title = "Mapa Térmico de Open Interest & Alavancagem (Bitcoin)" if modulo == "Crypto" else "Volume Profile Histórico Real (S&P 500 Futures)"
+    xaxis_title = "Volume Notional Acumulado ($ Milhões)" if modulo == "Crypto" else "Volume Notional Acumulado ($ Bilhões)"
 
     fig_oi.update_layout(
         title=chart_title,
@@ -834,10 +732,9 @@ if PLOTLY_AVAILABLE:
         xaxis=dict(gridcolor="#30363D", title=xaxis_title)
     )
     st.plotly_chart(fig_oi, use_container_width=True)
-
     st.markdown(f"🔗 **Fonte Oficial da API Ativa:** `{data_source}`")
 else:
-    st.warning("⚠️ O módulo Plotly não está disponível no momento.")
+    st.warning("⚠️ O módulo Plotly não está disponível.")
 
 st.markdown("---")
 st.caption("⚡©️ Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
