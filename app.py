@@ -166,7 +166,7 @@ st.markdown("""<style>
 </style>""", unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 2. SIDEBAR: FLUXO LIMPO (LOGIN -> PLANO -> MÓDULO -> FORMATOS -> GATILHO -> JANELAS)
+# 2. SIDEBAR: FLUXO LIMPO (LOGIN -> PLANO -> MÓDULO -> FORMATOS -> GATILHO -> LISTA VERTICAL)
 # -----------------------------------------------------------------------------
 st.sidebar.title("🔐 OMNI Terminal")
 
@@ -204,20 +204,16 @@ trigger_production = st.sidebar.button("🚀 Acionar Produção Automática", us
 st.sidebar.markdown("---")
 st.sidebar.markdown("### ⚙️ Configurações Avançadas")
 
-# Gerenciamento de janelas específicas no corpo principal
+# Gerenciamento de janelas específicas no corpo principal (Formato Lista)
 if "config_window" not in st.session_state:
     st.session_state.config_window = None
 
-col_s1, col_s2, col_s3 = st.sidebar.columns(3)
-with col_s1:
-    if st.button("📬 Automações", use_container_width=True):
-        st.session_state.config_window = "automations"
-with col_s2:
-    if st.button("⚡ Gatilhos", use_container_width=True):
-        st.session_state.config_window = "triggers"
-with col_s3:
-    if st.button("🛠️ Calibragem", use_container_width=True):
-        st.session_state.config_window = "calibration"
+if st.sidebar.button("📬 Automações", use_container_width=True):
+    st.session_state.config_window = "automations"
+if st.sidebar.button("⚡ Gatilhos de Report", use_container_width=True):
+    st.session_state.config_window = "triggers"
+if st.sidebar.button("🛠️ Calibragem da Engine", use_container_width=True):
+    st.session_state.config_window = "calibration"
 
 allow_customization = "Free" not in tier_selected
 allow_white_label = "Premium" in tier_selected
@@ -254,7 +250,7 @@ else:
     st.title("⚡ OMNIRESEARCH Engine")
     st.caption("Plataforma Integrada de Inteligência Financeira com IA & Auto-Pilot")
 
-# Exibição da Janela Específica Selecionada (Evita poluir a sidebar)
+# Exibição da Janela Específica Selecionada (Em formato expansivo no corpo principal)
 if st.session_state.config_window:
     with st.container(border=True):
         col_w_title, col_w_close = st.columns([5, 1])
@@ -353,14 +349,6 @@ if custom_tickers:
     }
 
 selected_categories = list(active_display_categories.keys())
-
-def get_crm_contacts_list():
-    contacts = []
-    if auto_emails:
-        emails = [e.strip() for e in auto_emails.split(",") if e.strip()]
-        for idx, em in enumerate(emails):
-            contacts.append({"name": f"Email Destinatário {idx+1}", "phone": em})
-    return contacts
 
 col_left, col_right = st.columns([1.3, 1])
 
