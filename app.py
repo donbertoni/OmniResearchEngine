@@ -173,8 +173,6 @@ st.markdown("""<style>
         border: 1px solid #30363D;
         padding: 1px 4px;
         border-radius: 4px;
-        margin-left: 4px;
-        vertical-align: middle;
         white-space: nowrap;
         display: inline-block;
     }
@@ -653,7 +651,7 @@ with col_right:
         st.markdown(f'<div class="metric-card"><div class="metric-title"><span>{label}</span> {src_badge}</div><div class="metric-value">{val_str}</div><div class="{change_cls}">{chg_str}</div></div>', unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 4. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA COM TOGGLES E BADGE DE FONTE)
+# 4. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA COM PADRÃO 2-LINHAS)
 # -----------------------------------------------------------------------------
 st.subheader(f"📈 Painel de Análise Integrada das Categorias ({modulo})")
 if selected_categories:
@@ -671,7 +669,7 @@ if selected_categories:
                     with c_check:
                         cat_enabled = st.checkbox("", value=st.session_state.get(cat_key, True), key=cat_key, label_visibility="collapsed")
                     
-                    st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
+                    st.markdown("<div style='margin-bottom: 6px;'></div>", unsafe_allow_html=True)
                     for disp_name, ticker, currency in cat_info["assets"]:
                         q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                         asset_key = f"chk_asset_{cat_name}_{ticker}"
@@ -679,10 +677,22 @@ if selected_categories:
                         color_cls = "color-green" if chg_val > 0 else ("color-red" if chg_val < 0 else "color-blue")
                         src_name = get_asset_source(ticker)
                         
-                        cA, cB = st.columns([3.2, 0.8])
+                        cA, cB = st.columns([3.4, 0.6])
                         with cA:
-                            st.markdown(f'<div style="font-size: 12px;"><span style="color: #8B949E;">{disp_name}:</span> <b style="color: #F0F6FC;">{currency} {fmt_num(q["price"])}</b> <span class="{color_cls}">({fmt_pct(q["change"])})</span><span class="source-badge">{src_name}</span></div>', unsafe_allow_html=True)
+                            st.markdown(f'''
+                                <div style="font-size: 11px; margin-bottom: 8px; border-bottom: 1px solid #21262D; padding-bottom: 6px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                                        <span style="color: #8B949E; font-weight: 600;">{disp_name}</span>
+                                        <span class="source-badge">{src_name}</span>
+                                    </div>
+                                    <div>
+                                        <b style="color: #F0F6FC; font-size: 12px;">{currency} {fmt_num(q["price"])}</b> 
+                                        <span class="{color_cls}" style="font-size: 11px;">({fmt_pct(q["change"])})</span>
+                                    </div>
+                                </div>
+                            ''', unsafe_allow_html=True)
                         with cB:
+                            st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
                             st.checkbox("", value=st.session_state.get(asset_key, True), key=asset_key, disabled=not cat_enabled, label_visibility="collapsed")
 
 st.markdown("---")
