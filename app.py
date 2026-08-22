@@ -230,7 +230,6 @@ whatsapp_token = ""
 custom_tickers = []
 custom_category_name = ""
 custom_category_assets = ""
-auto_groups_wapp = "VIP Traders, Canal Institucional"
 auto_emails = "mesa@gestora.com, compliance@gestora.com"
 auto_urls = ""
 crm_platform = "HubSpot"
@@ -258,7 +257,7 @@ if st.session_state.config_window:
         col_w_title, col_w_close = st.columns([5, 1])
         with col_w_title:
             if st.session_state.config_window == "automations":
-                st.subheader("📬 Configuração de Automações & Disparos Multicanal (CRM)")
+                st.subheader("📬 Configuração de Automações & Integradores de CRM")
             elif st.session_state.config_window == "triggers":
                 st.subheader("⚡ Configuração de Gatilhos de Report Automático")
             elif st.session_state.config_window == "calibration":
@@ -271,12 +270,11 @@ if st.session_state.config_window:
         if st.session_state.config_window == "automations":
             col_a1, col_a2 = st.columns(2)
             with col_a1:
-                st.markdown("**Canais de Mensageria & Disparo:**")
-                auto_groups_wapp = st.text_input("Grupos WhatsApp Alvo:", value="VIP Traders, Canal Institucional")
-                auto_emails = st.text_input("Endereços Eletrônicos (B2B):", value="mesa@gestora.com, compliance@gestora.com")
-                auto_urls = st.text_input("URLs / Webhooks de Disparo:", value="")
+                st.markdown("**Canais de Disparo de Dados (Payloads):**")
+                auto_emails = st.text_input("Endereços Eletrônicos (Notificação B2B):", value="mesa@gestora.com, compliance@gestora.com")
+                auto_urls = st.text_input("URLs / Webhooks de Disparo (Engine -> CRM):", value="")
             with col_a2:
-                st.markdown("**Integração com Plataformas de CRM:**")
+                st.markdown("**Integração com Plataformas de CRM (Orquestração):**")
                 crm_platform = st.selectbox("Plataforma de CRM Alvo:", ["HubSpot", "Salesforce", "RD Station", "Outro Webhook/API"], index=0)
                 crm_api_key = st.text_input("Chave de API / Token do CRM:", value="", type="password")
 
@@ -446,7 +444,7 @@ with col_left:
                 for disp_name, ticker, currency in cat_info["assets"][:1]:
                     q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                     wapp_lines.append(f"• {disp_name}: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
-        wapp_lines.append(f"\nDestinos: {auto_groups_wapp}")
+        wapp_lines.append(f"\nStatus: Envio gerenciado via pipeline autônomo do {crm_platform}")
         wapp_lines.append("Acesse o terminal para o relatório completo.")
         outputs_generated.append(("B2C (WhatsApp)", "\n".join(wapp_lines)))
 
