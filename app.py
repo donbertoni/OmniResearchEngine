@@ -651,7 +651,7 @@ with col_right:
         st.markdown(f'<div class="metric-card"><div class="metric-title"><span>{label}</span> {src_badge}</div><div class="metric-value">{val_str}</div><div class="{change_cls}">{chg_str}</div></div>', unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 4. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA COM ALINHAMENTO DE SELO & CHECKBOX)
+# 4. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA COM ALINHAMENTO PERFEITO DE CHECKBOXES)
 # -----------------------------------------------------------------------------
 st.subheader(f"📈 Painel de Análise Integrada das Categorias ({modulo})")
 if selected_categories:
@@ -663,13 +663,18 @@ if selected_categories:
             with col:
                 with st.container(border=True):
                     cat_key = f"chk_cat_{cat_name}"
-                    c_title, c_check = st.columns([3.2, 0.8])
+                    
+                    # Espelhamento exato das 3 colunas dos ativos ([2.2, 0.8, 0.4]) no cabeçalho
+                    c_title, c_dummy, c_check = st.columns([2.2, 0.8, 0.4], vertical_alignment="center")
                     with c_title:
-                        st.markdown(f'<div style="font-size: 13px; font-weight: 700; color: #F0F6FC;">{cat_name}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div style="font-size: 13px; font-weight: 700; color: #F0F6FC; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{cat_name}</div>', unsafe_allow_html=True)
+                    with c_dummy:
+                        st.empty()
                     with c_check:
                         cat_enabled = st.checkbox("", value=st.session_state.get(cat_key, True), key=cat_key, label_visibility="collapsed")
                     
-                    st.markdown("<div style='margin-bottom: 6px;'></div>", unsafe_allow_html=True)
+                    st.markdown("<div style='border-bottom: 1px solid #30363D; margin-top: 6px; margin-bottom: 6px;'></div>", unsafe_allow_html=True)
+                    
                     for disp_name, ticker, currency in cat_info["assets"]:
                         q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                         asset_key = f"chk_asset_{cat_name}_{ticker}"
