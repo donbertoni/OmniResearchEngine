@@ -104,6 +104,10 @@ CATEGORIES_TRADFI = {
     }
 }
 
+# Função auxiliar para determinar a API de origem de cada ativo
+def get_asset_source(ticker: str) -> str:
+    return "BRAPI" if ".SA" in ticker else "Yahoo Finance"
+
 # -----------------------------------------------------------------------------
 # 1. CONFIGURAÇÃO DA PÁGINA & ESTILIZAÇÃO CSS INSTITUCIONAL
 # -----------------------------------------------------------------------------
@@ -154,6 +158,16 @@ st.markdown("""<style>
     .color-green { color: #3FB950 !important; font-weight: 600; }
     .color-red { color: #F85149 !important; font-weight: 600; }
     .color-blue { color: #58A6FF !important; font-weight: 600; }
+    .source-badge {
+        font-size: 9px;
+        color: #8B949E;
+        background-color: #21262D;
+        border: 1px solid #30363D;
+        padding: 1px 4px;
+        border-radius: 4px;
+        margin-left: 4px;
+        vertical-align: middle;
+    }
 
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background-color: #161B22 !important;
@@ -283,7 +297,6 @@ if st.session_state.config_window:
         elif st.session_state.config_window == "triggers":
             st.markdown(f"**Módulo Ativo:** `{modulo}`")
             
-            # 1. Dias da semana
             st.markdown("**📅 1. Dias da Semana para Geração Automática**")
             selected_days = st.multiselect(
                 "Escolha quais dias da semana os gatilhos dispararão relatórios:",
@@ -293,8 +306,6 @@ if st.session_state.config_window:
             )
             
             st.markdown("---")
-            
-            # 2 & 3. Frequência e Horários Dinâmicos
             st.markdown("**⏰ 2 & 3. Frequência Diária e Horários dos Reports**")
             freq_reports = st.slider("Frequência (Nº de reports diários):", min_value=1, max_value=5, value=2, key="trig_freq")
             
@@ -309,8 +320,6 @@ if st.session_state.config_window:
                     report_times.append(t_val)
             
             st.markdown("---")
-            
-            # 4. Ativos (Máximo de 10 ativos por módulo)
             st.markdown("**🪙 4. Seleção de Ativos Monitorados (Máx. 10)**")
             all_module_assets = []
             for cat_name, cat_info in active_categories.items():
@@ -329,8 +338,6 @@ if st.session_state.config_window:
             )
             
             st.markdown("---")
-            
-            # 5 & 6. Variação percentual & Anomalia de volume para cada ativo selecionado
             st.markdown("**📈 5 & 6. Variação Percentual & Anomalia de Volume por Ativo**")
             if selected_trigger_assets:
                 for sel_label in selected_trigger_assets:
@@ -345,17 +352,13 @@ if st.session_state.config_window:
                 st.info("Selecione pelo menos um ativo acima para configurar seus limiares de variação e volume.")
             
             st.markdown("---")
-            
-            # 7. F&G Index
             st.markdown("**🌡️ 7. Índice Fear & Greed (Sentimento)**")
             if modulo == "Crypto":
-                st.checkbox("Considerar Fear & Greed Index de Crypto (F&G BTC) nos gatilhos dos ativos digitais", value=True, key="trig_fng_crypto_opt")
+                st.checkbox("Considerar Fear & Greed Index de Crypto (F&G BTC) nos gatilhos", value=True, key="trig_fng_crypto_opt")
             else:
-                st.checkbox("Considerar Fear & Greed Index do S&P 500 (F&G SPX) nos gatilhos dos ativos TradFi", value=True, key="trig_fng_tradfi_opt")
+                st.checkbox("Considerar Fear & Greed Index do S&P 500 (F&G SPX) nos gatilhos", value=True, key="trig_fng_tradfi_opt")
             
             st.markdown("---")
-            
-            # 8. Breaking News & Varredura (Dinâmico até 5 fontes)
             st.markdown("**📰 8. Breaking News & Varredura de Price Action (Até 5 Fontes)**")
             
             if "num_news_sources" not in st.session_state:
@@ -424,9 +427,9 @@ if custom_category_name and custom_category_assets:
         }
 
 now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
-is_weekend = datetime.now().weekday() >= 5  # Sábado (5) ou Domingo (6)
+is_weekend = datetime.now().weekday() >= 5
 
-# Fontes dinâmicas conforme o módulo ativo (removendo Deribit do TradFi)
+# Fontes dinâmicas conforme o módulo ativo
 sources_str = "BRAPI / Yahoo Finance" if modulo == "TradFi (Macro)" else "BRAPI / Yahoo Finance / Deribit"
 
 # Cálculo de countdown para o próximo report automático (Saúde da Engine)
@@ -450,11 +453,9 @@ with col_btn_refresh:
         st.cache_data.clear()
         st.rerun()
 
-# Alerta específico de fim de semana para o módulo TradFi
 if modulo == "TradFi (Macro)" and is_weekend:
     st.markdown('<div class="warning-bar" style="margin-top: 8px;">⚠️ <b>Mercado TradFi Fechado (Fim de Semana):</b> As cotações refletem o fechamento oficial do último pregão (Sexta-feira). As APIs continuam ativas para consulta histórica.</div>', unsafe_allow_html=True)
 
-# Coleta de símbolos e requisição de cotações em tempo real via API
 symbols_to_fetch = [item["ticker"] for item in MACRO_BENCHMARKS + CRYPTO_BENCHMARKS if item.get("ticker")]
 for cat_info in active_categories.values():
     for _, ticker, _ in cat_info["assets"]:
@@ -503,7 +504,8 @@ with col_left:
                     if not st.session_state.get(asset_key, True):
                         continue
                     q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
-                    report_lines.append(f"  • {disp_name} ({ticker}): {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
+                    src_name = get_asset_source(ticker)
+                    report_lines.append(f"  • {disp_name} ({ticker}) [{src_name}]: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
         
         include_heatmap = st.session_state.get("chk_include_heatmap", True)
         if include_heatmap:
@@ -542,7 +544,8 @@ with col_left:
                 ]
                 for disp_name, ticker, currency in active_assets[:2]:
                     q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
-                    yt_lines.append(f" - {disp_name}: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
+                    src_name = get_asset_source(ticker)
+                    yt_lines.append(f" - {disp_name} ({src_name}): {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
         yt_lines.extend(["", "[CALL TO ACTION]", "Acesse o terminal OMNI para acompanhar em tempo real!"])
         outputs_generated.append(("B2C (YouTube)", "\n".join(yt_lines)))
 
@@ -560,9 +563,9 @@ with col_left:
                 cat_info = active_display_categories[cat_name]
                 for disp_name, ticker, currency in cat_info["assets"][:1]:
                     q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
-                    wapp_lines.append(f"• {disp_name}: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
+                    src_name = get_asset_source(ticker)
+                    wapp_lines.append(f"• {disp_name} [{src_name}]: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
         wapp_lines.append(f"\nStatus: Envio gerenciado via pipeline autônomo do {crm_platform}")
-        wapp_lines.append("Acesse o terminal para o relatório completo.")
         outputs_generated.append(("B2C (WhatsApp)", "\n".join(wapp_lines)))
 
     if fmt_tg:
@@ -578,7 +581,8 @@ with col_left:
                 cat_info = active_display_categories[cat_name]
                 for disp_name, ticker, currency in cat_info["assets"][:1]:
                     q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
-                    tg_lines.append(f"🎯 {disp_name}: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
+                    src_name = get_asset_source(ticker)
+                    tg_lines.append(f"🎯 {disp_name} [{src_name}]: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
         outputs_generated.append(("B2C (Telegram)", "\n".join(tg_lines)))
 
     if not outputs_generated:
@@ -638,7 +642,7 @@ with col_right:
         st.markdown(f'<div class="metric-card"><div class="metric-title">{label}</div><div class="metric-value">{val_str}</div><div class="{change_cls}">{chg_str}</div></div>', unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 4. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA COM TOGGLES)
+# 4. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA COM TOGGLES E BADGE DE FONTE)
 # -----------------------------------------------------------------------------
 st.subheader(f"📈 Painel de Análise Integrada das Categorias ({modulo})")
 if selected_categories:
@@ -662,10 +666,11 @@ if selected_categories:
                         asset_key = f"chk_asset_{cat_name}_{ticker}"
                         chg_val = q["change"]
                         color_cls = "color-green" if chg_val > 0 else ("color-red" if chg_val < 0 else "color-blue")
+                        src_name = get_asset_source(ticker)
                         
                         cA, cB = st.columns([3.2, 0.8])
                         with cA:
-                            st.markdown(f'<div style="font-size: 12px;"><span style="color: #8B949E;">{disp_name}:</span> <b style="color: #F0F6FC;">{currency} {fmt_num(q["price"])}</b> <span class="{color_cls}">({fmt_pct(q["change"])})</span></div>', unsafe_allow_html=True)
+                            st.markdown(f'<div style="font-size: 12px;"><span style="color: #8B949E;">{disp_name}:</span> <b style="color: #F0F6FC;">{currency} {fmt_num(q["price"])}</b> <span class="{color_cls}">({fmt_pct(q["change"])})</span><span class="source-badge">{src_name}</span></div>', unsafe_allow_html=True)
                         with cB:
                             st.checkbox("", value=st.session_state.get(asset_key, True), key=asset_key, disabled=not cat_enabled, label_visibility="collapsed")
 
@@ -788,7 +793,7 @@ if PLOTLY_AVAILABLE:
         annotation_font_color="#58A6FF"
     )
 
-    chart_title = "Mapa Térmico de Open Interest & Alavancagem (Bitcoin / Derivites — $M)" if modulo == "Crypto" else "Volume Profile Histórico Real (S&P 500 Futures — $B)"
+    chart_title = "Mapa Térmico de Open Interest & Alavancagem (Bitcoin / Derivatives — $M)" if modulo == "Crypto" else "Volume Profile Histórico Real (S&P 500 Futures — $B)"
     xaxis_title = "Volume Notional Acumulado por Faixa ($ Milhões)" if modulo == "Crypto" else "Volume Notional Acumulado por Faixa ($ Bilhões)"
 
     fig_oi.update_layout(
