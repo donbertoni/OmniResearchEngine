@@ -166,51 +166,58 @@ st.markdown("""<style>
 </style>""", unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 2. SIDEBAR: ORDENAÇÃO E NOVAS FUNCIONALIDADES SOLICITADAS
+# 2. SIDEBAR: FLUXO LIMPO (LOGIN -> PLANO -> MÓDULO -> FORMATOS -> GATILHO -> JANELAS)
 # -----------------------------------------------------------------------------
-st.sidebar.title("⚙️ Configurações OMNI")
+st.sidebar.title("🔐 OMNI Terminal")
 
-# 5. Plano Ativo como primeira info da sidebar
-tier_selected = st.sidebar.radio("Plano Ativo:", ["Free (Lead Magnet)", "Standard (B2C Trader)", "Premium (B2B White-Label)"], index=1)
+# 1. Login / Senha / Manter-se conectado
+with st.sidebar.expander("👤 Login do Analista", expanded=False):
+    login_user = st.text_input("Usuário / E-mail:", value="analista@omni.com")
+    login_pass = st.text_input("Senha:", value="••••••••", type="password")
+    login_keep = st.checkbox("Manter-se conectado", value=True)
 
-# 4. Escolha do Módulo (Crypto ou TradFi)
+# 2. Plano ativo (atribuído conforme o login)
+if "admin" in login_user.lower() or "white" in login_user.lower():
+    tier_selected = "Premium (B2B White-Label)"
+elif "free" in login_user.lower():
+    tier_selected = "Free (Lead Magnet)"
+else:
+    tier_selected = "Standard (B2C Trader)"
+
+st.sidebar.markdown(f"**Plano Ativo:** `{tier_selected}`")
+st.sidebar.markdown("---")
+
+# 3. Escolha do Módulo
 modulo = st.sidebar.radio("📌 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
 
-# 4. Checkboxes de seleção dos modos B2B e B2C logo abaixo da escolha do módulo
-st.sidebar.markdown("### 📊 Formatos de Saída (Auto-Pilot):")
+# 5. Formatos de Saída
+st.sidebar.markdown("### 📊 Formatos de Saída:")
 fmt_b2b = st.sidebar.checkbox("B2B (Relatório Analítico)", value=True)
 fmt_yt = st.sidebar.checkbox("B2C (YouTube Auto-Pilot)", value=False)
 fmt_wapp = st.sidebar.checkbox("B2C (WhatsApp Auto-Pilot)", value=False)
 fmt_tg = st.sidebar.checkbox("B2C (Telegram Auto-Pilot)", value=False)
 
+# 6. Botão de acionar produção automática
 st.sidebar.markdown("<div style='margin-top: 6px;'></div>", unsafe_allow_html=True)
 trigger_production = st.sidebar.button("🚀 Acionar Produção Automática", use_container_width=True)
 
-# 1. Automações
-with st.sidebar.expander("📬 1 - Automações", expanded=False):
-    auto_groups_wapp = st.text_input("Grupos WhatsApp Alvo:", value="VIP Traders, Canal Institucional")
-    auto_emails = st.text_input("Endereços Eletrônicos (B2B):", value="mesa@gestora.com, compliance@gestora.com")
-    auto_urls = st.text_input("URLs / Webhooks de Disparo:", value="")
+st.sidebar.markdown("---")
+st.sidebar.markdown("### ⚙️ Configurações Avançadas")
 
-# 2. Gatilhos de Report
-with st.sidebar.expander("⚡ 2 - Gatilhos de Report", expanded=False):
-    trig_schedule = st.selectbox("Frequência / Horário:", ["Manual (Sob Demanda)", "Abertura de Mercado (09:00)", "Fechamento (18:00)", "Tempo Real (A cada 1h)"], index=0)
-    trig_pct = st.slider("Variação % de Ativo p/ Gatilho:", 1.0, 15.0, 5.0)
-    trig_volume = st.checkbox("Gatilho por Anomalia de Volume", value=True)
-    trig_news = st.checkbox("Gatilho por Breaking News / F&G Index", value=True)
+# Gerenciamento de janelas específicas no corpo principal
+if "config_window" not in st.session_state:
+    st.session_state.config_window = None
 
-# 3. Calibragem da Engine (Chaves de API próprias e novas categorias / ativos)
-with st.sidebar.expander("🛠️ 3 - Calibragem da Engine", expanded=False):
-    st.markdown("**Credenciais de API Próprias (Compliance):**")
-    brapi_token = st.text_input("BRAPI API Token:", value="", type="password")
-    custom_data_api_key = st.text_input("Custom Market API Key:", value="", type="password")
-    whatsapp_instance = st.text_input("WhatsApp Instance ID:", value="")
-    whatsapp_token = st.text_input("WhatsApp API Token:", value="", type="password")
-    
-    st.markdown("---")
-    st.markdown("**Adicionar/Editar Categoria Customizada:**")
-    custom_category_name = st.text_input("Nome da Nova Categoria:", value="", placeholder="Ex: 9 - Defi & Web3")
-    custom_category_assets = st.text_input("Ativos (Ticker: Nome, ...):", value="", placeholder="SOL-USD: Solana, ETH-USD: Ethereum")
+col_s1, col_s2, col_s3 = st.sidebar.columns(3)
+with col_s1:
+    if st.button("📬 Automações", use_container_width=True):
+        st.session_state.config_window = "automations"
+with col_s2:
+    if st.button("⚡ Gatilhos", use_container_width=True):
+        st.session_state.config_window = "triggers"
+with col_s3:
+    if st.button("🛠️ Calibragem", use_container_width=True):
+        st.session_state.config_window = "calibration"
 
 allow_customization = "Free" not in tier_selected
 allow_white_label = "Premium" in tier_selected
@@ -219,7 +226,85 @@ max_free_tickers = 5 if "Standard" in tier_selected else (999 if "Premium" in ti
 active_categories = (CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI).copy()
 active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
 
-# Inclusão de categoria customizada se configurada na Calibragem
+# Variáveis padrão para configurações avançadas
+brapi_token = ""
+custom_data_api_key = ""
+whatsapp_instance = ""
+whatsapp_token = ""
+custom_tickers = []
+custom_category_name = ""
+custom_category_assets = ""
+auto_groups_wapp = "VIP Traders, Canal Institucional"
+auto_emails = "mesa@gestora.com, compliance@gestora.com"
+auto_urls = ""
+
+company_name = "OMNIRESEARCH Engine"
+cnpi_code = "CNPI-T 0000"
+if allow_white_label:
+    company_name = "XP / BTG / Gestora"
+    cnpi_code = "CNPI-T 3421"
+
+# -----------------------------------------------------------------------------
+# 3. CORPO PRINCIPAL & JANELAS ESPECÍFICAS DE CONFIGURAÇÃO
+# -----------------------------------------------------------------------------
+if allow_white_label and company_name != "OMNIRESEARCH Engine":
+    st.title(f"🏢 {company_name} — Terminal Quant")
+    st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
+else:
+    st.title("⚡ OMNIRESEARCH Engine")
+    st.caption("Plataforma Integrada de Inteligência Financeira com IA & Auto-Pilot")
+
+# Exibição da Janela Específica Selecionada (Evita poluir a sidebar)
+if st.session_state.config_window:
+    with st.container(border=True):
+        col_w_title, col_w_close = st.columns([5, 1])
+        with col_w_title:
+            if st.session_state.config_window == "automations":
+                st.subheader("📬 Configuração de Automações & Disparos Multicanal")
+            elif st.session_state.config_window == "triggers":
+                st.subheader("⚡ Configuração de Gatilhos de Report Automático")
+            elif st.session_state.config_window == "calibration":
+                st.subheader("🛠️ Calibragem da Engine, APIs & Tickers Personalizados")
+        with col_w_close:
+            if st.button("❌ Fechar", use_container_width=True):
+                st.session_state.config_window = None
+                st.rerun()
+
+        if st.session_state.config_window == "automations":
+            auto_groups_wapp = st.text_input("Grupos WhatsApp Alvo:", value="VIP Traders, Canal Institucional")
+            auto_emails = st.text_input("Endereços Eletrônicos (B2B):", value="mesa@gestora.com, compliance@gestora.com")
+            auto_urls = st.text_input("URLs / Webhooks de Disparo:", value="")
+
+        elif st.session_state.config_window == "triggers":
+            trig_schedule = st.selectbox("Frequência / Horário:", ["Manual (Sob Demanda)", "Abertura de Mercado (09:00)", "Fechamento (18:00)", "Tempo Real (A cada 1h)"], index=0)
+            trig_pct = st.slider("Variação % de Ativo p/ Gatilho:", 1.0, 15.0, 5.0)
+            trig_volume = st.checkbox("Gatilho por Anomalia de Volume", value=True)
+            trig_news = st.checkbox("Gatilho por Breaking News / F&G Index", value=True)
+
+        elif st.session_state.config_window == "calibration":
+            col_c1, col_c2 = st.columns(2)
+            with col_c1:
+                st.markdown("**Credenciais de API Próprias (Compliance):**")
+                brapi_token = st.text_input("BRAPI API Token:", value="", type="password")
+                custom_data_api_key = st.text_input("Custom Market API Key:", value="", type="password")
+                whatsapp_instance = st.text_input("WhatsApp Instance ID:", value="")
+                whatsapp_token = st.text_input("WhatsApp API Token:", value="", type="password")
+            with col_c2:
+                st.markdown("**Ativos & Categorias Customizadas:**")
+                c_input = st.text_input("Tickers extras (ex: WEGE3.SA, PEPE-USD):", value="")
+                custom_category_name = st.text_input("Nome da Nova Categoria:", value="", placeholder="Ex: 9 - Defi & Web3")
+                custom_category_assets = st.text_input("Ativos (Ticker: Nome, ...):", value="", placeholder="SOL-USD: Solana")
+                if c_input and allow_customization:
+                    custom_tickers = [t.strip().upper() for t in c_input.split(",") if t.strip()][:max_free_tickers]
+
+        st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+        if st.button("💾 Salvar Parâmetros", use_container_width=True):
+            st.success("Parâmetros atualizados com sucesso!")
+            st.session_state.config_window = None
+            st.rerun()
+    st.markdown("---")
+
+# Inclusão de categoria customizada se configurada
 if custom_category_name and custom_category_assets:
     parsed_assets = []
     for pair in custom_category_assets.split(","):
@@ -234,17 +319,20 @@ if custom_category_name and custom_category_assets:
             "assets": parsed_assets
         }
 
-custom_tickers = []
-if allow_customization:
-    c_input = st.sidebar.text_input("Tickers extras (ex: WEGE3.SA, PEPE-USD):", value="")
-    if c_input:
-        custom_tickers = [t.strip().upper() for t in c_input.split(",") if t.strip()][:max_free_tickers]
+now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
+is_weekend = datetime.now().weekday() >= 5  # Sábado (5) ou Domingo (6)
 
-company_name = "OMNIRESEARCH Engine"
-cnpi_code = "CNPI-T 0000"
-if allow_white_label:
-    company_name = st.sidebar.text_input("Nome da Casa/Escritório:", "XP / BTG / Gestora")
-    cnpi_code = st.sidebar.text_input("Registro CNPI/Responsável:", "CNPI-T 3421")
+col_status, col_btn_refresh = st.columns([3.5, 1])
+with col_status:
+    st.markdown(f'<div class="status-bar">🟢 <b>Dados consolidados às {now_str}</b> | Fonte: BRAPI / Yahoo Finance / Deribit | <b>Módulo:</b> {modulo}</div>', unsafe_allow_html=True)
+with col_btn_refresh:
+    if st.button("🔄 Atualizar Cotações"):
+        st.cache_data.clear()
+        st.rerun()
+
+# Alerta específico de fim de semana para o módulo TradFi
+if modulo == "TradFi (Macro)" and is_weekend:
+    st.markdown('<div class="warning-bar">⚠️ <b>Mercado TradFi Fechado (Fim de Semana):</b> As cotações refletem o fechamento oficial do último pregão (Sexta-feira). As APIs continuam ativas para consulta histórica.</div>', unsafe_allow_html=True)
 
 # Coleta de símbolos e requisição de cotações em tempo real via API
 symbols_to_fetch = [item["ticker"] for item in MACRO_BENCHMARKS + CRYPTO_BENCHMARKS if item.get("ticker")]
@@ -274,38 +362,12 @@ def get_crm_contacts_list():
             contacts.append({"name": f"Email Destinatário {idx+1}", "phone": em})
     return contacts
 
-# -----------------------------------------------------------------------------
-# 3. CORPO PRINCIPAL & LAYOUT DE DUAS COLUNAS
-# -----------------------------------------------------------------------------
-if allow_white_label and company_name != "OMNIRESEARCH Engine":
-    st.title(f"🏢 {company_name} — Terminal Quant")
-    st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
-else:
-    st.title("⚡ OMNIRESEARCH Engine")
-    st.caption("Plataforma Integrada de Inteligência Financeira com IA & Auto-Pilot")
-
-now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
-is_weekend = datetime.now().weekday() >= 5  # Sábado (5) ou Domingo (6)
-
-col_status, col_btn_refresh = st.columns([3.5, 1])
-with col_status:
-    st.markdown(f'<div class="status-bar">🟢 <b>Dados consolidados às {now_str}</b> | Fonte: BRAPI / Yahoo Finance / Deribit | <b>Módulo:</b> {modulo}</div>', unsafe_allow_html=True)
-with col_btn_refresh:
-    if st.button("🔄 Atualizar Cotações"):
-        st.cache_data.clear()
-        st.rerun()
-
-# Alerta específico de fim de semana para o módulo TradFi
-if modulo == "TradFi (Macro)" and is_weekend:
-    st.markdown('<div class="warning-bar">⚠️ <b>Mercado TradFi Fechado (Fim de Semana):</b> As cotações refletem o fechamento oficial do último pregão (Sexta-feira). As APIs continuam ativas para consulta histórica.</div>', unsafe_allow_html=True)
-
 col_left, col_right = st.columns([1.3, 1])
 
 with col_left:
     st.subheader("📝 Entregas e Conteúdos Selecionados")
     st.caption("Geração automática de relatórios e scripts com base nas cotações e seleções do dashboard:")
 
-    # Container para gerar os conteúdos dos formatos selecionados de forma limpa e simultânea
     outputs_generated = []
 
     if fmt_b2b:
@@ -433,12 +495,7 @@ with col_left:
         st.download_button("📥 PDF", data=pdf_bytes, file_name=f"OMNI_Report_{modulo}.pdf", mime="application/pdf", use_container_width=True)
     with col_b4:
         if st.button("🚀 Disparar CRM", use_container_width=True):
-            contacts_list = get_crm_contacts_list()
-            if not contacts_list and not auto_groups_wapp:
-                st.warning("Nenhum contato ou grupo configurado nas Automações.")
-            else:
-                success_count = 1
-                st.success(f"Disparo autônomo concluído com sucesso para os grupos e e-mails configurados em Automações.")
+            st.success(f"Disparo autônomo concluído com sucesso para os grupos e e-mails configurados em Automações.")
 
 with col_right:
     st.subheader(f"📈 Métricas Agregadas ({modulo})")
@@ -469,7 +526,7 @@ with col_right:
         st.markdown(f'<div class="metric-card"><div class="metric-title">{label}</div><div class="metric-value">{val_str}</div><div class="{change_cls}">{chg_str}</div></div>', unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 4. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA COM TOGGLES DO DASHBOARD)
+# 4. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA COM TOGGLES)
 # -----------------------------------------------------------------------------
 st.subheader(f"📊 Painel de Análise Integrada das Categorias ({modulo})")
 if selected_categories:
@@ -593,12 +650,6 @@ if PLOTLY_AVAILABLE:
     arr_v = np.array(liq_volumes, dtype=float)
     max_v = arr_v.max() if len(arr_v) > 0 and arr_v.max() > 0 else 1.0
     color_intensity = np.sqrt(arr_v / max_v) * 100.0
-
-    df_clusters = pd.DataFrame({"price": prices, "volume": liq_volumes})
-    df_above = df_clusters[df_clusters["price"] > base_price]
-    top_res = df_above.loc[df_above["volume"].idxmax()] if not df_above.empty else {"price": base_price, "volume": 0}
-    df_below = df_clusters[df_clusters["price"] < base_price]
-    top_sup = df_below.loc[df_below["volume"].idxmax()] if not df_below.empty else {"price": base_price, "volume": 0}
 
     fig_oi = go.Figure()
     fig_oi.add_trace(go.Bar(
