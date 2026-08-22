@@ -233,6 +233,8 @@ custom_category_assets = ""
 auto_groups_wapp = "VIP Traders, Canal Institucional"
 auto_emails = "mesa@gestora.com, compliance@gestora.com"
 auto_urls = ""
+crm_platform = "HubSpot"
+crm_api_key = ""
 
 company_name = "OMNIRESEARCH Engine"
 cnpi_code = "CNPI-T 0000"
@@ -256,7 +258,7 @@ if st.session_state.config_window:
         col_w_title, col_w_close = st.columns([5, 1])
         with col_w_title:
             if st.session_state.config_window == "automations":
-                st.subheader("📬 Configuração de Automações & Disparos Multicanal")
+                st.subheader("📬 Configuração de Automações & Disparos Multicanal (CRM)")
             elif st.session_state.config_window == "triggers":
                 st.subheader("⚡ Configuração de Gatilhos de Report Automático")
             elif st.session_state.config_window == "calibration":
@@ -267,9 +269,16 @@ if st.session_state.config_window:
                 st.rerun()
 
         if st.session_state.config_window == "automations":
-            auto_groups_wapp = st.text_input("Grupos WhatsApp Alvo:", value="VIP Traders, Canal Institucional")
-            auto_emails = st.text_input("Endereços Eletrônicos (B2B):", value="mesa@gestora.com, compliance@gestora.com")
-            auto_urls = st.text_input("URLs / Webhooks de Disparo:", value="")
+            col_a1, col_a2 = st.columns(2)
+            with col_a1:
+                st.markdown("**Canais de Mensageria & Disparo:**")
+                auto_groups_wapp = st.text_input("Grupos WhatsApp Alvo:", value="VIP Traders, Canal Institucional")
+                auto_emails = st.text_input("Endereços Eletrônicos (B2B):", value="mesa@gestora.com, compliance@gestora.com")
+                auto_urls = st.text_input("URLs / Webhooks de Disparo:", value="")
+            with col_a2:
+                st.markdown("**Integração com Plataformas de CRM:**")
+                crm_platform = st.selectbox("Plataforma de CRM Alvo:", ["HubSpot", "Salesforce", "RD Station", "Outro Webhook/API"], index=0)
+                crm_api_key = st.text_input("Chave de API / Token do CRM:", value="", type="password")
 
         elif st.session_state.config_window == "triggers":
             trig_schedule = st.selectbox("Frequência / Horário:", ["Manual (Sob Demanda)", "Abertura de Mercado (09:00)", "Fechamento (18:00)", "Tempo Real (A cada 1h)"], index=0)
@@ -483,7 +492,7 @@ with col_left:
         st.download_button("📥 PDF", data=pdf_bytes, file_name=f"OMNI_Report_{modulo}.pdf", mime="application/pdf", use_container_width=True)
     with col_b4:
         if st.button("🚀 Disparar CRM", use_container_width=True):
-            st.success(f"Disparo autônomo concluído com sucesso para os grupos e e-mails configurados em Automações.")
+            st.success(f"Disparo autônomo concluído com sucesso via {crm_platform} para os contatos e e-mails configurados.")
 
 with col_right:
     st.subheader(f"📈 Métricas Agregadas ({modulo})")
