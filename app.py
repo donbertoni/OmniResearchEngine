@@ -171,7 +171,7 @@ st.markdown("""<style>
 st.sidebar.title("⚡ OMNI Terminal")
 
 # 1. Login / Senha / Manter-se conectado
-with st.sidebar.expander("🔐 Login do Analista", expanded=False):
+with st.sidebar.expander("🔒 Login do Analista", expanded=False):
     login_user = st.text_input("Usuário / E-mail:", value="analista@omni.com")
     login_pass = st.text_input("Senha:", value="••••••••", type="password")
     login_keep = st.checkbox("Manter-se conectado", value=True)
@@ -208,11 +208,11 @@ st.sidebar.markdown("### ⚙️ Configurações Avançadas")
 if "config_window" not in st.session_state:
     st.session_state.config_window = None
 
-if st.sidebar.button("🤖 Automações", use_container_width=True):
+if st.sidebar.button("🔧 Automações", use_container_width=True):
     st.session_state.config_window = "automations"
 if st.sidebar.button("🎯 Gatilhos de Report", use_container_width=True):
     st.session_state.config_window = "triggers"
-if st.sidebar.button("🎛️ Calibragem da Engine", use_container_width=True):
+if st.sidebar.button("🛠️ Calibragem da Engine", use_container_width=True):
     st.session_state.config_window = "calibration"
 
 allow_customization = "Free" not in tier_selected
@@ -245,7 +245,7 @@ if allow_white_label:
 # 3. CORPO PRINCIPAL & JANELAS ESPECÍFICAS DE CONFIGURAÇÃO
 # -----------------------------------------------------------------------------
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
-    st.title(f"🏢 {company_name} — Terminal Quant")
+    st.title(f"🏛️ {company_name} — Terminal Quant")
     st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
 else:
     st.title("⚡ OMNIRESEARCH Engine")
@@ -257,11 +257,11 @@ if st.session_state.config_window:
         col_w_title, col_w_close = st.columns([5, 1])
         with col_w_title:
             if st.session_state.config_window == "automations":
-                st.subheader("🤖 Configuração de Automações & Integradores de CRM")
+                st.subheader("🔧 Configuração de Automações & Integradores de CRM")
             elif st.session_state.config_window == "triggers":
-                st.subheader("🎯 Configuração de Gatilhos de Report Automático")
+                st.subheader("🎯 Configuração Avançada de Gatilhos de Report Automático")
             elif st.session_state.config_window == "calibration":
-                st.subheader("🎛️ Calibragem da Engine, APIs & Tickers Personalizados")
+                st.subheader("🛠️ Calibragem da Engine, APIs & Tickers Personalizados")
         with col_w_close:
             if st.button("❌ Fechar", use_container_width=True):
                 st.session_state.config_window = None
@@ -279,10 +279,87 @@ if st.session_state.config_window:
                 crm_api_key = st.text_input("Chave de API / Token do CRM:", value="", type="password")
 
         elif st.session_state.config_window == "triggers":
-            trig_schedule = st.selectbox("Frequência / Horário:", ["Manual (Sob Demanda)", "Abertura de Mercado (09:00)", "Fechamento (18:00)", "Tempo Real (A cada 1h)"], index=0)
-            trig_pct = st.slider("Variação % de Ativo p/ Gatilho:", 1.0, 15.0, 5.0)
-            trig_volume = st.checkbox("Gatilho por Anomalia de Volume", value=True)
-            trig_news = st.checkbox("Gatilho por Breaking News / F&G Index", value=True)
+            st.markdown(f"**Módulo Ativo:** `{modulo}`")
+            
+            # 1. Dias da semana
+            st.markdown("### 📅 1. Dias da Semana para Geração Automática")
+            selected_days = st.multiselect(
+                "Escolha quais dias da semana os gatilhos dispararão relatórios:",
+                options=["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"],
+                default=["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira"],
+                key="trig_days"
+            )
+            
+            st.markdown("---")
+            
+            # 2 & 3. Frequência e Horários Dinâmicos
+            st.markdown("### ⏰ 2 & 3. Frequência Diária e Horários dos Reports")
+            freq_reports = st.slider("Frequência (Nº de reports diários):", min_value=1, max_value=5, value=2, key="trig_freq")
+            
+            st.markdown(f"Defina os horários para cada um dos **{freq_reports}** reports diários:")
+            report_times = []
+            time_cols = st.columns(min(freq_reports, 5))
+            default_times_str = ["09:00", "12:00", "15:00", "18:00", "21:00"]
+            for i in range(freq_reports):
+                with time_cols[i % len(time_cols)]:
+                    def_t = datetime.strptime(default_times_str[i], "%H:%M").time() if i < len(default_times_str) else datetime.strptime("12:00", "%H:%M").time()
+                    t_val = st.time_input(f"Horário Report {i+1}", value=def_t, key=f"trig_time_{i+1}")
+                    report_times.append(t_val)
+            
+            st.markdown("---")
+            
+            # 4. Ativos (Máximo de 10 ativos por módulo)
+            st.markdown("### 🪙 4. Seleção de Ativos Monitorados (Máx. 10)")
+            all_module_assets = []
+            for cat_name, cat_info in active_categories.items():
+                for disp_name, ticker, currency in cat_info["assets"]:
+                    all_module_assets.append((f"{disp_name} ({ticker}) — [{cat_name}]", ticker))
+            
+            asset_labels = [item[0] for item in all_module_assets]
+            ticker_map = {item[0]: item[1] for item in all_module_assets}
+            
+            selected_trigger_assets = st.multiselect(
+                "Selecione os ativos que os gatilhos vão considerar (Máximo de 10):",
+                options=asset_labels,
+                max_selections=10,
+                default=asset_labels[:min(5, len(asset_labels))],
+                key="trig_assets"
+            )
+            
+            st.markdown("---")
+            
+            # 5 & 6. Variação percentual & Anomalia de volume para cada ativo selecionado
+            st.markdown("### 📈 5 & 6. Variação Percentual & Anomalia de Volume por Ativo")
+            if selected_trigger_assets:
+                for sel_label in selected_trigger_assets:
+                    ticker = ticker_map[sel_label]
+                    with st.expander(f"Parâmetros para: {sel_label}", expanded=False):
+                        col_v1, col_v2 = st.columns(2)
+                        with col_v1:
+                            st.number_input(f"Variação % p/ Gatilho ({ticker})", min_value=0.1, max_value=30.0, value=5.0, step=0.5, key=f"trig_var_{ticker}")
+                        with col_v2:
+                            st.checkbox(f"Ativar Anomalia de Volume ({ticker})", value=True, key=f"trig_vol_anom_{ticker}")
+            else:
+                st.info("Selecione pelo menos um ativo acima para configurar seus limiares de variação e volume.")
+            
+            st.markdown("---")
+            
+            # 7. F&G Index
+            st.markdown("### 🌡️ 7. Índice Fear & Greed (Sentimento)")
+            if modulo == "Crypto":
+                st.checkbox("Considerar Fear & Greed Index de Crypto (F&G BTC) nos gatilhos dos ativos digitais", value=True, key="trig_fng_crypto_opt")
+            else:
+                st.checkbox("Considerar Fear & Greed Index do S&P 500 (F&G SPX) nos gatilhos dos ativos TradFi", value=True, key="trig_fng_tradfi_opt")
+            
+            st.markdown("---")
+            
+            # 8. Breaking News (API de fontes confiáveis)
+            st.markdown("### 📰 8. Breaking News & Varredura de Price Action")
+            col_n1, col_n2 = st.columns(2)
+            with col_n1:
+                st.text_input("URL da API de Fontes Confiáveis (Notícias):", value="https://api.trustednews.com/v1/scan", key="trig_news_api_url")
+            with col_n2:
+                st.text_input("Chave de API das Fontes de Notícias:", value="", type="password", key="trig_news_api_key")
 
         elif st.session_state.config_window == "calibration":
             col_c1, col_c2 = st.columns(2)
@@ -302,7 +379,7 @@ if st.session_state.config_window:
 
         st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
         if st.button("💾 Salvar Parâmetros", use_container_width=True):
-            st.success("Parâmetros atualizados com sucesso!")
+            st.success("Parâmetros e gatilhos atualizados com sucesso!")
             st.session_state.config_window = None
             st.rerun()
     st.markdown("---")
@@ -327,7 +404,7 @@ is_weekend = datetime.now().weekday() >= 5  # Sábado (5) ou Domingo (6)
 
 col_status, col_btn_refresh = st.columns([3.5, 1])
 with col_status:
-    st.markdown(f'<div class="status-bar">🟢 <b>Dados consolidados às {now_str}</b> | Fonte: BRAPI / Yahoo Finance / Deribit | <b>Módulo:</b> {modulo}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="status-bar">🕒 <b>Dados consolidados às {now_str}</b> | Fonte: BRAPI / Yahoo Finance / Deribit | <b>Módulo:</b> {modulo}</div>', unsafe_allow_html=True)
 with col_btn_refresh:
     if st.button("🔄 Atualizar Cotações"):
         st.cache_data.clear()
@@ -360,7 +437,7 @@ selected_categories = list(active_display_categories.keys())
 col_left, col_right = st.columns([1.3, 1])
 
 with col_left:
-    st.subheader("📝 Entregas e Conteúdos Selecionados")
+    st.subheader("📋 Entregas e Conteúdos Selecionados")
     st.caption("Geração automática de relatórios e scripts com base nas cotações e seleções do dashboard:")
 
     outputs_generated = []
@@ -433,7 +510,7 @@ with col_left:
         wapp_lines = [
             f"=== MENSAGEM WHATSAPP (AUTO-PILOT) ===",
             f"Alerta OMNI - {now_str}",
-            "💬 Resumo executivo de mercado:"
+            "📊 Resumo executivo de mercado:"
         ]
         for cat_name in selected_categories:
             if cat_name in active_display_categories:
@@ -461,7 +538,7 @@ with col_left:
                 cat_info = active_display_categories[cat_name]
                 for disp_name, ticker, currency in cat_info["assets"][:1]:
                     q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
-                    tg_lines.append(f"🔹 {disp_name}: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
+                    tg_lines.append(f"🎯 {disp_name}: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
         outputs_generated.append(("B2C (Telegram)", "\n".join(tg_lines)))
 
     if not outputs_generated:
@@ -481,13 +558,13 @@ with col_left:
     st.markdown("**Opções de Exportação & Disparo Multicanal:**")
     col_b1, col_b2, col_b3, col_b4 = st.columns(4)
     with col_b1:
-        st.download_button("📄 TXT", data=primary_output_text, file_name=f"OMNI_Report_{modulo}.txt", mime="text/plain", use_container_width=True)
+        st.download_button("📥 TXT", data=primary_output_text, file_name=f"OMNI_Report_{modulo}.txt", mime="text/plain", use_container_width=True)
     with col_b2:
         json_data = json.dumps({"module": modulo, "timestamp": now_str, "content": primary_output_text}, indent=4, ensure_ascii=False)
         st.download_button("📊 JSON", data=json_data, file_name=f"OMNI_Report_{modulo}.json", mime="application/json", use_container_width=True)
     with col_b3:
         pdf_bytes = generate_pdf_report(primary_output_text, company_name, now_str)
-        st.download_button("📥 PDF", data=pdf_bytes, file_name=f"OMNI_Report_{modulo}.pdf", mime="application/pdf", use_container_width=True)
+        st.download_button("📄 PDF", data=pdf_bytes, file_name=f"OMNI_Report_{modulo}.pdf", mime="application/pdf", use_container_width=True)
     with col_b4:
         if st.button("🚀 Disparar CRM", use_container_width=True):
             st.success(f"Disparo autônomo concluído com sucesso via {crm_platform} para os contatos e e-mails configurados.")
@@ -523,7 +600,7 @@ with col_right:
 # -----------------------------------------------------------------------------
 # 4. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA COM TOGGLES)
 # -----------------------------------------------------------------------------
-st.subheader(f"🗂️ Painel de Análise Integrada das Categorias ({modulo})")
+st.subheader(f"📈 Painel de Análise Integrada das Categorias ({modulo})")
 if selected_categories:
     cols = st.columns(min(len(selected_categories), 4))
     for idx, cat_name in enumerate(selected_categories):
@@ -562,7 +639,7 @@ with col_sec_title:
     if modulo == "Crypto":
         st.subheader("🔥 Mapa de Alavancagem & Open Interest (Bitcoin / Derivativos)")
     else:
-        st.subheader("🗺️ Mapa Térmico de Volume Profile & Liquidez Institucional (S&P 500 Futures / TradFi)")
+        st.subheader("🔥 Mapa Térmico de Volume Profile & Liquidez Institucional (S&P 500 Futures / TradFi)")
 with col_sec_chk:
     st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
     st.checkbox("Incluir no Report", value=True, key="chk_include_heatmap")
@@ -686,7 +763,7 @@ if PLOTLY_AVAILABLE:
     )
     st.plotly_chart(fig_oi, use_container_width=True)
 
-    st.markdown(f"🔍 **Fonte Oficial da API Ativa:** `{data_source}`")
+    st.markdown(f"🔗 **Fonte Oficial da API Ativa:** `{data_source}`")
 else:
     st.warning("⚠️ O módulo Plotly não está disponível no momento.")
 
