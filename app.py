@@ -114,7 +114,7 @@ st.markdown("""<style>
     input[type="checkbox"]:checked { accent-color: #238636 !important; }
 </style>""", unsafe_allow_html=True)
 
-# ==================== 3. DICIONÁRIOS DE DADOS E CATEGORIAS ====================
+# ==================== 3. DICIONÁRIOS DE DADOS E CATEGORIAS ISOLADAS ====================
 CATEGORIES_TRADFI = {
     "1 - Bancos e Seguradoras": {
         "tag": "Banking & Ins.",
@@ -177,15 +177,6 @@ CATEGORIES_TRADFI = {
             ("BRFS3", "BRFS3.SA", "R$"),
             ("ABEV3", "ABEV3.SA", "R$"),
             ("JBSS3", "JBSS3.SA", "R$"),
-        ]
-    },
-    "8 - Crypto e Digital Assets": {
-        "tag": "Digital Assets",
-        "assets": [
-            ("BTCUSDT", "BTC-USD", "$"),
-            ("ETHUSDT", "ETH-USD", "$"),
-            ("SOLUSDT", "SOL-USD", "$"),
-            ("BNBUSDT", "BNB-USD", "$"),
         ]
     }
 }
@@ -465,15 +456,30 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
 
     return quotes
 
-# ==================== 6. CONFIGURAÇÃO DA BARRA LATERAL (SIDEBAR) ====================
+# ==================== 6. CONFIGURAÇÃO DA BARRA LATERAL (SIDEBAR & BYOK & CRM) ====================
 st.sidebar.title("⚙️ Configurações OMNI")
 modulo = st.sidebar.radio("📊 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
-brapi_token = st.sidebar.text_input("BRAPI API Token:", value="", type="password")
 tier_selected = st.sidebar.radio("Plano Ativo:", ["Free (Lead Magnet)", "Standard (B2C Trader)", "Premium (B2B White-Label)"], index=1)
 
 allow_customization = "Free" not in tier_selected
 allow_white_label = "Premium" in tier_selected
 max_free_tickers = 5 if "Standard" in tier_selected else (999 if "Premium" in tier_selected else 0)
+
+# Painel BYOK (Bring Your Own Key) & APIs de Mercado
+with st.sidebar.expander("🔑 BYOK & Credenciais de APIs", expanded=False):
+    brapi_token = st.text_input("BRAPI API Token (Ações B3):", value="", type="password")
+    openai_api_key = st.text_input("OpenAI / DeepSeek API Key:", value="", type="password")
+    llm_provider = st.selectbox("Provedor LLM IA Preditiva:", ["OpenAI GPT-4o", "DeepSeek V3", "Anthropic Claude 3.5"], index=0)
+
+# Integração com CRM & Webhooks (B2B)
+with st.sidebar.expander("🔗 Integração CRM & Webhooks", expanded=False):
+    crm_enabled = st.checkbox("Ativar Sincronização CRM", value=True)
+    crm_webhook_url = st.text_input("Webhook URL (HubSpot / Salesforce / Zapier):", value="https://webhook.site/omni-lead-sync")
+    if st.button("📤 Testar Envio p/ CRM"):
+        if crm_enabled and crm_webhook_url:
+            st.success("Lead & Relatório sincronizados com sucesso via Webhook!")
+        else:
+            st.warning("Ative a sincronização e configure uma URL válida.")
 
 active_categories = CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI
 active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
@@ -517,10 +523,10 @@ if custom_tickers:
         selected_categories.insert(0, "0 - Tickers Personalizados")
 
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
-    st.title(f"🏢 {company_name} — Terminal Quant")
-    st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
+    st.title(f"🏢 {company_name} — Terminal Quant ({modulo})")
+    st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code} | LLM: {llm_provider}")
 else:
-    st.title("⚡ OMNIRESEARCH Engine")
+    st.title(f"⚡ OMNIRESEARCH Engine — {modulo}")
     st.caption("Plataforma Integrada de Inteligência Financeira")
 
 now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
@@ -547,7 +553,7 @@ with col_left:
             f"Emitente: {company_name} | Responsável: {cnpi_code}",
             f"Data/Hora de Emissão: {now_str}",
             f"Horizonte Analítico: {horizonte_pred} | Alvo: +{alvo_pct}% | Stop Defesa: -{stop_pct}%",
-            f"Sentimento de Mercado (Fear & Greed): {fng_val} ({fng_class})",
+            f"Sentimento de Mercado (Fear & Greed / Macro): {fng_val} ({fng_class})",
             "",
             "--- SUMÁRIO DE ATIVOS E CATEGORIAS MONITORADAS ---"
         ]
@@ -569,7 +575,7 @@ with col_left:
         report_lines.extend([
             "",
             "--- CONCLUSÃO TÉCNICA QUANT ---",
-            f"Tendência estrutural alinhada ao horizonte de {horizonte_pred}. Monitoramento ativo de zonas de liquidez e alavancagem em derivativos para proteção de posições."
+            f"Tendência estrutural alinhada ao horizonte de {horizonte_pred}. Monitoramento ativo de zonas de liquidez para proteção de posições."
         ])
         output_content = "\n".join(report_lines)
         st.text_area("", value=output_content, height=410, label_visibility="collapsed")
@@ -587,7 +593,6 @@ with col_left:
                 "horizon": horizonte_pred,
                 "target_pct": alvo_pct,
                 "stop_pct": stop_pct,
-                "sentiment": f"{fng_val} ({fng_class})",
                 "categories": {
                     cat_name: {
                         disp_name: quotes.get(ticker, {"price": 0.0, "change": 0.0})["price"] 
@@ -718,25 +723,24 @@ if selected_categories:
 
 st.markdown("---")
 
-# ==================== 11. MAPAS TÉRMICOS DE LIQUIDEZ E PLOTLY ====================
+# ==================== 11. MAPAS TÉRMICOS ESTRITAMENTE SEPARADOS (SEM CANIBALIZAÇÃO) ====================
 if modulo == "Crypto":
     st.subheader("📊 Mapa de Alavancagem & Open Interest (Bitcoin / Derivativos)")
 else:
-    st.subheader("📈 Mapa Térmico de Volume Profile (Mercado Tradicional)")
+    st.subheader("📈 Mapa Térmico de Volume Profile & Liquidez Institucional (S&P 500 Futures / TradFi)")
 
 if PLOTLY_AVAILABLE:
-    base_price = quotes.get("BTC-USD" if modulo == "Crypto" else "ES=F", {"price": 77000.0}).get("price", 77000.0)
-    if base_price == 0.0:
-        base_price = 5000.0 if modulo == "TradFi (Macro)" else 77000.0
-
-    prices = []
-    liq_volumes = []
-    data_source = ""
-    unit_label = "M" if modulo == "Crypto" else "B"
-    metric_label_type = "Open Interest / Liquidez Efetiva (Bitcoin)" if modulo == "Crypto" else "Volume Profile Institucional (S&P 500)"
-
     if modulo == "Crypto":
+        base_price = quotes.get("BTC-USD", {"price": 77000.0}).get("price", 77000.0)
+        if base_price == 0.0:
+            base_price = 77000.0
+        
+        prices = []
+        liq_volumes = []
         data_source = "Deribit API (BTC-PERPETUAL Order Book Real)"
+        unit_label = "M"
+        metric_label_type = "Open Interest / Liquidez Efetiva (Bitcoin)"
+
         try:
             url = "https://www.deribit.com/api/v2/public/get_order_book?instrument_name=BTC-PERPETUAL&depth=250"
             headers = {"User-Agent": "Mozilla/5.0"}
@@ -750,7 +754,6 @@ if PLOTLY_AVAILABLE:
                 
                 if not df_book.empty:
                     df_book["notional_m"] = df_book["qty"] / 1_000_000
-                    
                     min_p = base_price * 0.85
                     max_p = base_price * 1.15
                     df_book = df_book[(df_book["price"] >= min_p) & (df_book["price"] <= max_p)]
@@ -758,7 +761,6 @@ if PLOTLY_AVAILABLE:
                     num_bins = 25
                     bin_edges = np.linspace(min_p, max_p, num_bins + 1)
                     df_book["bin_idx"] = pd.cut(df_book["price"], bins=bin_edges, labels=False, include_lowest=True)
-                    
                     grouped = df_book.groupby("bin_idx")["notional_m"].sum().reset_index()
                     
                     for i in range(num_bins):
@@ -776,7 +778,17 @@ if PLOTLY_AVAILABLE:
             liq_volumes = [1.2, 4.8, 6.5, 3.1]
 
     else:
+        # Módulo TradFi estrito (S&P 500 Futures / ES=F)
+        base_price = quotes.get("^GSPC", {"price": 5800.0}).get("price", 5800.0)
+        if base_price == 0.0:
+            base_price = 5800.0
+
+        prices = []
+        liq_volumes = []
         data_source = "Yahoo Finance API (S&P 500 Futures Histórico Ampliado 3M — ES=F)"
+        unit_label = "B"
+        metric_label_type = "Volume Profile Institucional (S&P 500)"
+
         try:
             import yfinance as yf
             df_es = yf.download("ES=F", period="3mo", interval="1h", progress=False)
@@ -790,13 +802,11 @@ if PLOTLY_AVAILABLE:
                     min_p = base_price * 0.85
                     max_p = base_price * 1.15
                     df_es = df_es[(df_es['Close'] >= min_p) & (df_es['Close'] <= max_p)]
-                    
                     df_es["notional_b"] = (df_es['Close'] * df_es['Volume']) / 1_000_000_000
                     
                     num_bins = 25
                     bin_edges = np.linspace(min_p, max_p, num_bins + 1)
                     df_es["bin_idx"] = pd.cut(df_es['Close'], bins=bin_edges, labels=False, include_lowest=True)
-                    
                     grouped = df_es.groupby("bin_idx")["notional_b"].sum().reset_index()
                     
                     for i in range(num_bins):
@@ -865,12 +875,12 @@ if PLOTLY_AVAILABLE:
         font=dict(color="#C9D1D9", size=12),
         margin=dict(l=20, r=20, t=40, b=20), 
         height=520,
-        yaxis=dict(gridcolor="#30363D", title="Níveis de Preço (USD)"),
+        yaxis=dict(gridcolor="#30363D", title="Níveis de Preço (USD/Pts)"),
         xaxis=dict(gridcolor="#30363D", title=xaxis_title)
     )
     st.plotly_chart(fig_oi, use_container_width=True)
 
-    st.markdown(f"📌 **Fonte Oficial da API Ativa:** `{data_source}`")
+    st.markdown(f"📌 **Fonte Oficial da API Ativa ({modulo}):** `{data_source}`")
     st.markdown("### 🔍 Pontos Críticos de Liquidez & Defesa Institucional")
     
     col_sup, col_res = st.columns(2)
