@@ -651,7 +651,7 @@ with col_right:
         st.markdown(f'<div class="metric-card"><div class="metric-title"><span>{label}</span> {src_badge}</div><div class="metric-value">{val_str}</div><div class="{change_cls}">{chg_str}</div></div>', unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 4. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA COM PADRÃO 2-LINHAS)
+# 4. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA COM ALINHAMENTO DE SELO & CHECKBOX)
 # -----------------------------------------------------------------------------
 st.subheader(f"📈 Painel de Análise Integrada das Categorias ({modulo})")
 if selected_categories:
@@ -677,23 +677,24 @@ if selected_categories:
                         color_cls = "color-green" if chg_val > 0 else ("color-red" if chg_val < 0 else "color-blue")
                         src_name = get_asset_source(ticker)
                         
-                        cA, cB = st.columns([3.4, 0.6])
-                        with cA:
+                        # Alinhamento exato entre Informações, Selo da API e Checkbox na mesma linha horizontal
+                        c_info, c_badge, c_box = st.columns([2.2, 0.8, 0.4], vertical_alignment="center")
+                        with c_info:
                             st.markdown(f'''
-                                <div style="font-size: 11px; margin-bottom: 8px; border-bottom: 1px solid #21262D; padding-bottom: 6px;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                                        <span style="color: #8B949E; font-weight: 600;">{disp_name}</span>
-                                        <span class="source-badge">{src_name}</span>
-                                    </div>
+                                <div style="font-size: 11px;">
+                                    <div style="color: #8B949E; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px;">{disp_name}</div>
                                     <div>
                                         <b style="color: #F0F6FC; font-size: 12px;">{currency} {fmt_num(q["price"])}</b> 
                                         <span class="{color_cls}" style="font-size: 11px;">({fmt_pct(q["change"])})</span>
                                     </div>
                                 </div>
                             ''', unsafe_allow_html=True)
-                        with cB:
-                            st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
+                        with c_badge:
+                            st.markdown(f'<span class="source-badge">{src_name}</span>', unsafe_allow_html=True)
+                        with c_box:
                             st.checkbox("", value=st.session_state.get(asset_key, True), key=asset_key, disabled=not cat_enabled, label_visibility="collapsed")
+                        
+                        st.markdown("<div style='border-bottom: 1px solid #21262D; margin-top: 6px; margin-bottom: 6px;'></div>", unsafe_allow_html=True)
 
 st.markdown("---")
 
