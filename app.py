@@ -189,7 +189,7 @@ st.markdown("""<style>
 </style>""", unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 2. SIDEBAR & ESTADOS PERSISTENTES DE CATEGORIAS
+# 2. SIDEBAR & ESTADOS PERSISTENTES DE CATEGORIAS E ATIVOS
 # -----------------------------------------------------------------------------
 st.sidebar.title("⚡ OMNI Terminal")
 
@@ -197,6 +197,27 @@ if "custom_active_categories_crypto" not in st.session_state:
     st.session_state.custom_active_categories_crypto = CATEGORIES_CRYPTO.copy()
 if "custom_active_categories_tradfi" not in st.session_state:
     st.session_state.custom_active_categories_tradfi = CATEGORIES_TRADFI.copy()
+
+# Inicialização dos Pools Globais de Ativos
+if "asset_pool_Crypto" not in st.session_state:
+    init_pool_c = []
+    seen_c = set()
+    for cat_info in CATEGORIES_CRYPTO.values():
+        for disp, tk, cur in cat_info["assets"]:
+            if tk not in seen_c:
+                init_pool_c.append((disp, tk, cur))
+                seen_c.add(tk)
+    st.session_state.asset_pool_Crypto = init_pool_c
+
+if "asset_pool_TradFi (Macro)" not in st.session_state:
+    init_pool_t = []
+    seen_t = set()
+    for cat_info in CATEGORIES_TRADFI.values():
+        for disp, tk, cur in cat_info["assets"]:
+            if tk not in seen_t:
+                init_pool_t.append((disp, tk, cur))
+                seen_t.add(tk)
+    st.session_state.asset_pool_TradFi = init_pool_t
 
 with st.sidebar.expander("🔑 Login do Analista", expanded=False):
     login_user = st.text_input("Usuário / E-mail:", value="analista@omni.com")
@@ -243,8 +264,12 @@ max_free_tickers = 5 if "Standard" in tier_selected else (999 if "Premium" in ti
 
 if modulo == "Crypto":
     active_categories = st.session_state.custom_active_categories_crypto
+    current_asset_pool = st.session_state.asset_pool_Crypto
+    pool_state_key = "asset_pool_Crypto"
 else:
     active_categories = st.session_state.custom_active_categories_tradfi
+    current_asset_pool = st.session_state.asset_pool_TradFi
+    pool_state_key = "asset_pool_TradFi"
 
 active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
 
@@ -283,7 +308,7 @@ if st.session_state.config_window:
             elif st.session_state.config_window == "triggers":
                 st.subheader("🔔 Configuração Avançada de Gatilhos de Report Automático")
             elif st.session_state.config_window == "calibration":
-                st.subheader("🎛️ Calibragem da Engine, APIs & Gerenciador de Categorias")
+                st.subheader("🎛️ Calibragem da Engine & Gerenciador de Ativos e Categorias")
         with col_w_close:
             if st.button("❌ Fechar", use_container_width=True):
                 st.session_state.config_window = None
@@ -328,7 +353,6 @@ if st.session_state.config_window:
                     all_module_assets.append((f"{disp_name} ({ticker}) — [{cat_name}]", ticker))
             
             asset_labels = [item[0] for item in all_module_assets]
-            ticker_map = {item[0]: item[1] for item in all_module_assets}
             selected_trigger_assets = st.multiselect(
                 "Selecione os ativos que os gatilhos vão considerar (Máximo de 10):",
                 options=asset_labels,
@@ -338,73 +362,121 @@ if st.session_state.config_window:
             )
 
         elif st.session_state.config_window == "calibration":
-            # Formulário para evitar recarregamento instantâneo a cada clique de checkbox
+            # Formulário unificado para evitar recarregamento indesejado (Anti-Lag)
             with st.form("calibration_form"):
+                st.markdown("### 🔑 1. Credenciais de API & Integrações")
                 col_c1, col_c2 = st.columns(2)
                 with col_c1:
-                    st.markdown("**Credenciais de API Próprias (Compliance):**")
                     brapi_token = st.text_input("BRAPI API Token:", value="", type="password")
                     custom_data_api_key = st.text_input("Custom Market API Key:", value="", type="password")
-                    whatsapp_instance = st.text_input("WhatsApp Instance ID:", value="")
-                    whatsapp_token = st.text_input("WhatsApp API Token:", value="")
                 with col_c2:
-                    st.markdown("**Ativos & Tickers Customizados:**")
-                    c_input = st.text_input("Tickers extras (ex: WEGE3.SA, PEPE-USD):", value="")
-                    if c_input and allow_customization:
-                        custom_tickers = [t.strip().upper() for t in c_input.split(",") if t.strip()][:max_free_tickers]
+                    whatsapp_instance = st.text_input("WhatsApp Instance ID:", value="")
+                    whatsapp_token = st.text_input("WhatsApp API Token:", value="", type="password")
 
                 st.markdown("---")
-                st.markdown("### ✏️ Gerenciador & Editor de Categorias Atuais")
-                cat_to_edit = st.selectbox("Selecione a Categoria para Gerenciar:", list(active_categories.keys()), key="calib_sel_cat")
+                st.markdown("### 📦 2. Adicionar, Remover e Editar Ativos")
+                st.caption("Gerencie o banco geral de ativos disponíveis no sistema para posterior alocação nas categorias.")
                 
-                if cat_to_edit:
-                    c_data = active_categories[cat_to_edit]
-                    new_cat_name = st.text_input("Renomear Categoria:", value=cat_to_edit, key="calib_rename_cat")
+                updated_pool = []
+                st.markdown("**Ativos Atualmente Cadastrados no Pool:**")
+                for idx_p, (disp_p, tk_p, cur_p) in enumerate(current_asset_pool):
+                    col_ap1, col_ap2 = st.columns([3, 1])
+                    with col_ap1:
+                        st.text(f"{disp_p} ({tk_p}) [{cur_p}]")
+                    with col_ap2:
+                        keep_p = st.checkbox("Manter", value=True, key=f"form_keep_pool_{modulo}_{tk_p}_{idx_p}")
+                        if keep_p:
+                            updated_pool.append((disp_p, tk_p, cur_p))
+                
+                st.markdown("#### ➕ Cadastrar Novo Ativo no Sistema")
+                col_na1, col_na2, col_na3 = st.columns(3)
+                with col_na1:
+                    new_asset_name_input = st.text_input("Nome Amigável:", value="", placeholder="Ex: Ethereum", key="form_new_asset_name")
+                with col_na2:
+                    new_asset_ticker_input = st.text_input("Ticker:", value="", placeholder="Ex: ETH-USD", key="form_new_asset_ticker")
+                with col_na3:
+                    new_asset_curr_input = st.selectbox("Moeda:", ["$", "R$"], key="form_new_asset_curr")
+
+                st.markdown("---")
+                st.markdown("### 📁 3. Adicionar, Remover e Editar Categorias")
+                st.caption("Organize seus ativos cadastrados dentro de categorias customizadas.")
+
+                cat_action_mode = st.selectbox("Ação de Categoria:", ["Gerenciar/Editar Existente", "Criar Nova Categoria"], key="form_cat_action_mode")
+                
+                if cat_action_mode == "Criar Nova Categoria":
+                    new_cat_name_input = st.text_input("Nome da Nova Categoria:", value="", placeholder="Ex: 9 - DeFi & Web3", key="form_new_cat_name")
+                    new_cat_tag_input = st.text_input("Tag da Categoria:", value="", placeholder="Ex: DeFi", key="form_new_cat_tag")
                     
-                    st.markdown(f"**Ativos Atuais em `{cat_to_edit}` (Total: {len(c_data['assets'])}):**")
-                    for idx_a, (disp_n, tk_n, cur_n) in enumerate(c_data["assets"]):
-                        col_ea1, col_ea2 = st.columns([3, 1])
-                        with col_ea1:
-                            st.text(f"{disp_n} ({tk_n}) [{cur_n}]")
-                        with col_ea2:
-                            st.checkbox("Manter", value=True, key=f"form_keep_asset_{cat_to_edit}_{tk_n}_{idx_a}")
-                    
-                    st.markdown("#### ➕ Adicionar Novo Ativo nesta Categoria")
-                    col_na1, col_na2 = st.columns(2)
-                    with col_na1:
-                        new_asset_name_input = st.text_input("Nome Amigável do Ativo:", value="", placeholder="Ex: Ethereum", key="form_new_asset_name")
-                    with col_na2:
-                        new_asset_ticker_input = st.text_input("Ticker do Ativo:", value="", placeholder="Ex: ETH-USD", key="form_new_asset_ticker")
+                    pool_options = [f"{d} ({t}) [{c}]" for d, t, c in updated_pool]
+                    selected_new_cat_labels = st.multiselect(
+                        "Selecione os ativos para esta nova categoria:",
+                        options=pool_options,
+                        key="form_new_cat_assets_sel"
+                    )
+                else:
+                    cat_to_edit = st.selectbox("Selecione a Categoria para Gerenciar:", list(active_categories.keys()), key="calib_sel_cat")
+                    if cat_to_edit:
+                        c_data = active_categories[cat_to_edit]
+                        renamed_cat = st.text_input("Renomear Categoria:", value=cat_to_edit, key="calib_rename_cat")
+                        
+                        current_cat_tickers = {t for _, t, _ in c_data["assets"]}
+                        pool_options = [f"{d} ({t}) [{c}]" for d, t, c in updated_pool]
+                        default_selected_pool = [f"{d} ({t}) [{c}]" for d, t, c in updated_pool if t in current_cat_tickers]
+                        
+                        selected_edit_cat_labels = st.multiselect(
+                            "Selecione os ativos pertencentes a esta categoria:",
+                            options=pool_options,
+                            default=default_selected_pool,
+                            key=f"form_edit_cat_assets_sel_{cat_to_edit}"
+                        )
+                        delete_cat_flag = st.checkbox("🗑️ Excluir esta Categoria inteira", value=False, key=f"form_delete_cat_{cat_to_edit}")
 
                 st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
                 submitted_calib = st.form_submit_button("💾 Salvar Parâmetros", use_container_width=True)
                 
                 if submitted_calib:
-                    if cat_to_edit:
-                        target_cat_name = st.session_state.get("calib_rename_cat", cat_to_edit)
-                        if target_cat_name and target_cat_name != cat_to_edit:
-                            active_categories[target_cat_name] = active_categories.pop(cat_to_edit)
-                            cat_to_edit = target_cat_name
-                        
-                        final_assets = []
-                        for idx_a, (disp_n, tk_n, cur_n) in enumerate(c_data["assets"]):
-                            if st.session_state.get(f"form_keep_asset_{cat_to_edit}_{tk_n}_{idx_a}", True):
-                                final_assets.append((disp_n, tk_n, cur_n))
-                        
-                        n_name = st.session_state.get("form_new_asset_name", "").strip()
-                        n_tk = st.session_state.get("form_new_asset_ticker", "").strip().upper()
-                        if n_name and n_tk:
-                            n_cur = "$" if "$" in n_tk or "-" in n_tk or not ".SA" in n_tk else "R$"
-                            final_assets.append((n_name, n_tk, n_cur))
-                        
-                        active_categories[cat_to_edit]["assets"] = final_assets
+                    # 1. Atualizar Pool de Ativos com novo cadastro (se houver)
+                    n_name = st.session_state.get("form_new_asset_name", "").strip()
+                    n_tk = st.session_state.get("form_new_asset_ticker", "").strip().upper()
+                    n_cur = st.session_state.get("form_new_asset_curr", "$")
+                    if n_name and n_tk:
+                        if not any(tk == n_tk for _, tk, _ in updated_pool):
+                            updated_pool.append((n_name, n_tk, n_cur))
+                    
+                    st.session_state[pool_state_key] = updated_pool
+                    label_to_tuple = {f"{d} ({t}) [{c}]": (d, t, c) for d, t, c in updated_pool}
 
-                        if modulo == "Crypto":
-                            st.session_state.custom_active_categories_crypto = active_categories
-                        else:
-                            st.session_state.custom_active_categories_tradfi = active_categories
+                    # 2. Atualizar Categorias
+                    if cat_action_mode == "Criar Nova Categoria":
+                        n_cat_n = st.session_state.get("form_new_cat_name", "").strip()
+                        n_cat_t = st.session_state.get("form_new_cat_tag", "").strip()
+                        chosen_labels = st.session_state.get("form_new_cat_assets_sel", [])
+                        chosen_tuples = [label_to_tuple[lbl] for lbl in chosen_labels if lbl in label_to_tuple]
+                        if n_cat_n:
+                            active_categories[n_cat_n] = {
+                                "tag": n_cat_t if n_cat_t else "General",
+                                "assets": chosen_tuples
+                            }
+                    else:
+                        if cat_to_edit:
+                            if st.session_state.get(f"form_delete_cat_{cat_to_edit}", False):
+                                active_categories.pop(cat_to_edit, None)
+                            else:
+                                target_cat_name = st.session_state.get("calib_rename_cat", cat_to_edit)
+                                if target_cat_name and target_cat_name != cat_to_edit:
+                                    active_categories[target_cat_name] = active_categories.pop(cat_to_edit)
+                                    cat_to_edit = target_cat_name
+                                
+                                chosen_labels = st.session_state.get(f"form_edit_cat_assets_sel_{cat_to_edit}", [])
+                                chosen_tuples = [label_to_tuple[lbl] for lbl in chosen_labels if lbl in label_to_tuple]
+                                active_categories[cat_to_edit]["assets"] = chosen_tuples
 
-                    st.toast("Parâmetros e categorias atualizados com sucesso!", icon="✅")
+                    if modulo == "Crypto":
+                        st.session_state.custom_active_categories_crypto = active_categories
+                    else:
+                        st.session_state.custom_active_categories_tradfi = active_categories
+
+                    st.toast("Parâmetros, ativos e categorias atualizados com sucesso!", icon="✅")
                     st.session_state.config_window = None
                     st.rerun()
     st.markdown("---")
@@ -721,4 +793,4 @@ else:
     st.warning("⚠️ O módulo Plotly não está disponível no momento.")
 
 st.markdown("---")
-st.caption("⚡©️ Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
+st.caption("©️ Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva.")
