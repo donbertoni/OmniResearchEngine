@@ -128,6 +128,15 @@ st.markdown("""<style>
         color: #94A3B8;
         font-size: 13px;
     }
+    .warning-bar {
+        background-color: #2D2211;
+        border: 1px solid #D29922;
+        padding: 10px 14px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        color: #F0F6FC;
+        font-size: 13px;
+    }
     .metric-card {
         background-color: #161B22;
         border: 1px solid #30363D;
@@ -181,21 +190,24 @@ max_free_tickers = 5 if "Standard" in tier_selected else (999 if "Premium" in ti
 active_categories = CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI
 active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
 
-# Seleção de Formato e Auto-Pilot (requisito 6)
-formato = st.sidebar.radio(
-    f"📊 Formato ({modulo}):",
-    [
-        "B2B (Relatório Analítico)",
-        "B2C (YouTube Auto-Pilot)",
-        "B2C (WhatsApp Auto-Pilot)",
-        "B2C (Telegram Auto-Pilot)"
-    ],
-    index=0
-)
+# Seleção de Formatos Independentes & Alavancas de Auto-Pilot por canal
+st.sidebar.markdown("### 📊 Formatos de Saída:")
+fmt_b2b = st.sidebar.checkbox("B2B (Relatório Analítico)", value=True)
 
-auto_pilot_enabled = False
-if "B2C" in formato:
-    auto_pilot_enabled = st.sidebar.checkbox("🤖 Ativar Modo Auto-Pilot", value=True)
+fmt_yt = st.sidebar.checkbox("B2C (YouTube)", value=False)
+ap_yt = False
+if fmt_yt:
+    ap_yt = st.sidebar.toggle("🤖 Auto-Pilot (YouTube)", value=True)
+
+fmt_wapp = st.sidebar.checkbox("B2C (WhatsApp)", value=False)
+ap_wapp = False
+if fmt_wapp:
+    ap_wapp = st.sidebar.toggle("🤖 Auto-Pilot (WhatsApp)", value=True)
+
+fmt_tg = st.sidebar.checkbox("B2C (Telegram)", value=False)
+ap_tg = False
+if fmt_tg:
+    ap_tg = st.sidebar.toggle("🤖 Auto-Pilot (Telegram)", value=True)
 
 custom_tickers = []
 if allow_customization:
@@ -209,7 +221,7 @@ if allow_white_label:
     company_name = st.sidebar.text_input("Nome da Casa/Escritório:", "XP / BTG / Gestora")
     cnpi_code = st.sidebar.text_input("Registro CNPI/Responsável:", "CNPI-T 3421")
 
-# Coleta de símbolos e requisição de cotações em tempo real via API (requisito 2 e 3)
+# Coleta de símbolos e requisição de cotações em tempo real via API
 symbols_to_fetch = [item["ticker"] for item in MACRO_BENCHMARKS + CRYPTO_BENCHMARKS if item.get("ticker")]
 for cat_info in active_categories.values():
     for _, ticker, _ in cat_info["assets"]:
@@ -229,7 +241,6 @@ if custom_tickers:
 
 selected_categories = list(active_display_categories.keys())
 
-# Função para buscar contatos do CRM ou lista manual
 def get_crm_contacts_list(api_url, fallback_ph):
     contacts = []
     if api_url:
@@ -262,30 +273,35 @@ else:
     st.caption("Plataforma Integrada de Inteligência Financeira com IA & Auto-Pilot")
 
 now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
+is_weekend = datetime.now().weekday() >= 5  # Sábado (5) ou Domingo (6)
+
 col_status, col_btn_refresh = st.columns([3.5, 1])
 with col_status:
-    st.markdown(f'<div class="status-bar">🟢 <b>Dados consolidados às {now_str}</b> | Fonte API: <span class="color-blue">BRAPI / Yahoo Finance / Deribit</span> | <b>Módulo:</b> {modulo}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="status-bar">🟢 <b>Dados consolidados às {now_str}</b> | Fonte: BRAPI / Yahoo Finance / Deribit | <b>Módulo:</b> {modulo}</div>', unsafe_allow_html=True)
 with col_btn_refresh:
     if st.button("🔄 Atualizar Cotações"):
         st.cache_data.clear()
         st.rerun()
 
+# Alerta específico de fim de semana para o módulo TradFi
+if modulo == "TradFi (Macro)" and is_weekend:
+    st.markdown('<div class="warning-bar">⚠️ <b>Mercado TradFi Fechado (Fim de Semana):</b> As cotações refletem o fechamento oficial do último pregão (Sexta-feira). As APIs continuam ativas para consulta histórica.</div>', unsafe_allow_html=True)
+
 col_left, col_right = st.columns([1.3, 1])
 
 with col_left:
-    st.subheader(f"📝 Entrega — {formato}")
-    if "B2C" in formato and auto_pilot_enabled:
-        st.caption("🤖 Modo Auto-Pilot ativado: Conteúdo gerado automaticamente para disparo multicanal.")
-    else:
-        st.caption("Relatório analítico gerado com cotações em tempo real via API:")
+    st.subheader("📝 Entregas e Conteúdos Selecionados")
+    st.caption("Geração automática de relatórios e scripts com base nas cotações e seleções do dashboard:")
 
-    # Geração dinâmica do relatório com base nos itens selecionados no dashboard
-    if "B2B" in formato:
+    # Container para gerar os conteúdos dos formatos selecionados de forma limpa e simultânea
+    outputs_generated = []
+
+    if fmt_b2b:
         report_lines = [
             f"=== RELATÓRIO INSTITUCIONAL {modulo.upper()} (B2B) ===",
             f"Emitente: {company_name} | Responsável: {cnpi_code}",
-            f"Data/Hora de Emissão: {now_str} (Accountability: API Real-Time)",
-            f"Sentimento de Mercado (Fear & Greed / Índice): {fng_val} ({fng_class})",
+            f"Data/Hora de Emissão: {now_str}",
+            f"Sentimento de Mercado: {fng_val} ({fng_class})",
             "",
             "--- SUMÁRIO DE ATIVOS E CATEGORIAS MONITORADAS ---"
         ]
@@ -301,14 +317,14 @@ with col_left:
                     if not st.session_state.get(asset_key, True):
                         continue
                     q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
-                    report_lines.append(f"  • {disp_name} ({ticker}): {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])}) [Fonte: API Real-Time]")
+                    report_lines.append(f"  • {disp_name} ({ticker}): {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
         
         include_heatmap = st.session_state.get("chk_include_heatmap", True)
         if include_heatmap:
             report_lines.extend([
                 "",
                 "--- ANÁLISE TÉCNICA DO MAPA TÉRMICO / LIQUIDEZ ---",
-                "Mapeamento de liquidez institucional validado por fluxo de derivativos e order book em tempo real."
+                "Mapeamento de liquidez institucional validado por fluxo de derivativos e order book."
             ])
 
         report_lines.extend([
@@ -316,16 +332,15 @@ with col_left:
             "--- CONCLUSÃO TÉCNICA QUANT ---",
             "Monitoramento ativo de zonas de liquidez para suporte a posições estruturais."
         ])
-        output_content = "\n".join(report_lines)
-    else:
-        # Formatos B2C (YouTube, WhatsApp, Telegram)
-        ch_name = "YouTube" if "YouTube" in formato else ("WhatsApp" if "WhatsApp" in formato else "Telegram")
-        script_lines = [
-            f"=== CONTEÚDO {ch_name.upper()} AUTO-PILOT ({modulo.upper()}) ===",
-            f"Data/Hora: {now_str} | Status Auto-Pilot: {'Ativo 🤖' if auto_pilot_enabled else 'Inativo'}",
+        outputs_generated.append(("B2B (Relatório Analítico)", "\n".join(report_lines)))
+
+    if fmt_yt:
+        yt_lines = [
+            f"=== SCRIPT YOUTUBE AUTO-PILOT ({'Ativo 🤖' if ap_yt else 'Inativo'}) ===",
+            f"Data/Hora: {now_str}",
             "",
-            f"[INTRODUÇÃO - 00:00]" if ch_name == "YouTube" else "[MENSAGEM DE ABERTURA]",
-            f"Fala, investidor! Panorama de {modulo} atualizado em tempo real às {now_str}.",
+            "[INTRODUÇÃO - 00:00]",
+            f"Fala, investidor! Panorama de {modulo} atualizado em tempo real.",
             "",
             "[DESTAQUES DE MERCADO]"
         ]
@@ -335,41 +350,74 @@ with col_left:
                 if not st.session_state.get(cat_key, True):
                     continue
                 cat_info = active_display_categories[cat_name]
-                script_lines.append(f"Destaques em {cat_name}:")
                 active_assets = [
                     (d, t, c) for d, t, c in cat_info["assets"] 
                     if st.session_state.get(f"chk_asset_{cat_name}_{t}", True)
                 ]
                 for disp_name, ticker, currency in active_assets[:2]:
                     q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
-                    script_lines.append(f" - {disp_name}: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])}) [API Real-Time]")
-        
-        include_heatmap = st.session_state.get("chk_include_heatmap", True)
-        if include_heatmap:
-            script_lines.extend([
-                "",
-                "[ALERTA TÉRMICO DE LIQUIDEZ]",
-                "As zonas de liquidez indicam fortes barreiras institucionais nos patamares atuais."
-            ])
+                    yt_lines.append(f" - {disp_name}: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
+        yt_lines.extend(["", "[CALL TO ACTION]", "Acesse o terminal OMNI para acompanhar em tempo real!"])
+        outputs_generated.append(("B2C (YouTube)", "\n".join(yt_lines)))
 
-        script_lines.extend([
-            "",
-            "[CALL TO ACTION]" if ch_name == "YouTube" else "[LINK DA PLATAFORMA]",
-            "Acesse o terminal OMNI e confira todos os dados em tempo real!"
-        ])
-        output_content = "\n".join(script_lines)
+    if fmt_wapp:
+        wapp_lines = [
+            f"=== MENSAGEM WHATSAPP AUTO-PILOT ({'Ativo 🤖' if ap_wapp else 'Inativo'}) ===",
+            f"Alerta OMNI - {now_str}",
+            "📊 Resumo rápido de mercado:"
+        ]
+        for cat_name in selected_categories:
+            if cat_name in active_display_categories:
+                cat_key = f"chk_cat_{cat_name}"
+                if not st.session_state.get(cat_key, True):
+                    continue
+                cat_info = active_display_categories[cat_name]
+                for disp_name, ticker, currency in cat_info["assets"][:1]:
+                    q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
+                    wapp_lines.append(f"• {disp_name}: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
+        wapp_lines.append("\nAcesse o terminal para o relatório completo.")
+        outputs_generated.append(("B2C (WhatsApp)", "\n".join(wapp_lines)))
 
-    st.text_area("", value=output_content, height=415, label_visibility="collapsed")
-    
+    if fmt_tg:
+        tg_lines = [
+            f"=== MENSAGEM TELEGRAM AUTO-PILOT ({'Ativo 🤖' if ap_tg else 'Inativo'}) ===",
+            f"🚀 Canal Oficial OMNI | {now_str}"
+        ]
+        for cat_name in selected_categories:
+            if cat_name in active_display_categories:
+                cat_key = f"chk_cat_{cat_name}"
+                if not st.session_state.get(cat_key, True):
+                    continue
+                cat_info = active_display_categories[cat_name]
+                for disp_name, ticker, currency in cat_info["assets"][:1]:
+                    q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
+                    tg_lines.append(f"▪️ {disp_name}: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
+        outputs_generated.append(("B2C (Telegram)", "\n".join(tg_lines)))
+
+    if not outputs_generated:
+        st.info("Nenhum formato de saída selecionado na barra lateral. Marque pelo menos uma opção.")
+        primary_output_text = "Nenhum conteúdo gerado."
+    else:
+        # Exibe cada formato selecionado em abas ou blocos limpos
+        if len(outputs_generated) == 1:
+            title_out, primary_output_text = outputs_generated[0]
+            st.text_area(title_out, value=primary_output_text, height=380)
+        else:
+            tabs = st.tabs([item[0] for item in outputs_generated])
+            for idx, (title_out, content_text) in enumerate(outputs_generated):
+                with tabs[idx]:
+                    st.text_area(f"Visualizar {title_out}", value=content_text, height=350, key=f"txt_area_{idx}")
+            primary_output_text = outputs_generated[0][1] # Para download principal
+
     st.markdown("**Opções de Exportação & Disparo Multicanal:**")
     col_b1, col_b2, col_b3, col_b4 = st.columns(4)
     with col_b1:
-        st.download_button("📥 TXT", data=output_content, file_name=f"OMNI_Report_{modulo}.txt", mime="text/plain", use_container_width=True)
+        st.download_button("📥 TXT", data=primary_output_text, file_name=f"OMNI_Report_{modulo}.txt", mime="text/plain", use_container_width=True)
     with col_b2:
-        json_data = json.dumps({"module": modulo, "timestamp": now_str, "content": output_content}, indent=4, ensure_ascii=False)
+        json_data = json.dumps({"module": modulo, "timestamp": now_str, "content": primary_output_text}, indent=4, ensure_ascii=False)
         st.download_button("📥 JSON", data=json_data, file_name=f"OMNI_Report_{modulo}.json", mime="application/json", use_container_width=True)
     with col_b3:
-        pdf_bytes = generate_pdf_report(output_content, company_name, now_str)
+        pdf_bytes = generate_pdf_report(primary_output_text, company_name, now_str)
         st.download_button("📥 PDF", data=pdf_bytes, file_name=f"OMNI_Report_{modulo}.pdf", mime="application/pdf", use_container_width=True)
     with col_b4:
         if st.button("🚀 Disparar CRM", use_container_width=True):
@@ -379,7 +427,7 @@ with col_left:
             else:
                 success_count = 0
                 for contact in contacts_list:
-                    ok, _ = send_whatsapp_report(contact["phone"], whatsapp_instance, whatsapp_token, output_content)
+                    ok, _ = send_whatsapp_report(contact["phone"], whatsapp_instance, whatsapp_token, primary_output_text)
                     if ok:
                         success_count += 1
                 st.success(f"Disparo concluído! Enviado para {success_count}/{len(contacts_list)} contatos.")
@@ -396,18 +444,18 @@ with col_right:
             val_str = fng_val
             cls_map = {"Greed": "color-green", "Neutral": "color-blue", "Fear": "color-red"}
             change_cls = cls_map.get(fng_class, "color-blue")
-            chg_str = f"Sentimento: {fng_class} [API]"
+            chg_str = f"Sentimento: {fng_class}"
         elif item.get("type") == "global_api":
             sub_k = item.get("sub_key")
             val_str = global_crypto_data["btc_d_val"] if sub_k == "btc_d" else global_crypto_data["usdt_d_val"]
             chg_val = global_crypto_data["btc_d_chg"] if sub_k == "btc_d" else global_crypto_data["usdt_d_chg"]
-            chg_str = f"{fmt_pct(chg_val)} hoje [API]"
+            chg_str = f"{fmt_pct(chg_val)}"
             change_cls = "color-green" if chg_val > 0 else ("color-red" if chg_val < 0 else "color-blue")
         elif item.get("ticker"):
             data = quotes.get(item["ticker"], {"price": 0.0, "change": 0.0})
             val_str = f"{item.get('prefix', '')}{fmt_num(data['price'])}"
             chg_val = data["change"]
-            chg_str = f"{fmt_pct(chg_val)} hoje [BRAPI / Yahoo]"
+            chg_str = f"{fmt_pct(chg_val)}"
             change_cls = "color-green" if chg_val > 0 else ("color-red" if chg_val < 0 else "color-blue")
 
         st.markdown(f'<div class="metric-card"><div class="metric-title">{label}</div><div class="metric-value">{val_str}</div><div class="{change_cls}">{chg_str}</div></div>', unsafe_allow_html=True)
@@ -584,7 +632,7 @@ if PLOTLY_AVAILABLE:
     )
     st.plotly_chart(fig_oi, use_container_width=True)
 
-    st.markdown(f"🟢 **Fonte Oficial da API Ativa (Accountability):** `{data_source}`")
+    st.markdown(f"🟢 **Fonte Oficial da API Ativa:** `{data_source}`")
 else:
     st.warning("⚠️ O módulo Plotly não está disponível no momento.")
 
