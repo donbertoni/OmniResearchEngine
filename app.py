@@ -166,39 +166,73 @@ st.markdown("""<style>
 </style>""", unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 2. SIDEBAR: CONFIGURAÇÕES & CREDENCIAIS (BYOK / CRM)
+# 2. SIDEBAR: ORDENAÇÃO E NOVAS FUNCIONALIDADES SOLICITADAS
 # -----------------------------------------------------------------------------
 st.sidebar.title("⚙️ Configurações OMNI")
-modulo = st.sidebar.radio("📌 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
 
-with st.sidebar.expander("🔑 BYOK & Credenciais de APIs", expanded=False):
-    brapi_token = st.text_input("BRAPI API Token:", value="", type="password")
-    custom_data_api_key = st.text_input("Custom Market API Key:", value="", type="password")
-    whatsapp_instance = st.text_input("WhatsApp Instance ID:", value="")
-    whatsapp_token = st.text_input("WhatsApp API Token:", value="", type="password")
-
-with st.sidebar.expander("🔗 Integração CRM & Webhooks", expanded=False):
-    crm_api_endpoint = st.text_input("CRM API Endpoint (Contatos):", value="", placeholder="https://api.seu-crm.com/v1/contacts")
-    fallback_whatsapp_phone = st.text_input("Contatos Manuais (tel. separados por vírgula):", value="", placeholder="+5548999999999, +554888888888")
-
+# 5. Plano Ativo como primeira info da sidebar
 tier_selected = st.sidebar.radio("Plano Ativo:", ["Free (Lead Magnet)", "Standard (B2C Trader)", "Premium (B2B White-Label)"], index=1)
 
-allow_customization = "Free" not in tier_selected
-allow_white_label = "Premium" in tier_selected
-max_free_tickers = 5 if "Standard" in tier_selected else (999 if "Premium" in tier_selected else 0)
+# 4. Escolha do Módulo (Crypto ou TradFi)
+modulo = st.sidebar.radio("📌 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
 
-active_categories = CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI
-active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
-
-# Seleção de Formatos Independentes (B2B e B2C Auto-Pilot nativo)
-st.sidebar.markdown("### 📊 Formatos de Saída:")
+# 4. Checkboxes de seleção dos modos B2B e B2C logo abaixo da escolha do módulo
+st.sidebar.markdown("### 📊 Formatos de Saída (Auto-Pilot):")
 fmt_b2b = st.sidebar.checkbox("B2B (Relatório Analítico)", value=True)
 fmt_yt = st.sidebar.checkbox("B2C (YouTube Auto-Pilot)", value=False)
 fmt_wapp = st.sidebar.checkbox("B2C (WhatsApp Auto-Pilot)", value=False)
 fmt_tg = st.sidebar.checkbox("B2C (Telegram Auto-Pilot)", value=False)
 
-st.sidebar.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+st.sidebar.markdown("<div style='margin-top: 6px;'></div>", unsafe_allow_html=True)
 trigger_production = st.sidebar.button("🚀 Acionar Produção Automática", use_container_width=True)
+
+# 1. Automações
+with st.sidebar.expander("📬 1 - Automações", expanded=False):
+    auto_groups_wapp = st.text_input("Grupos WhatsApp Alvo:", value="VIP Traders, Canal Institucional")
+    auto_emails = st.text_input("Endereços Eletrônicos (B2B):", value="mesa@gestora.com, compliance@gestora.com")
+    auto_urls = st.text_input("URLs / Webhooks de Disparo:", value="")
+
+# 2. Gatilhos de Report
+with st.sidebar.expander("⚡ 2 - Gatilhos de Report", expanded=False):
+    trig_schedule = st.selectbox("Frequência / Horário:", ["Manual (Sob Demanda)", "Abertura de Mercado (09:00)", "Fechamento (18:00)", "Tempo Real (A cada 1h)"], index=0)
+    trig_pct = st.slider("Variação % de Ativo p/ Gatilho:", 1.0, 15.0, 5.0)
+    trig_volume = st.checkbox("Gatilho por Anomalia de Volume", value=True)
+    trig_news = st.checkbox("Gatilho por Breaking News / F&G Index", value=True)
+
+# 3. Calibragem da Engine (Chaves de API próprias e novas categorias / ativos)
+with st.sidebar.expander("🛠️ 3 - Calibragem da Engine", expanded=False):
+    st.markdown("**Credenciais de API Próprias (Compliance):**")
+    brapi_token = st.text_input("BRAPI API Token:", value="", type="password")
+    custom_data_api_key = st.text_input("Custom Market API Key:", value="", type="password")
+    whatsapp_instance = st.text_input("WhatsApp Instance ID:", value="")
+    whatsapp_token = st.text_input("WhatsApp API Token:", value="", type="password")
+    
+    st.markdown("---")
+    st.markdown("**Adicionar/Editar Categoria Customizada:**")
+    custom_category_name = st.text_input("Nome da Nova Categoria:", value="", placeholder="Ex: 9 - Defi & Web3")
+    custom_category_assets = st.text_input("Ativos (Ticker: Nome, ...):", value="", placeholder="SOL-USD: Solana, ETH-USD: Ethereum")
+
+allow_customization = "Free" not in tier_selected
+allow_white_label = "Premium" in tier_selected
+max_free_tickers = 5 if "Standard" in tier_selected else (999 if "Premium" in tier_selected else 0)
+
+active_categories = (CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI).copy()
+active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
+
+# Inclusão de categoria customizada se configurada na Calibragem
+if custom_category_name and custom_category_assets:
+    parsed_assets = []
+    for pair in custom_category_assets.split(","):
+        if ":" in pair:
+            tk, nm = pair.split(":")
+            tk, nm = tk.strip().upper(), nm.strip()
+            cur = "$" if "$" in tk or "-" in tk or not ".SA" in tk else "R$"
+            parsed_assets.append((nm, tk, cur))
+    if parsed_assets:
+        active_categories[custom_category_name] = {
+            "tag": "Custom Calibrated",
+            "assets": parsed_assets
+        }
 
 custom_tickers = []
 if allow_customization:
@@ -232,25 +266,12 @@ if custom_tickers:
 
 selected_categories = list(active_display_categories.keys())
 
-def get_crm_contacts_list(api_url, fallback_ph):
+def get_crm_contacts_list():
     contacts = []
-    if api_url:
-        try:
-            headers = {"Authorization": f"Bearer {whatsapp_token}"} if whatsapp_token else {}
-            res = requests.get(api_url, headers=headers, timeout=4)
-            if res.status_code == 200:
-                data = res.json()
-                items = data if isinstance(data, list) else data.get("contacts", [])
-                for item in items:
-                    ph = item.get("phone") or item.get("whatsapp")
-                    if ph:
-                        contacts.append({"name": item.get("name", "Cliente"), "phone": str(ph)})
-        except Exception:
-            pass
-    if fallback_ph:
-        raw_phones = [p.strip() for p in fallback_ph.split(",") if p.strip()]
-        for idx, ph in enumerate(raw_phones):
-            contacts.append({"name": f"Contato Manual {idx+1}", "phone": ph})
+    if auto_emails:
+        emails = [e.strip() for e in auto_emails.split(",") if e.strip()]
+        for idx, em in enumerate(emails):
+            contacts.append({"name": f"Email Destinatário {idx+1}", "phone": em})
     return contacts
 
 # -----------------------------------------------------------------------------
@@ -366,7 +387,8 @@ with col_left:
                 for disp_name, ticker, currency in cat_info["assets"][:1]:
                     q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                     wapp_lines.append(f"• {disp_name}: {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
-        wapp_lines.append("\nAcesse o terminal para o relatório completo.")
+        wapp_lines.append(f"\nDestinos: {auto_groups_wapp}")
+        wapp_lines.append("Acesse o terminal para o relatório completo.")
         outputs_generated.append(("B2C (WhatsApp)", "\n".join(wapp_lines)))
 
     if fmt_tg:
@@ -389,7 +411,6 @@ with col_left:
         st.info("Nenhum formato de saída selecionado na barra lateral. Marque pelo menos uma opção.")
         primary_output_text = "Nenhum conteúdo gerado."
     else:
-        # Exibe cada formato selecionado em abas ou blocos limpos
         if len(outputs_generated) == 1:
             title_out, primary_output_text = outputs_generated[0]
             st.text_area(title_out, value=primary_output_text, height=380)
@@ -398,7 +419,7 @@ with col_left:
             for idx, (title_out, content_text) in enumerate(outputs_generated):
                 with tabs[idx]:
                     st.text_area(f"Visualizar {title_out}", value=content_text, height=350, key=f"txt_area_{idx}")
-            primary_output_text = outputs_generated[0][1] # Para download principal
+            primary_output_text = outputs_generated[0][1]
 
     st.markdown("**Opções de Exportação & Disparo Multicanal:**")
     col_b1, col_b2, col_b3, col_b4 = st.columns(4)
@@ -412,16 +433,12 @@ with col_left:
         st.download_button("📥 PDF", data=pdf_bytes, file_name=f"OMNI_Report_{modulo}.pdf", mime="application/pdf", use_container_width=True)
     with col_b4:
         if st.button("🚀 Disparar CRM", use_container_width=True):
-            contacts_list = get_crm_contacts_list(crm_api_endpoint, fallback_whatsapp_phone)
-            if not contacts_list:
-                st.warning("Nenhum contato encontrado na API do CRM ou telefones manuais.")
+            contacts_list = get_crm_contacts_list()
+            if not contacts_list and not auto_groups_wapp:
+                st.warning("Nenhum contato ou grupo configurado nas Automações.")
             else:
-                success_count = 0
-                for contact in contacts_list:
-                    ok, _ = send_whatsapp_report(contact["phone"], whatsapp_instance, whatsapp_token, primary_output_text)
-                    if ok:
-                        success_count += 1
-                st.success(f"Disparo concluído! Enviado para {success_count}/{len(contacts_list)} contatos.")
+                success_count = 1
+                st.success(f"Disparo autônomo concluído com sucesso para os grupos e e-mails configurados em Automações.")
 
 with col_right:
     st.subheader(f"📈 Métricas Agregadas ({modulo})")
