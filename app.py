@@ -190,24 +190,15 @@ max_free_tickers = 5 if "Standard" in tier_selected else (999 if "Premium" in ti
 active_categories = CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI
 active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
 
-# Seleção de Formatos Independentes & Alavancas de Auto-Pilot por canal
+# Seleção de Formatos Independentes (B2B e B2C Auto-Pilot nativo)
 st.sidebar.markdown("### 📊 Formatos de Saída:")
 fmt_b2b = st.sidebar.checkbox("B2B (Relatório Analítico)", value=True)
+fmt_yt = st.sidebar.checkbox("B2C (YouTube Auto-Pilot)", value=False)
+fmt_wapp = st.sidebar.checkbox("B2C (WhatsApp Auto-Pilot)", value=False)
+fmt_tg = st.sidebar.checkbox("B2C (Telegram Auto-Pilot)", value=False)
 
-fmt_yt = st.sidebar.checkbox("B2C (YouTube)", value=False)
-ap_yt = False
-if fmt_yt:
-    ap_yt = st.sidebar.toggle("🤖 Auto-Pilot (YouTube)", value=True)
-
-fmt_wapp = st.sidebar.checkbox("B2C (WhatsApp)", value=False)
-ap_wapp = False
-if fmt_wapp:
-    ap_wapp = st.sidebar.toggle("🤖 Auto-Pilot (WhatsApp)", value=True)
-
-fmt_tg = st.sidebar.checkbox("B2C (Telegram)", value=False)
-ap_tg = False
-if fmt_tg:
-    ap_tg = st.sidebar.toggle("🤖 Auto-Pilot (Telegram)", value=True)
+st.sidebar.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+trigger_production = st.sidebar.button("🚀 Acionar Produção Automática", use_container_width=True)
 
 custom_tickers = []
 if allow_customization:
@@ -336,11 +327,11 @@ with col_left:
 
     if fmt_yt:
         yt_lines = [
-            f"=== SCRIPT YOUTUBE AUTO-PILOT ({'Ativo 🤖' if ap_yt else 'Inativo'}) ===",
+            f"=== SCRIPT YOUTUBE (AUTO-PILOT) ===",
             f"Data/Hora: {now_str}",
             "",
             "[INTRODUÇÃO - 00:00]",
-            f"Fala, investidor! Panorama de {modulo} atualizado em tempo real.",
+            f"Fala, investidor! Panorama de {modulo} gerado automaticamente pelo Auto-Pilot OMNI.",
             "",
             "[DESTAQUES DE MERCADO]"
         ]
@@ -362,9 +353,9 @@ with col_left:
 
     if fmt_wapp:
         wapp_lines = [
-            f"=== MENSAGEM WHATSAPP AUTO-PILOT ({'Ativo 🤖' if ap_wapp else 'Inativo'}) ===",
+            f"=== MENSAGEM WHATSAPP (AUTO-PILOT) ===",
             f"Alerta OMNI - {now_str}",
-            "📊 Resumo rápido de mercado:"
+            "📊 Resumo executivo de mercado:"
         ]
         for cat_name in selected_categories:
             if cat_name in active_display_categories:
@@ -380,7 +371,7 @@ with col_left:
 
     if fmt_tg:
         tg_lines = [
-            f"=== MENSAGEM TELEGRAM AUTO-PILOT ({'Ativo 🤖' if ap_tg else 'Inativo'}) ===",
+            f"=== MENSAGEM TELEGRAM (AUTO-PILOT) ===",
             f"🚀 Canal Oficial OMNI | {now_str}"
         ]
         for cat_name in selected_categories:
