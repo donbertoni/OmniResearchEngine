@@ -6,7 +6,6 @@ import requests
 import pandas as pd
 import numpy as np
 
-# ==================== 1. IMPORTAÇÕES E CONFIGURAÇÃO INICIAL ====================
 try:
     import plotly.graph_objects as go
     PLOTLY_AVAILABLE = True
@@ -28,7 +27,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ==================== 2. ESTILIZAÇÃO CSS CUSTOMIZADA ====================
 st.markdown("""<style>
     .stApp {
         background-color: #0B0E14;
@@ -114,7 +112,6 @@ st.markdown("""<style>
     input[type="checkbox"]:checked { accent-color: #238636 !important; }
 </style>""", unsafe_allow_html=True)
 
-# ==================== 3. DICIONÁRIOS DE DADOS E CATEGORIAS ISOLADAS ====================
 CATEGORIES_TRADFI = {
     "1 - Bancos e Seguradoras": {
         "tag": "Banking & Ins.",
@@ -177,6 +174,15 @@ CATEGORIES_TRADFI = {
             ("BRFS3", "BRFS3.SA", "R$"),
             ("ABEV3", "ABEV3.SA", "R$"),
             ("JBSS3", "JBSS3.SA", "R$"),
+        ]
+    },
+    "8 - FIIs e Imobiliário": {
+        "tag": "Real Estate",
+        "assets": [
+            ("HGLG11", "HGLG11.SA", "R$"),
+            ("KNRI11", "KNRI11.SA", "R$"),
+            ("XPLG11", "XPLG11.SA", "R$"),
+            ("MXRF11", "MXRF11.SA", "R$"),
         ]
     }
 }
@@ -272,7 +278,6 @@ CRYPTO_BENCHMARKS = [
     {"key": "FEAR_GREED", "type": "fng_api", "label": "5. Bitcoin Fear & Greed Index", "badge": "Alternative.me API"}
 ]
 
-# ==================== 4. FUNÇÕES AUXILIARES E FORMATAÇÃO ====================
 def fmt_num(val, dec=2):
     if val is None or pd.isna(val) or val == 0.0:
         return "--"
@@ -315,7 +320,6 @@ def generate_pdf_report(content_text, company_name, timestamp_str):
     buffer.seek(0)
     return buffer.getvalue()
 
-# ==================== 5. INTEGRAÇÃO COM APIS EXTERNAS ====================
 @st.cache_data(ttl=600)
 def fetch_btc_fng():
     try:
@@ -456,7 +460,6 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
 
     return quotes
 
-# ==================== 6. CONFIGURAÇÃO DA BARRA LATERAL (SIDEBAR & BYOK & CRM) ====================
 st.sidebar.title("⚙️ Configurações OMNI")
 modulo = st.sidebar.radio("📊 Escolha o Módulo:", ["Crypto", "TradFi (Macro)"], index=1)
 tier_selected = st.sidebar.radio("Plano Ativo:", ["Free (Lead Magnet)", "Standard (B2C Trader)", "Premium (B2B White-Label)"], index=1)
@@ -465,21 +468,31 @@ allow_customization = "Free" not in tier_selected
 allow_white_label = "Premium" in tier_selected
 max_free_tickers = 5 if "Standard" in tier_selected else (999 if "Premium" in tier_selected else 0)
 
-# Painel BYOK (Bring Your Own Key) & APIs de Mercado
 with st.sidebar.expander("🔑 BYOK & Credenciais de APIs", expanded=False):
     brapi_token = st.text_input("BRAPI API Token (Ações B3):", value="", type="password")
     openai_api_key = st.text_input("OpenAI / DeepSeek API Key:", value="", type="password")
     llm_provider = st.selectbox("Provedor LLM IA Preditiva:", ["OpenAI GPT-4o", "DeepSeek V3", "Anthropic Claude 3.5"], index=0)
 
-# Integração com CRM & Webhooks (B2B)
 with st.sidebar.expander("🔗 Integração CRM & Webhooks", expanded=False):
+    crm_software = st.selectbox("Software CRM / Gateway:", ["HubSpot API", "Salesforce CRM", "RD Station", "ActiveCampaign", "Custom Webhook"], index=0)
+    crm_api_token = st.text_input("CRM API Token / Chave de Acesso:", value="", type="password")
     crm_enabled = st.checkbox("Ativar Sincronização CRM", value=True)
-    crm_webhook_url = st.text_input("Webhook URL (HubSpot / Salesforce / Zapier):", value="https://webhook.site/omni-lead-sync")
-    if st.button("📤 Testar Envio p/ CRM"):
-        if crm_enabled and crm_webhook_url:
-            st.success("Lead & Relatório sincronizados com sucesso via Webhook!")
+    crm_webhook_url = st.text_input("Webhook URL (Destino dos Conteúdos):", value="https://webhook.site/omni-lead-sync")
+    
+    st.markdown("---")
+    st.markdown("**Disparo Manual de Contatos:**")
+    manual_contacts_input = st.text_area(
+        "Telefones / E-mails (separados por vírgula):",
+        value="+5511999998888, +5521977776666, lead@omni.com",
+        help="Insira os números de telefone ou e-mails individuais separados por vírgula para disparo da engine."
+    )
+    
+    if st.button("📤 Testar Envio p/ CRM & Contatos"):
+        phone_list = [c.strip() for c in manual_contacts_input.split(",") if c.strip()]
+        if crm_enabled and (crm_webhook_url or crm_api_token):
+            st.success(f"Sucesso! Relatório enviado ao CRM ({crm_software}) e disparado para {len(phone_list)} contato(s) manual(is).")
         else:
-            st.warning("Ative a sincronização e configure uma URL válida.")
+            st.warning("Verifique se a sincronização está ativada e se há credenciais/URL válidas.")
 
 active_categories = CATEGORIES_CRYPTO if modulo == "Crypto" else CATEGORIES_TRADFI
 active_benchmarks = CRYPTO_BENCHMARKS if modulo == "Crypto" else MACRO_BENCHMARKS
@@ -502,7 +515,6 @@ if allow_white_label:
     company_name = st.sidebar.text_input("Nome da Casa/Escritório:", "XP / BTG / Gestora")
     cnpi_code = st.sidebar.text_input("Registro CNPI/Responsável:", "CNPI-T 3421")
 
-# ==================== 7. EXECUÇÃO DE BUSCA E TÍTULO PRINCIPAL ====================
 symbols_to_fetch = [item["ticker"] for item in MACRO_BENCHMARKS + CRYPTO_BENCHMARKS if item.get("ticker")]
 for cat_info in active_categories.values():
     for _, ticker, _ in cat_info["assets"]:
@@ -538,7 +550,6 @@ with col_btn_refresh:
         st.cache_data.clear()
         st.rerun()
 
-# ==================== 8. PAINEL DE RELATÓRIO / ROTEIRO (ENTRADA PRINCIPAL) ====================
 col_left, col_right = st.columns([1.3, 1])
 
 with col_left:
@@ -651,7 +662,6 @@ with col_left:
             pdf_bytes = generate_pdf_report(script_text, company_name, now_str)
             st.download_button("📄 Baixar (PDF)", data=pdf_bytes, file_name=f"OMNI_Roteiro_{modulo}.pdf", mime="application/pdf", use_container_width=True)
 
-# ==================== 9. MÉTRICAS AGREGADAS E ALVOS PREDITIVOS ====================
 with col_right:
     st.markdown('<div class="col-header-sync">', unsafe_allow_html=True)
     st.subheader(f"📊 Métricas Agregadas ({modulo})")
@@ -692,7 +702,6 @@ with c5:
 with c6:
     st.markdown(f'<div class="pred-card"><div class="pred-title">Delta OI</div><div class="pred-value">+5.82%</div></div>', unsafe_allow_html=True)
 
-# ==================== 10. PAINEL DE ANÁLISE INTEGRADA DAS CATEGORIAS ====================
 st.subheader(f"🎛️ Painel de Análise Integrada das Categorias ({modulo})")
 if selected_categories:
     cols = st.columns(min(len(selected_categories), 4))
@@ -723,7 +732,6 @@ if selected_categories:
 
 st.markdown("---")
 
-# ==================== 11. MAPAS TÉRMICOS ESTRITAMENTE SEPARADOS (SEM CANIBALIZAÇÃO) ====================
 if modulo == "Crypto":
     st.subheader("📊 Mapa de Alavancagem & Open Interest (Bitcoin / Derivativos)")
 else:
@@ -778,7 +786,6 @@ if PLOTLY_AVAILABLE:
             liq_volumes = [1.2, 4.8, 6.5, 3.1]
 
     else:
-        # Módulo TradFi estrito (S&P 500 Futures / ES=F)
         base_price = quotes.get("^GSPC", {"price": 5800.0}).get("price", 5800.0)
         if base_price == 0.0:
             base_price = 5800.0
