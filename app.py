@@ -353,13 +353,35 @@ if st.session_state.config_window:
             
             st.markdown("---")
             
-            # 8. Breaking News (API de fontes confiáveis)
-            st.markdown("**📰 8. Breaking News & Varredura de Price Action**")
-            col_n1, col_n2 = st.columns(2)
-            with col_n1:
-                st.text_input("URL da API de Fontes Confiáveis (Notícias):", value="https://api.trustednews.com/v1/scan", key="trig_news_api_url")
-            with col_n2:
-                st.text_input("Chave de API das Fontes de Notícias:", value="", type="password", key="trig_news_api_key")
+            # 8. Breaking News & Varredura (Dinâmico até 5 fontes)
+            st.markdown("**📰 8. Breaking News & Varredura de Price Action (Até 5 Fontes)**")
+            
+            if "num_news_sources" not in st.session_state:
+                st.session_state.num_news_sources = 1
+
+            col_btn_add, col_btn_rem, _ = st.columns([1.5, 1.5, 3])
+            with col_btn_add:
+                if st.session_state.num_news_sources < 5:
+                    if st.button("➕ Adicionar Fonte", use_container_width=True, key="btn_add_news"):
+                        st.session_state.num_news_sources += 1
+                        st.rerun()
+            with col_btn_rem:
+                if st.session_state.num_news_sources > 1:
+                    if st.button("➖ Remover Fonte", use_container_width=True, key="btn_rem_news"):
+                        st.session_state.num_news_sources -= 1
+                        st.rerun()
+
+            st.markdown("<div style='margin-top: 4px;'></div>", unsafe_allow_html=True)
+            for i in range(st.session_state.num_news_sources):
+                st.markdown(f"<span style='font-size: 12px; color: #58A6FF; font-weight: 600;'>🔗 Fonte de Notícia #{i+1}</span>", unsafe_allow_html=True)
+                col_n1, col_n2 = st.columns(2)
+                default_url = "https://api.trustednews.com/v1/scan" if i == 0 else ""
+                with col_n1:
+                    st.text_input(f"URL da API (Fonte {i+1}):", value=default_url, key=f"trig_news_api_url_{i}")
+                with col_n2:
+                    st.text_input(f"Chave de API (Fonte {i+1}):", value="", type="password", key=f"trig_news_api_key_{i}")
+                if i < st.session_state.num_news_sources - 1:
+                    st.markdown("<div style='margin-bottom: 4px; border-bottom: 1px dashed #30363D;'></div>", unsafe_allow_html=True)
 
         elif st.session_state.config_window == "calibration":
             col_c1, col_c2 = st.columns(2)
@@ -368,7 +390,7 @@ if st.session_state.config_window:
                 brapi_token = st.text_input("BRAPI API Token:", value="", type="password")
                 custom_data_api_key = st.text_input("Custom Market API Key:", value="", type="password")
                 whatsapp_instance = st.text_input("WhatsApp Instance ID:", value="")
-                whatsapp_token = st.text_input("WhatsApp API Token:", value="", type="password")
+                whatsapp_token = st.text_input("WhatsApp API Token:", value="")
             with col_c2:
                 st.markdown("**Ativos & Categorias Customizadas:**")
                 c_input = st.text_input("Tickers extras (ex: WEGE3.SA, PEPE-USD):", value="")
