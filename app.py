@@ -282,7 +282,7 @@ if st.session_state.config_window:
             st.markdown(f"**Módulo Ativo:** `{modulo}`")
             
             # 1. Dias da semana
-            st.markdown("### 📅 1. Dias da Semana para Geração Automática")
+            st.markdown("**📅 1. Dias da Semana para Geração Automática**")
             selected_days = st.multiselect(
                 "Escolha quais dias da semana os gatilhos dispararão relatórios:",
                 options=["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"],
@@ -293,7 +293,7 @@ if st.session_state.config_window:
             st.markdown("---")
             
             # 2 & 3. Frequência e Horários Dinâmicos
-            st.markdown("### ⏰ 2 & 3. Frequência Diária e Horários dos Reports")
+            st.markdown("**⏰ 2 & 3. Frequência Diária e Horários dos Reports**")
             freq_reports = st.slider("Frequência (Nº de reports diários):", min_value=1, max_value=5, value=2, key="trig_freq")
             
             st.markdown(f"Defina os horários para cada um dos **{freq_reports}** reports diários:")
@@ -309,7 +309,7 @@ if st.session_state.config_window:
             st.markdown("---")
             
             # 4. Ativos (Máximo de 10 ativos por módulo)
-            st.markdown("### 🪙 4. Seleção de Ativos Monitorados (Máx. 10)")
+            st.markdown("**🪙 4. Seleção de Ativos Monitorados (Máx. 10)**")
             all_module_assets = []
             for cat_name, cat_info in active_categories.items():
                 for disp_name, ticker, currency in cat_info["assets"]:
@@ -329,7 +329,7 @@ if st.session_state.config_window:
             st.markdown("---")
             
             # 5 & 6. Variação percentual & Anomalia de volume para cada ativo selecionado
-            st.markdown("### 📈 5 & 6. Variação Percentual & Anomalia de Volume por Ativo")
+            st.markdown("**📈 5 & 6. Variação Percentual & Anomalia de Volume por Ativo**")
             if selected_trigger_assets:
                 for sel_label in selected_trigger_assets:
                     ticker = ticker_map[sel_label]
@@ -345,7 +345,7 @@ if st.session_state.config_window:
             st.markdown("---")
             
             # 7. F&G Index
-            st.markdown("### 🌡️ 7. Índice Fear & Greed (Sentimento)")
+            st.markdown("**🌡️ 7. Índice Fear & Greed (Sentimento)**")
             if modulo == "Crypto":
                 st.checkbox("Considerar Fear & Greed Index de Crypto (F&G BTC) nos gatilhos dos ativos digitais", value=True, key="trig_fng_crypto_opt")
             else:
@@ -354,7 +354,7 @@ if st.session_state.config_window:
             st.markdown("---")
             
             # 8. Breaking News (API de fontes confiáveis)
-            st.markdown("### 📰 8. Breaking News & Varredura de Price Action")
+            st.markdown("**📰 8. Breaking News & Varredura de Price Action**")
             col_n1, col_n2 = st.columns(2)
             with col_n1:
                 st.text_input("URL da API de Fontes Confiáveis (Notícias):", value="https://api.trustednews.com/v1/scan", key="trig_news_api_url")
