@@ -106,7 +106,15 @@ CATEGORIES_TRADFI = {
 
 # Função auxiliar para determinar a API de origem de cada ativo
 def get_asset_source(ticker: str) -> str:
-    return "BRAPI" if ".SA" in ticker else "Yahoo Finance"
+    return "BRAPI" if ".SA" in ticker else "Yahoo"
+
+def get_benchmark_source(item) -> str:
+    if item.get("type") == "fng_api":
+        return "Alternative.me"
+    elif item.get("type") == "global_api":
+        return "CoinGecko"
+    else:
+        return "Yahoo"
 
 # -----------------------------------------------------------------------------
 # 1. CONFIGURAÇÃO DA PÁGINA & ESTILIZAÇÃO CSS INSTITUCIONAL
@@ -153,7 +161,7 @@ st.markdown("""<style>
         flex-direction: column;
         justify-content: space-between;
     }
-    .metric-title { font-size: 11px; color: #8B949E; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .metric-title { font-size: 11px; color: #8B949E; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; justify-content: space-between; }
     .metric-value { font-size: 15px; font-weight: 700; color: #F0F6FC; margin: 2px 0px; }
     .color-green { color: #3FB950 !important; font-weight: 600; }
     .color-red { color: #F85149 !important; font-weight: 600; }
@@ -167,6 +175,8 @@ st.markdown("""<style>
         border-radius: 4px;
         margin-left: 4px;
         vertical-align: middle;
+        white-space: nowrap;
+        display: inline-block;
     }
 
     div[data-testid="stVerticalBlockBorderWrapper"] {
@@ -430,7 +440,7 @@ now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT")
 is_weekend = datetime.now().weekday() >= 5
 
 # Fontes dinâmicas conforme o módulo ativo
-sources_str = "BRAPI / Yahoo Finance" if modulo == "TradFi (Macro)" else "BRAPI / Yahoo Finance / Deribit"
+sources_str = "BRAPI / Yahoo" if modulo == "TradFi (Macro)" else "BRAPI / Yahoo / Deribit"
 
 # Cálculo de countdown para o próximo report automático (Saúde da Engine)
 now_time = datetime.now()
@@ -620,6 +630,7 @@ with col_right:
     for item in active_benchmarks:
         label = item["label"]
         val_str, chg_str, change_cls = "0", "0%", "color-blue"
+        src_badge = f'<span class="source-badge">{get_benchmark_source(item)}</span>'
         
         if item.get("type") == "fng_api":
             val_str = fng_val
@@ -639,7 +650,7 @@ with col_right:
             chg_str = f"{fmt_pct(chg_val)}"
             change_cls = "color-green" if chg_val > 0 else ("color-red" if chg_val < 0 else "color-blue")
 
-        st.markdown(f'<div class="metric-card"><div class="metric-title">{label}</div><div class="metric-value">{val_str}</div><div class="{change_cls}">{chg_str}</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-card"><div class="metric-title"><span>{label}</span> {src_badge}</div><div class="metric-value">{val_str}</div><div class="{change_cls}">{chg_str}</div></div>', unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
 # 4. PAINEL DE ANÁLISE INTEGRADA (CARDS DE CATEGORIA COM TOGGLES E BADGE DE FONTE)
