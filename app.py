@@ -12,7 +12,7 @@ try:
 except ImportError:
     PLOTLY_AVAILABLE = False
 
-# Importação do Backend Modularizado (baseado em[cite: 2])
+# Importação do Backend Modularizado
 from backend import (
     MACRO_BENCHMARKS,
     CRYPTO_BENCHMARKS,
@@ -27,7 +27,7 @@ from backend import (
 )
 
 # -----------------------------------------------------------------------------
-# DICIONÁRIO DE TRADUÇÃO COMPLETO (LÓGICA BILÍNGUE PT / EN 100%)
+# DICIONÁRIO DE TRADUÇÃO COMPLETO (100% BILÍNGUE PT / EN)
 # -----------------------------------------------------------------------------
 TRANSLATIONS = {
     "PT": {
@@ -100,7 +100,35 @@ TRANSLATIONS = {
         "delete_cat_flag": "⚠️ Excluir esta Categoria inteira",
         "save_params": "💾 Salvar Parâmetros",
         "refresh_btn": "🔄 Refresh",
-        "weekend_msg": "⚠️ <b>Market Closed (Weekend):</b> Quotes reflect official closing prices from Friday session."
+        "weekend_msg": "⚠️ <b>Market Closed (Weekend):</b> Quotes reflect official closing prices from Friday session.",
+        # Novos textos dos Agentes e Heatmap
+        "agent_script_title": "📝 Agente Roteirista (Multi-Format Scriptwriter)",
+        "agent_script_desc": "Responsável por coletar inputs em tempo real (preços, indicadores macro/crypto, sentimento) e sintetizar roteiros direcionados para TXT, JSON, WhatsApp, Telegram e YouTube.",
+        "target_asset_script": "Ativo Alvo para Roteiro:",
+        "script_tone": "Tom do Roteiro:",
+        "generate_script": "Gerar Roteiro Autônomo",
+        "agent_pred_title": "📈 Agente Preditiva (Machine Learning Real-Time)",
+        "agent_pred_desc": "Monitora ativos restritos de alta liquidez (`BTC-USD`, `ES=F`), executando inferências estatísticas e registrando logs de acurácia contínua.",
+        "pred_asset_label": "Ativo sob Análise Preditiva:",
+        "win_rate_label": "Assertividade Histórica (Win Rate)",
+        "confidence_label": "Nível de Confiança da Inferência Atual",
+        "pred_logs_title": "📋 Logs de Performance Preditiva",
+        "run_ml_btn": "Executar Nova Inferência de ML",
+        "agent_ta_title": "📊 Agente de Análise Técnica Avançada",
+        "agent_ta_desc": "Recebe os dados da Agente Preditiva, processa tempos gráficos múltiplos (`4h`, `1D`, `1W`, `1M`), identifica formações clássicas e gera níveis operacionais.",
+        "ta_asset_label": "Ativo para Análise Técnica:",
+        "ta_tf_label": "Tempo Gráfico:",
+        "run_ta_btn": "Executar Varredura de Padrões (TA Agent)",
+        "agent_art_title": "🎨 IA Diretora de Arte (YouTube Auto-Pilot)",
+        "agent_art_desc": "Orquestra autonomamente a criação de vídeos institucionais, aplicando técnicas de zoom no dashboard, legendas automatizadas e síntese de voz (TTS) para publicação direta no YouTube via API.",
+        "visual_template": "Template Visual:",
+        "tts_voice": "Locução (TTS Engine):",
+        "yt_status": "Status de Publicação no YouTube:",
+        "yt_schedule": "Agendar Publicação após Fechamento de Mercado",
+        "render_video": "Renderizar e Disparar Vídeo Autônomo",
+        "heatmap_crypto": "🔥 Mapa de Alavancagem & Open Interest (Bitcoin / Derivativos)",
+        "heatmap_tradfi": "🔥 Mapa Térmico de Volume Profile & Liquidez Institucional (S&P 500 Futures / TradFi)",
+        "include_report": "Incluir no Report"
     },
     "EN": {
         "terminal_title": "OMNI Terminal",
@@ -172,7 +200,35 @@ TRANSLATIONS = {
         "delete_cat_flag": "⚠️ Delete this entire category",
         "save_params": "💾 Save Parameters",
         "refresh_btn": "🔄 Refresh",
-        "weekend_msg": "⚠️ <b>Market Closed (Weekend):</b> Quotes reflect official closing prices from Friday session."
+        "weekend_msg": "⚠️ <b>Market Closed (Weekend):</b> Quotes reflect official closing prices from Friday session.",
+        # Novos textos dos Agentes e Heatmap em Inglês
+        "agent_script_title": "📝 Scriptwriter Agent (Multi-Format Scriptwriter)",
+        "agent_script_desc": "Responsible for collecting real-time inputs (prices, macro/crypto indicators, sentiment) and synthesizing targeted scripts for TXT, JSON, WhatsApp, Telegram, and YouTube.",
+        "target_asset_script": "Target Asset for Script:",
+        "script_tone": "Script Tone:",
+        "generate_script": "Generate Autonomous Script",
+        "agent_pred_title": "📈 Predictive Agent (Real-Time Machine Learning)",
+        "agent_pred_desc": "Monitors high-liquidity restricted assets (`BTC-USD`, `ES=F`), executing statistical inferences and recording continuous accuracy logs.",
+        "pred_asset_label": "Asset Under Predictive Analysis:",
+        "win_rate_label": "Historical Win Rate",
+        "confidence_label": "Current Inference Confidence Level",
+        "pred_logs_title": "📋 Predictive Performance Logs",
+        "run_ml_btn": "Run New ML Inference",
+        "agent_ta_title": "📊 Advanced Technical Analysis Agent",
+        "agent_ta_desc": "Receives data from the Predictive Agent, processes multiple timeframes (`4h`, `1D`, `1W`, `1M`), identifies classic patterns, and generates operational levels.",
+        "ta_asset_label": "Asset for Technical Analysis:",
+        "ta_tf_label": "Timeframe:",
+        "run_ta_btn": "Run Pattern Scanner (TA Agent)",
+        "agent_art_title": "🎨 Art Director AI (YouTube Auto-Pilot)",
+        "agent_art_desc": "Autonomously orchestrates the creation of institutional videos, applying dashboard zoom techniques, automated subtitles, and voice synthesis (TTS) for direct publication to YouTube via API.",
+        "visual_template": "Visual Template:",
+        "tts_voice": "Voiceover (TTS Engine):",
+        "yt_status": "YouTube Publication Status:",
+        "yt_schedule": "Schedule Publication After Market Close",
+        "render_video": "Render & Dispatch Autonomous Video",
+        "heatmap_crypto": "🔥 Leverage & Open Interest Heatmap (Bitcoin / Derivatives)",
+        "heatmap_tradfi": "🔥 Volume Profile & Institutional Liquidity Heatmap (S&P 500 Futures / TradFi)",
+        "include_report": "Include in Report"
     }
 }
 
@@ -338,11 +394,10 @@ st.markdown("""<style>
 </style>""", unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# 2. SIDEBAR & ESTADOS PERSISTENTES DE CATEGORIAS E ATIVOS (COM SELETOR BILÍNGUE)
+# 2. SIDEBAR & ESTADOS PERSISTENTES DE CATEGORIAS E ATIVOS
 # -----------------------------------------------------------------------------
 st.sidebar.title("⚡ OMNI Terminal")
 
-# Seletor de Idioma Global
 lang_choice = st.sidebar.selectbox("🌐 Idioma / Language", ["Português (BR)", "English (US)"], index=0)
 LANG_KEY = "PT" if "Português" in lang_choice else "EN"
 tr = TRANSLATIONS[LANG_KEY]
@@ -352,7 +407,6 @@ if "custom_active_categories_crypto" not in st.session_state:
 if "custom_active_categories_tradfi" not in st.session_state:
     st.session_state.custom_active_categories_tradfi = CATEGORIES_TRADFI.copy()
 
-# Inicialização dos Pools Globais de Ativos[cite: 2]
 if "asset_pool_Crypto" not in st.session_state:
     init_pool_c = []
     seen_c = set()
@@ -444,7 +498,7 @@ if allow_white_label:
     cnpi_code = "CNPI-T 3421"
 
 # -----------------------------------------------------------------------------
-# 3. CORPO PRINCIPAL & JANELAS ESPECÍFICAS DE CONFIGURAÇÃO[cite: 2]
+# 3. CORPO PRINCIPAL & JANELAS ESPECÍFICAS DE CONFIGURAÇÃO
 # -----------------------------------------------------------------------------
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.title(f"🏛️ {company_name} — Terminal Quant")
@@ -632,7 +686,7 @@ if st.session_state.config_window:
                     else:
                         st.session_state.custom_active_categories_tradfi = active_categories
 
-                    st.toast("Parâmetros, ativos e categorias atualizados com sucesso!", icon="✅")
+                    st.toast("Parâmetros atualizados com sucesso!", icon="✅")
                     st.session_state.config_window = None
                     st.rerun()
     st.markdown("---")
@@ -836,7 +890,7 @@ if selected_categories:
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 5. NOVO MÓDULO: ARQUITETURA DE AGENTES ESPECIALIZADOS (IA & ML)
+# 5. ARQUITETURA DE AGENTES ESPECIALIZADOS (IA & ML) - TOTALMENTE BILÍNGUE
 # -----------------------------------------------------------------------------
 st.subheader(f"🤖 {tr['agents_title']}")
 st.caption(tr['agents_caption'])
@@ -849,13 +903,13 @@ agent_tab1, agent_tab2, agent_tab3, agent_tab4 = st.tabs([
 ])
 
 with agent_tab1:
-    st.markdown("### 📝 Agente Roteirista (Multi-Format Scriptwriter)")
-    st.markdown("Responsável por coletar inputs em tempo real (preços, indicadores macro/crypto, sentimento) e sintetizar roteiros direcionados para TXT, JSON, WhatsApp, Telegram e YouTube.")
+    st.markdown(f"### {tr['agent_script_title']}")
+    st.markdown(tr['agent_script_desc'])
     
-    target_asset_script = st.selectbox("Ativo Alvo para Roteiro:", ["BTC-USD", "ES=F", "ITUB4.SA", "PETR4.SA"], key="script_asset_sel")
-    script_tone = st.selectbox("Tom do Roteiro:", ["Institucional / B2B", "Trader Agressivo / HFT", "Educacional / Retail"], key="script_tone_sel")
+    target_asset_script = st.selectbox(tr['target_asset_script'], ["BTC-USD", "ES=F", "ITUB4.SA", "PETR4.SA"], key="script_asset_sel")
+    script_tone = st.selectbox(tr['script_tone'], ["Institucional / B2B", "Trader Agressivo / HFT", "Educacional / Retail"], key="script_tone_sel")
     
-    if st.button("Gerar Roteiro Autônomo", use_container_width=True):
+    if st.button(tr['generate_script'], use_container_width=True):
         sample_price = quotes.get(target_asset_script, {}).get("price", 50000.0)
         sample_chg = quotes.get(target_asset_script, {}).get("change", 1.5)
         
@@ -863,17 +917,17 @@ with agent_tab1:
 Asset: {target_asset_script} | Price: {sample_price} | Change: {sample_chg}%
 Tone: {script_tone}
 --------------------------------------------------
-[00:00 - Intro]: Olá investidores, OMNI Research trazendo o panorama de alta performance para {target_asset_script}.
-[00:30 - Core Analysis]: O ativo registra variação de {sample_chg}%, respaldado pelos fluxos institucionais recentes.
-[01:15 - Conclusion]: Mantenham os stops técnicos calibrados conforme os relatórios anteriores.
+[00:00 - Intro]: Welcome investors, OMNI Research delivering high-performance insights for {target_asset_script}.
+[00:30 - Core Analysis]: The asset registers a variation of {sample_chg}%, backed by recent institutional flows.
+[01:15 - Conclusion]: Keep your technical stops calibrated according to previous reports.
 """
-        st.text_area("Roteiro Sintetizado pela IA:", value=script_output, height=200)
+        st.text_area("Roteiro Sintetizado pela IA / Synthesized AI Script:", value=script_output, height=200)
 
 with agent_tab2:
-    st.markdown("### 📈 Agente Preditiva (Machine Learning Real-Time)")
-    st.markdown("Monitora ativos restritos de alta liquidez (`BTC-USD`, `ES=F`), executando inferências estatísticas e registrando logs de acurácia contínua.")
+    st.markdown(f"### {tr['agent_pred_title']}")
+    st.markdown(tr['agent_pred_desc'])
     
-    pred_asset = st.selectbox("Ativo sob Análise Preditiva:", ["BTC-USD", "ES=F"], key="pred_asset_sel")
+    pred_asset = st.selectbox(tr['pred_asset_label'], ["BTC-USD", "ES=F"], key="pred_asset_sel")
     
     if "ml_prediction_logs" not in st.session_state:
         st.session_state.ml_prediction_logs = [
@@ -883,16 +937,16 @@ with agent_tab2:
     
     col_p1, col_p2 = st.columns(2)
     with col_p1:
-        st.metric(label="Assertividade Histórica (Win Rate)", value="79.8%", delta="+3.2% vs Mês Anterior")
+        st.metric(label=tr['win_rate_label'], value="79.8%", delta="+3.2% vs Mês Anterior")
     with col_p2:
-        current_conf = "84.5% (Alta Confiança)" if pred_asset == "BTC-USD" else "76.2% (Moderada)"
-        st.metric(label="Nível de Confiança da Inferência Atual", value=current_conf)
+        current_conf = "84.5% (High Confidence)" if LANG_KEY == "EN" else "84.5% (Alta Confiança)"
+        st.metric(label=tr['confidence_label'], value=current_conf)
 
-    st.markdown("#### 📋 Logs de Performance Preditiva")
+    st.markdown(f"#### {tr['pred_logs_title']}")
     df_logs = pd.DataFrame(st.session_state.ml_prediction_logs)
     st.dataframe(df_logs, use_container_width=True)
     
-    if st.button("Executar Nova Inferência de ML", use_container_width=True):
+    if st.button(tr['run_ml_btn'], use_container_width=True):
         new_log = {
             "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M"),
             "asset": pred_asset,
@@ -901,42 +955,39 @@ with agent_tab2:
             "status": "Em Monitoramento 🔄"
         }
         st.session_state.ml_prediction_logs.insert(0, new_log)
-        st.toast("Nova predição registrada com sucesso na base de logs!", icon="📊")
+        st.toast("Nova predição registrada com sucesso!", icon="📊")
         st.rerun()
 
 with agent_tab3:
-    st.markdown("### 📊 Agente de Análise Técnica Avançada")
-    st.markdown("Recebe os dados da Agente Preditiva, processa tempos gráficos múltiplos (`4h`, `1D`, `1W`, `1M`), identifica formações clássicas e gera níveis operacionais.")
+    st.markdown(f"### {tr['agent_ta_title']}")
+    st.markdown(tr['agent_ta_desc'])
     
-    ta_asset = st.selectbox("Ativo para Análise Técnica:", ["BTC-USD", "ES=F"], key="ta_asset_sel")
-    ta_timeframe = st.selectbox("Tempo Gráfico:", ["4h", "1D", "1W", "1M"], index=1, key="ta_tf_sel")
+    ta_asset = st.selectbox(tr['ta_asset_label'], ["BTC-USD", "ES=F"], key="ta_asset_sel")
+    ta_timeframe = st.selectbox(tr['ta_tf_label'], ["4h", "1D", "1W", "1M"], index=1, key="ta_tf_sel")
     
-    if st.button("Executar Varredura de Padrões (TA Agent)", use_container_width=True):
-        st.success(f"Análise concluída para **{ta_asset}** no tempo gráfico **{ta_timeframe}**:")
+    if st.button(tr['run_ta_btn'], use_container_width=True):
+        st.success(f"Análise concluída para **{ta_asset}** ({ta_timeframe}):")
         st.markdown(f"""
-        > **Padrão Identificado:** Potencial *Cup and Handle* (Alça de Xícara) em formação no gráfico de **{ta_timeframe}**.
-        > * **Rompimento Confirmado acima de:** `$78,500.00` (Crypto) / `5,950.00 pts` (TradFi)
-        > * **Alvos Sugeridos (Targets):** 
-        >   * Alvo 1: `$82,000.00`
-        >   * Alvo 2: `$86,500.00`
-        >   * Alvo 3: `$92,000.00`
-        > * **Stop Loss Sugerido:** `$74,800.00` (Proteção estrutural abaixo da borda da xícara).
+        > **Padrão Identificado / Pattern Identified:** Potencial *Cup and Handle* em formação no gráfico de **{ta_timeframe}**.
+        > * **Rompimento / Breakout Level:** `$78,500.00` (Crypto) / `5,950.00 pts` (TradFi)
+        > * **Targets / Alvos:** `$82,000.00` | `$86,500.00` | `$92,000.00`
+        > * **Stop Loss:** `$74,800.00`
         """)
 
 with agent_tab4:
-    st.markdown("### 🎨 IA Diretora de Arte (YouTube Auto-Pilot)")
-    st.markdown("Orquestra autonomamente a criação de vídeos institucionais, aplicando técnicas de zoom no dashboard, legendas automatizadas e síntese de voz (TTS) para publicação direta no YouTube via API.")
+    st.markdown(f"### {tr['agent_art_title']}")
+    st.markdown(tr['agent_art_desc'])
     
     col_v1, col_v2 = st.columns(2)
     with col_v1:
-        yt_template = st.selectbox("Template Visual:", ["Dashboard Quant Dark Theme", "Zoom em Indicadores Macro", "Full Screen Ticker Motion"], index=0)
-        yt_voice = st.selectbox("Locução (TTS Engine):", ["Voz Corporativa PT-BR (Natural)", "Voz Trader EN-US (Dynamic)", "Sem Narração (Apenas Legendas)"], index=0)
+        yt_template = st.selectbox(tr['visual_template'], ["Dashboard Quant Dark Theme", "Zoom em Indicadores Macro", "Full Screen Ticker Motion"], index=0)
+        yt_voice = st.selectbox(tr['tts_voice'], ["Voz Corporativa PT-BR (Natural)", "Voz Trader EN-US (Dynamic)", "Sem Narração (Apenas Legendas)"], index=0)
     with col_v2:
-        yt_visibility = st.selectbox("Status de Publicação no YouTube:", ["Privado (Revisão Humana)", "Não Listado", "Público (Automático via API)"], index=0)
-        yt_auto_schedule = st.checkbox("Agendar Publicação após Fechamento de Mercado", value=True)
+        yt_visibility = st.selectbox(tr['yt_status'], ["Privado (Revisão Humana)", "Não Listado", "Público (Automático via API)"], index=0)
+        yt_auto_schedule = st.checkbox(tr['yt_schedule'], value=True)
 
-    if st.button("Renderizar e Disparar Vídeo Autônomo", use_container_width=True):
-        st.toast("Vídeo renderizado e enviado para fila da API do YouTube com sucesso!", icon="🎬")
+    if st.button(tr['render_video'], use_container_width=True):
+        st.toast("Vídeo renderizado e enviado para fila da API do YouTube!", icon="🎬")
         st.success("Status: Pipeline de Vídeo 100% concluído e integrado ao Auto-Pilot.")
 
 st.markdown("---")
@@ -947,12 +998,12 @@ st.markdown("---")
 col_sec_title, col_sec_chk = st.columns([4, 1])
 with col_sec_title:
     if modulo == "Crypto":
-        st.subheader("🔥 Mapa de Alavancagem & Open Interest (Bitcoin / Derivativos)")
+        st.subheader(tr['heatmap_crypto'])
     else:
-        st.subheader("🔥 Mapa Térmico de Volume Profile & Liquidez Institucional (S&P 500 Futures / TradFi)")
+        st.subheader(tr['heatmap_tradfi'])
 with col_sec_chk:
     st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
-    st.checkbox("Incluir no Report", value=True, key="chk_include_heatmap")
+    st.checkbox(tr['include_report'], value=True, key="chk_include_heatmap")
 
 if PLOTLY_AVAILABLE:
     base_price = quotes.get("BTC-USD" if modulo == "Crypto" else "ES=F", {"price": 77000.0}).get("price", 77000.0)
@@ -1036,25 +1087,25 @@ if PLOTLY_AVAILABLE:
         y=prices,
         x=liq_volumes,
         orientation='h',
-        marker=dict(color=color_intensity, colorscale='Jet', showscale=True, colorbar=dict(title="Intensidade Térmica", len=0.8, thickness=12, tickfont=dict(color="#C9D1D9"))),
+        marker=dict(color=color_intensity, colorscale='Jet', showscale=True, colorbar=dict(title="Intensidade", len=0.8, thickness=12, tickfont=dict(color="#C9D1D9"))),
         hoverinfo='text',
         text=[f"Preço: {fmt_num(p)} | Volume: ${v:.2f}{unit_label}" for p, v in zip(prices, liq_volumes)],
         name="Clusters de Liquidez"
     ))
 
-    fig_oi.add_hline(y=base_price, line_dash="dash", line_color="#58A6FF", annotation_text=f"Spot Atual: {fmt_num(base_price)}", annotation_position="bottom right", annotation_font_color="#58A6FF")
+    fig_oi.add_hline(y=base_price, line_dash="dash", line_color="#58A6FF", annotation_text=f"Spot: {fmt_num(base_price)}", annotation_position="bottom right", annotation_font_color="#58A6FF")
 
     fig_oi.update_layout(
-        title="Mapa Térmico de Liquidez Institucional" if modulo != "Crypto" else "Mapa de Alavancagem & Open Interest (Bitcoin)",
+        title="Institutional Liquidity Heatmap" if LANG_KEY == "EN" else "Mapa Térmico de Liquidez Institucional",
         paper_bgcolor="#0B0E14", plot_bgcolor="#161B22", font=dict(color="#C9D1D9", size=12),
         margin=dict(l=20, r=20, t=40, b=20), height=520,
-        yaxis=dict(gridcolor="#30363D", title="Níveis de Preço (USD)"),
-        xaxis=dict(gridcolor="#30363D", title="Volume Notional Acumulado")
+        yaxis=dict(gridcolor="#30363D", title="Price Levels (USD)" if LANG_KEY == "EN" else "Níveis de Preço (USD)"),
+        xaxis=dict(gridcolor="#30363D", title="Accumulated Notional Volume" if LANG_KEY == "EN" else "Volume Notional Acumulado")
     )
     st.plotly_chart(fig_oi, use_container_width=True)
-    st.markdown(f"🔗 **Fonte Oficial da API Ativa:** `{data_source}`")
+    st.markdown(f"🔗 **API Source:** `{data_source}`")
 else:
-    st.warning("⚠️ O módulo Plotly não está disponível no momento.")
+    st.warning("⚠️ Plotly module unavailable.")
 
 st.markdown("---")
-st.caption("©️ Powered by OMNIRESEARCH Engine — Plataforma de Inteligência Financeira Preditiva & Agentes Autônomos.")
+st.caption("©️ Powered by OMNIRESEARCH Engine — Predictive Financial Intelligence & Autonomous Agents.")
