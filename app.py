@@ -47,7 +47,7 @@ TRANSLATIONS = {
         "triggers": "Gatilhos de Report",
         "calibration": "Calibragem da Engine",
         "deliveries": "Entregas e Conteúdos Selecionados",
-        "deliveries_caption": "Geração automática de relatórios e scripts com base nas cotações e seleções do dashboard:",
+        "deliveries_caption": "Geração automática de relatórios estruturados por blocos de categorias e cotações em tempo real:",
         "aggregated_metrics": "Métricas Agregadas",
         "integrated_panel": "Painel de Análise Integrada das Categorias",
         "heatmap_crypto": "Mapa de Alavancagem & Open Interest (Bitcoin / Derivativos)",
@@ -75,7 +75,7 @@ TRANSLATIONS = {
         "triggers": "Report Triggers",
         "calibration": "Engine Calibration",
         "deliveries": "Selected Deliveries & Content",
-        "deliveries_caption": "Automatic generation of reports and scripts based on dashboard quotes and selections:",
+        "deliveries_caption": "Automatic generation of reports structured by category blocks and real-time quotes:",
         "aggregated_metrics": "Aggregated Metrics",
         "integrated_panel": "Integrated Category Analysis Panel",
         "heatmap_crypto": "Leverage & Open Interest Map (Bitcoin / Derivatives)",
@@ -203,15 +203,6 @@ st.markdown("""<style>
         display: flex;
         align-items: center;
     }
-    .warning-bar {
-        background-color: #2D2211;
-        border: 1px solid #D29922;
-        padding: 10px 14px;
-        border-radius: 8px;
-        margin-bottom: 10px;
-        color: #F0F6FC;
-        font-size: 13px;
-    }
     .metric-card {
         background-color: #161B22;
         border: 1px solid #30363D;
@@ -254,7 +245,6 @@ st.markdown("""<style>
 # -----------------------------------------------------------------------------
 st.sidebar.title("⚡ OMNI Terminal")
 
-# Seletor de Idioma
 lang_choice = st.sidebar.selectbox("🌐 Language / Idioma:", ["PT", "EN"], index=0)
 lang = TRANSLATIONS[lang_choice]
 
@@ -263,7 +253,6 @@ if "custom_active_categories_crypto" not in st.session_state:
 if "custom_active_categories_tradfi" not in st.session_state:
     st.session_state.custom_active_categories_tradfi = CATEGORIES_TRADFI.copy()
 
-# Inicialização dos Pools Globais de Ativos
 if "asset_pool_Crypto" not in st.session_state:
     init_pool_c = []
     seen_c = set()
@@ -284,7 +273,6 @@ if "asset_pool_TradFi (Macro)" not in st.session_state:
                 seen_t.add(tk)
     st.session_state.asset_pool_TradFi = init_pool_t
 
-# Inicialização de Logs da Agente Preditiva
 if "prediction_logs" not in st.session_state:
     st.session_state.prediction_logs = [
         {"timestamp": "24/08/2026 12:00", "asset": "BTC-USD", "direction": "BULLISH", "confidence": 78.4, "status": "HIT"},
@@ -454,20 +442,22 @@ with col_left:
     outputs_generated = []
 
     if fmt_b2b:
+        # Relatório estruturado rigorosamente em blocos por categorias
         report_lines = [
             f"=== RELATÓRIO INSTITUCIONAL {modulo.upper()} (B2B) ===",
             f"Emitente: {company_name} | Responsável: {cnpi_code}",
             f"Idioma: {lang_choice} | Data/Hora: {now_str}",
             f"Sentimento de Mercado: {fng_val} ({fng_class})",
-            "",
-            "--- SUMÁRIO DE ATIVOS MONITORADOS ---"
+            ""
         ]
         for cat_name in selected_categories:
             if cat_name in active_display_categories:
+                report_lines.append(f"--- CATEGORIA: {cat_name} ---")
                 cat_info = active_display_categories[cat_name]
                 for disp_name, ticker, currency in cat_info["assets"]:
                     q = quotes.get(ticker, {"price": 0.0, "change": 0.0})
                     report_lines.append(f"  • {disp_name} ({ticker}): {currency} {fmt_num(q['price'])} ({fmt_pct(q['change'])})")
+                report_lines.append("")
         outputs_generated.append(("B2B (Relatório Analítico)", "\n".join(report_lines)))
 
     if fmt_yt:
@@ -544,7 +534,6 @@ with col_p1:
         st.markdown("#### 🎯 Previsão Ativa & Assertividade")
         pred_asset = st.selectbox("Ativo Alvo para Predição:", ["BTC-USD", "ES=F"], key="pred_asset_sel")
         
-        # Simulação preditiva baseada em momentum e ML
         q_pred = quotes.get(pred_asset, {"price": 77000.0, "change": 1.5})
         direction = "BULLISH (ALTA)" if q_pred["change"] >= 0 else "BEARISH (BAIXA)"
         confidence_score = round(75.0 + abs(q_pred["change"]) * 2.5, 1)
@@ -576,7 +565,6 @@ with col_ta2:
     if PLOTLY_AVAILABLE:
         try:
             import yfinance as yf
-            # Período adequado por timeframe
             period_map = {"4h": "60d", "1D": "6mo", "1W": "2y", "1M": "5y"}
             df_ta = yf.download(ta_asset, period=period_map.get(ta_timeframe, "6mo"), interval="1h" if ta_timeframe=="4h" else ("1d" if ta_timeframe in ["1D","1W"] else "1wk"), progress=False)
             
@@ -596,7 +584,6 @@ with col_ta2:
                     name=f"Candles {ta_timeframe}"
                 )])
                 
-                # Desenho técnico simulado de padrão detectado pela agente
                 last_close = float(df_ta['Close'].iloc[-1])
                 breakout_target = last_close * 1.06
                 stop_loss = last_close * 0.97
@@ -624,7 +611,7 @@ with col_ta2:
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 5. MAPA TÉRMICO DE LIQUIDEZ INSTITUCIONAL
+# 5. MAPA TÉRMICO DE LIQUIDEZ INSTITUCIONAL (ESCALA ORIGINAL RESTAURADA)
 # -----------------------------------------------------------------------------
 col_sec_title, col_sec_chk = st.columns([4, 1])
 with col_sec_title:
@@ -638,13 +625,14 @@ with col_sec_chk:
 
 if PLOTLY_AVAILABLE:
     base_price = quotes.get("BTC-USD" if modulo == "Crypto" else "ES=F", {"price": 77000.0}).get("price", 77000.0)
+    # Escala e valores originais preservados
     prices = [base_price * 0.95, base_price * 0.98, base_price * 1.02, base_price * 1.05]
     liq_volumes = [1.2, 4.8, 6.5, 3.1]
     
     fig_oi = go.Figure()
     fig_oi.add_trace(go.Bar(
         y=prices, x=liq_volumes, orientation='h',
-        marker=dict(color=[50, 80, 90, 40], colorscale='Jet', showscale=True),
+        marker=dict(color=liq_volumes, colorscale='RdBu', showscale=True),
         hoverinfo='text', text=[f"Preço: {fmt_num(p)}" for p in prices], name="Liquidez"
     ))
     fig_oi.update_layout(
