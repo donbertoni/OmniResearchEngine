@@ -12,7 +12,7 @@ try:
 except ImportError:
     PLOTLY_AVAILABLE = False
 
-# Importação do Backend Modularizado (baseado em[cite: 3])
+# Importação do Backend Modularizado (baseado em[cite: 2])
 from backend import (
     MACRO_BENCHMARKS,
     CRYPTO_BENCHMARKS,
@@ -27,14 +27,21 @@ from backend import (
 )
 
 # -----------------------------------------------------------------------------
-# DICIONÁRIO DE TRADUÇÃO (LÓGICA BILÍNGUE PT / EN)
+# DICIONÁRIO DE TRADUÇÃO COMPLETO (LÓGICA BILÍNGUE PT / EN 100%)
 # -----------------------------------------------------------------------------
 TRANSLATIONS = {
     "PT": {
         "terminal_title": "Terminal OMNI",
         "login": "Login do Analista",
+        "user_label": "Usuário / E-mail:",
+        "pass_label": "Senha:",
+        "keep_connected": "Manter-se conectado",
         "module": "Escolha o Módulo:",
         "outputs": "Formatos de Saída:",
+        "fmt_b2b": "B2B (Relatório Analítico)",
+        "fmt_yt": "B2C (YouTube Auto-Pilot)",
+        "fmt_wapp": "B2C (WhatsApp Auto-Pilot)",
+        "fmt_tg": "B2C (Telegram Auto-Pilot)",
         "production_btn": "Acionar Produção Automática",
         "advanced_config": "Configurações Avançadas",
         "automations": "Automações",
@@ -46,16 +53,67 @@ TRANSLATIONS = {
         "metrics": "Métricas Agregadas",
         "integrated_panel": "Painel de Análise Integrada das Categorias",
         "agents_title": "Arquitetura de Agentes Especializados (IA & ML)",
+        "agents_caption": "Orquestração autônoma de Agentes Inteligentes para predição, análise técnica, roteirização e direção de arte.",
         "agent_script": "🤖 Agente Roteirista",
-        "agent_predictive": "🔮 Agente Preditiva (ML)",
-        "agent_ta": "📈 Agente de Análise Técnica",
-        "agent_art": "🎬 IA Diretora de Arte (YouTube Auto-Pilot)"
+        "agent_predictive": "📈 Agente Preditiva (ML)",
+        "agent_ta": "📊 Agente de Análise Técnica",
+        "agent_art": "🎨 IA Diretora de Arte (YouTube Auto-Pilot)",
+        "close": "Fechar",
+        "auto_config_title": "Configuração de Automações & Integradores de CRM",
+        "trig_config_title": "Configuração Avançada de Gatilhos de Report Automático",
+        "calib_config_title": "Calibragem da Engine & Gerenciador de Ativos e Categorias",
+        "payload_channels": "Canais de Disparo de Dados (Payloads):",
+        "email_notif": "Endereços Eletrônicos (Notificação B2B):",
+        "webhooks_url": "URLs / Webhooks de Disparo (Engine -> CRM):",
+        "crm_integration": "Integração com Plataformas de CRM (Orquestração):",
+        "crm_platform": "Plataforma de CRM Alvo:",
+        "crm_apikey": "Chave de API / Token do CRM:",
+        "trig_days_title": "📅 1. Dias da Semana para Geração Automática",
+        "trig_days_label": "Escolha quais dias da semana os gatilhos dispararão relatórios:",
+        "trig_freq_title": "⏰ 2 & 3. Frequência Diária e Horários dos Reports",
+        "trig_freq_label": "Frequência (Nº de reports diários):",
+        "trig_assets_title": "🎯 4. Seleção de Ativos Monitorados (Máx. 10)",
+        "trig_assets_label": "Selecione os ativos que os gatilhos vão considerar (Máximo de 10):",
+        "calib_creds": "🔑 1. Credenciais de API & Integrações",
+        "brapi_token": "BRAPI API Token:",
+        "custom_api": "Custom Market API Key:",
+        "whatsapp_inst": "WhatsApp Instance ID:",
+        "whatsapp_token": "WhatsApp API Token:",
+        "calib_assets": "➕ 2. Adicionar e Remover Ativos",
+        "calib_assets_caption": "Cadastre novos ativos ou gerencie o pool global de ativos disponíveis no sistema.",
+        "add_new_asset": "✨ Adicionar Novo Ativo",
+        "friendly_name": "Nome Amigável:",
+        "ticker_input": "Ticker:",
+        "currency_input": "Moeda:",
+        "manage_assets": "🗑️ Gerenciar / Remover Ativos Existentes",
+        "manage_assets_caption": "Use a caixa abaixo para visualizar e remover ativos existentes do pool.",
+        "pool_assets_label": "Ativos atualmente no pool:",
+        "calib_cats": "📂 3. Adicionar, Remover e Editar Categorias",
+        "calib_cats_caption": "Organize seus ativos cadastrados dentro de categorias customizadas.",
+        "cat_action": "Ação de Categoria:",
+        "new_cat_name": "Nome da Nova Categoria:",
+        "new_cat_tag": "Tag da Categoria:",
+        "new_cat_assets": "Selecione os ativos para esta nova categoria:",
+        "cat_to_manage": "Selecione a Categoria para Gerenciar:",
+        "rename_cat": "Renomear Categoria:",
+        "edit_cat_assets": "Selecione os ativos pertencentes a esta categoria:",
+        "delete_cat_flag": "⚠️ Excluir esta Categoria inteira",
+        "save_params": "💾 Salvar Parâmetros",
+        "refresh_btn": "🔄 Refresh",
+        "weekend_msg": "⚠️ <b>Market Closed (Weekend):</b> Quotes reflect official closing prices from Friday session."
     },
     "EN": {
         "terminal_title": "OMNI Terminal",
         "login": "Analyst Login",
+        "user_label": "User / E-mail:",
+        "pass_label": "Password:",
+        "keep_connected": "Keep me logged in",
         "module": "Select Module:",
         "outputs": "Output Formats:",
+        "fmt_b2b": "B2B (Analytical Report)",
+        "fmt_yt": "B2C (YouTube Auto-Pilot)",
+        "fmt_wapp": "B2C (WhatsApp Auto-Pilot)",
+        "fmt_tg": "B2C (Telegram Auto-Pilot)",
         "production_btn": "Trigger Automated Production",
         "advanced_config": "Advanced Settings",
         "automations": "Automations",
@@ -67,15 +125,59 @@ TRANSLATIONS = {
         "metrics": "Aggregated Metrics",
         "integrated_panel": "Integrated Category Analysis Panel",
         "agents_title": "Specialized Agents Architecture (AI & ML)",
+        "agents_caption": "Autonomous orchestration of Intelligent Agents for prediction, technical analysis, scripting, and art direction.",
         "agent_script": "🤖 Scriptwriter Agent",
-        "agent_predictive": "🔮 Predictive Agent (ML)",
-        "agent_ta": "📈 Technical Analysis Agent",
-        "agent_art": "🎬 Art Director AI (YouTube Auto-Pilot)"
+        "agent_predictive": "📈 Predictive Agent (ML)",
+        "agent_ta": "📊 Technical Analysis Agent",
+        "agent_art": "🎨 Art Director AI (YouTube Auto-Pilot)",
+        "close": "Close",
+        "auto_config_title": "Automation Settings & CRM Integrators",
+        "trig_config_title": "Advanced Automated Report Triggers Configuration",
+        "calib_config_title": "Engine Calibration & Asset/Category Manager",
+        "payload_channels": "Data Dispatch Channels (Payloads):",
+        "email_notif": "Email Addresses (B2B Notification):",
+        "webhooks_url": "Dispatch URLs / Webhooks (Engine -> CRM):",
+        "crm_integration": "CRM Platform Integration (Orchestration):",
+        "crm_platform": "Target CRM Platform:",
+        "crm_apikey": "CRM API Key / Token:",
+        "trig_days_title": "📅 1. Days of the Week for Automatic Generation",
+        "trig_days_label": "Choose which days of the week triggers will fire reports:",
+        "trig_freq_title": "⏰ 2 & 3. Daily Frequency and Report Times",
+        "trig_freq_label": "Frequency (Number of daily reports):",
+        "trig_assets_title": "🎯 4. Monitored Assets Selection (Max 10)",
+        "trig_assets_label": "Select the assets triggers will consider (Maximum of 10):",
+        "calib_creds": "🔑 1. API Credentials & Integrations",
+        "brapi_token": "BRAPI API Token:",
+        "custom_api": "Custom Market API Key:",
+        "whatsapp_inst": "WhatsApp Instance ID:",
+        "whatsapp_token": "WhatsApp API Token:",
+        "calib_assets": "➕ 2. Add and Remove Assets",
+        "calib_assets_caption": "Register new assets or manage the global pool of assets available in the system.",
+        "add_new_asset": "✨ Add New Asset",
+        "friendly_name": "Friendly Name:",
+        "ticker_input": "Ticker:",
+        "currency_input": "Currency:",
+        "manage_assets": "🗑️ Manage / Remove Existing Assets",
+        "manage_assets_caption": "Use the box below to view and remove existing assets from the pool.",
+        "pool_assets_label": "Assets currently in the pool:",
+        "calib_cats": "📂 3. Add, Remove and Edit Categories",
+        "calib_cats_caption": "Organize your registered assets within custom categories.",
+        "cat_action": "Category Action:",
+        "new_cat_name": "New Category Name:",
+        "new_cat_tag": "Category Tag:",
+        "new_cat_assets": "Select assets for this new category:",
+        "cat_to_manage": "Select Category to Manage:",
+        "rename_cat": "Rename Category:",
+        "edit_cat_assets": "Select assets belonging to this category:",
+        "delete_cat_flag": "⚠️ Delete this entire category",
+        "save_params": "💾 Save Parameters",
+        "refresh_btn": "🔄 Refresh",
+        "weekend_msg": "⚠️ <b>Market Closed (Weekend):</b> Quotes reflect official closing prices from Friday session."
     }
 }
 
 # -----------------------------------------------------------------------------
-# DEFINIÇÃO DE CATEGORIAS (MÓDULO TRADFI - 8 CATEGORIAS ORIGINAIS[cite: 3])
+# DEFINIÇÃO DE CATEGORIAS (MÓDULO TRADFI - 8 CATEGORIAS ORIGINAIS)
 # -----------------------------------------------------------------------------
 CATEGORIES_TRADFI = {
     "1 - Bancos e Seguradoras": {
@@ -250,7 +352,7 @@ if "custom_active_categories_crypto" not in st.session_state:
 if "custom_active_categories_tradfi" not in st.session_state:
     st.session_state.custom_active_categories_tradfi = CATEGORIES_TRADFI.copy()
 
-# Inicialização dos Pools Globais de Ativos[cite: 3]
+# Inicialização dos Pools Globais de Ativos[cite: 2]
 if "asset_pool_Crypto" not in st.session_state:
     init_pool_c = []
     seen_c = set()
@@ -271,10 +373,10 @@ if "asset_pool_TradFi (Macro)" not in st.session_state:
                 seen_t.add(tk)
     st.session_state.asset_pool_TradFi = init_pool_t
 
-with st.sidebar.expander(f"🔐 {tr['login']}", expanded=False):
-    login_user = st.text_input("Usuário / E-mail:", value="analista@omni.com")
-    login_pass = st.text_input("Senha:", value="••••••••", type="password")
-    login_keep = st.checkbox("Manter-se conectado", value=True)
+with st.sidebar.expander(f"🔒 {tr['login']}", expanded=False):
+    login_user = st.text_input(tr['user_label'], value="analista@omni.com")
+    login_pass = st.text_input(tr['pass_label'], value="••••••••", type="password")
+    login_keep = st.checkbox(tr['keep_connected'], value=True)
 
 if "admin" in login_user.lower() or "white" in login_user.lower():
     tier_selected = "Premium (B2B White-Label)"
@@ -288,11 +390,11 @@ st.sidebar.markdown("---")
 
 modulo = st.sidebar.radio(f"📊 {tr['module']}", ["Crypto", "TradFi (Macro)"], index=1, key="modulo_selection")
 
-st.sidebar.markdown(f"### 📡 {tr['outputs']}")
-fmt_b2b = st.sidebar.checkbox("B2B (Relatório Analítico)", value=True)
-fmt_yt = st.sidebar.checkbox("B2C (YouTube Auto-Pilot)", value=False)
-fmt_wapp = st.sidebar.checkbox("B2C (WhatsApp Auto-Pilot)", value=False)
-fmt_tg = st.sidebar.checkbox("B2C (Telegram Auto-Pilot)", value=False)
+st.sidebar.markdown(f"### 📤 {tr['outputs']}")
+fmt_b2b = st.sidebar.checkbox(tr['fmt_b2b'], value=True)
+fmt_yt = st.sidebar.checkbox(tr['fmt_yt'], value=False)
+fmt_wapp = st.sidebar.checkbox(tr['fmt_wapp'], value=False)
+fmt_tg = st.sidebar.checkbox(tr['fmt_tg'], value=False)
 
 st.sidebar.markdown("<div style='margin-top: 6px;'></div>", unsafe_allow_html=True)
 trigger_production = st.sidebar.button(f"⚡ {tr['production_btn']}", use_container_width=True)
@@ -303,11 +405,11 @@ st.sidebar.markdown(f"### ⚙️ {tr['advanced_config']}")
 if "config_window" not in st.session_state:
     st.session_state.config_window = None
 
-if st.sidebar.button(f"🔌 {tr['automations']}", use_container_width=True):
+if st.sidebar.button(f"⚙️ {tr['automations']}", use_container_width=True):
     st.session_state.config_window = "automations"
-if st.sidebar.button(f"⚡ {tr['triggers']}", use_container_width=True):
+if st.sidebar.button(f"⏰ {tr['triggers']}", use_container_width=True):
     st.session_state.config_window = "triggers"
-if st.sidebar.button(f"🎛️ {tr['calibration']}", use_container_width=True):
+if st.sidebar.button(f"🛠️ {tr['calibration']}", use_container_width=True):
     st.session_state.config_window = "calibration"
 
 allow_customization = "Free" not in tier_selected
@@ -342,7 +444,7 @@ if allow_white_label:
     cnpi_code = "CNPI-T 3421"
 
 # -----------------------------------------------------------------------------
-# 3. CORPO PRINCIPAL & JANELAS ESPECÍFICAS DE CONFIGURAÇÃO[cite: 3]
+# 3. CORPO PRINCIPAL & JANELAS ESPECÍFICAS DE CONFIGURAÇÃO[cite: 2]
 # -----------------------------------------------------------------------------
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
     st.title(f"🏛️ {company_name} — Terminal Quant")
@@ -356,39 +458,39 @@ if st.session_state.config_window:
         col_w_title, col_w_close = st.columns([5, 1])
         with col_w_title:
             if st.session_state.config_window == "automations":
-                st.subheader("🔌 Configuração de Automações & Integradores de CRM")
+                st.subheader(f"⚙️ {tr['auto_config_title']}")
             elif st.session_state.config_window == "triggers":
-                st.subheader("⚡ Configuração Avançada de Gatilhos de Report Automático")
+                st.subheader(f"⏰ {tr['trig_config_title']}")
             elif st.session_state.config_window == "calibration":
-                st.subheader("🎛️ Calibragem da Engine & Gerenciador de Ativos e Categorias")
+                st.subheader(f"🛠️ {tr['calib_config_title']}")
         with col_w_close:
-            if st.button("❌ Fechar", use_container_width=True):
+            if st.button(f"❌ {tr['close']}", use_container_width=True):
                 st.session_state.config_window = None
                 st.rerun()
 
         if st.session_state.config_window == "automations":
             col_a1, col_a2 = st.columns(2)
             with col_a1:
-                st.markdown("**Canais de Disparo de Dados (Payloads):**")
-                auto_emails = st.text_input("Endereços Eletrônicos (Notificação B2B):", value="mesa@gestora.com, compliance@gestora.com")
-                auto_urls = st.text_input("URLs / Webhooks de Disparo (Engine -> CRM):", value="")
+                st.markdown(f"**{tr['payload_channels']}**")
+                auto_emails = st.text_input(tr['email_notif'], value="mesa@gestora.com, compliance@gestora.com")
+                auto_urls = st.text_input(tr['webhooks_url'], value="")
             with col_a2:
-                st.markdown("**Integração com Plataformas de CRM (Orquestração):**")
-                crm_platform = st.selectbox("Plataforma de CRM Alvo:", ["HubSpot", "Salesforce", "RD Station", "Outro Webhook/API"], index=0)
-                crm_api_key = st.text_input("Chave de API / Token do CRM:", value="", type="password")
+                st.markdown(f"**{tr['crm_integration']}**")
+                crm_platform = st.selectbox(tr['crm_platform'], ["HubSpot", "Salesforce", "RD Station", "Outro Webhook/API"], index=0)
+                crm_api_key = st.text_input(tr['crm_apikey'], value="", type="password")
 
         elif st.session_state.config_window == "triggers":
             st.markdown(f"**Módulo Ativo:** `{modulo}`")
-            st.markdown("**📅 1. Dias da Semana para Geração Automática**")
+            st.markdown(f"**{tr['trig_days_title']}**")
             selected_days = st.multiselect(
-                "Escolha quais dias da semana os gatilhos dispararão relatórios:",
+                tr['trig_days_label'],
                 options=["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"],
                 default=["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira"],
                 key="trig_days"
             )
             st.markdown("---")
-            st.markdown("**⏰ 2 & 3. Frequência Diária e Horários dos Reports**")
-            freq_reports = st.slider("Frequência (Nº de reports diários):", min_value=1, max_value=5, value=2, key="trig_freq")
+            st.markdown(f"**{tr['trig_freq_title']}**")
+            freq_reports = st.slider(tr['trig_freq_label'], min_value=1, max_value=5, value=2, key="trig_freq")
             report_times = []
             time_cols = st.columns(min(freq_reports, 5))
             default_times_str = ["09:00", "12:00", "15:00", "18:00", "21:00"]
@@ -398,7 +500,7 @@ if st.session_state.config_window:
                     t_val = st.time_input(f"Horário Report {i+1}", value=def_t, key=f"trig_time_{i+1}")
                     report_times.append(t_val)
             st.markdown("---")
-            st.markdown("**🎯 4. Seleção de Ativos Monitorados (Máx. 10)**")
+            st.markdown(f"**{tr['trig_assets_title']}**")
             all_module_assets = []
             for cat_name, cat_info in active_categories.items():
                 for disp_name, ticker, currency in cat_info["assets"]:
@@ -406,7 +508,7 @@ if st.session_state.config_window:
             
             asset_labels = [item[0] for item in all_module_assets]
             selected_trigger_assets = st.multiselect(
-                "Selecione os ativos que os gatilhos vão considerar (Máximo de 10):",
+                tr['trig_assets_label'],
                 options=asset_labels,
                 max_selections=10,
                 default=asset_labels[:min(5, len(asset_labels))],
@@ -415,78 +517,78 @@ if st.session_state.config_window:
 
         elif st.session_state.config_window == "calibration":
             with st.form("calibration_form"):
-                st.markdown("### 🔑 1. Credenciais de API & Integrações")
+                st.markdown(f"### {tr['calib_creds']}")
                 col_c1, col_c2 = st.columns(2)
                 with col_c1:
-                    brapi_token = st.text_input("BRAPI API Token:", value="", type="password")
-                    custom_data_api_key = st.text_input("Custom Market API Key:", value="", type="password")
+                    brapi_token = st.text_input(tr['brapi_token'], value="", type="password")
+                    custom_data_api_key = st.text_input(tr['custom_api'], value="", type="password")
                 with col_c2:
-                    whatsapp_instance = st.text_input("WhatsApp Instance ID:", value="")
-                    whatsapp_token = st.text_input("WhatsApp API Token:", value="", type="password")
+                    whatsapp_instance = st.text_input(tr['whatsapp_inst'], value="")
+                    whatsapp_token = st.text_input(tr['whatsapp_token'], value="", type="password")
 
                 st.markdown("---")
-                st.markdown("### ➕ 2. Adicionar e Remover Ativos")
-                st.caption("Cadastre novos ativos ou gerencie o pool global de ativos disponíveis no sistema.")
+                st.markdown(f"### {tr['calib_assets']}")
+                st.caption(tr['calib_assets_caption'])
                 
-                st.markdown("#### ➕ Adicionar Novo Ativo")
+                st.markdown(f"#### {tr['add_new_asset']}")
                 col_na1, col_na2, col_na3 = st.columns(3)
                 with col_na1:
-                    new_asset_name_input = st.text_input("Nome Amigável:", value="", placeholder="Ex: Ethereum", key="form_new_asset_name")
+                    new_asset_name_input = st.text_input(tr['friendly_name'], value="", placeholder="Ex: Ethereum", key="form_new_asset_name")
                 with col_na2:
-                    new_asset_ticker_input = st.text_input("Ticker:", value="", placeholder="Ex: ETH-USD", key="form_new_asset_ticker")
+                    new_asset_ticker_input = st.text_input(tr['ticker_input'], value="", placeholder="Ex: ETH-USD", key="form_new_asset_ticker")
                 with col_na3:
-                    new_asset_curr_input = st.selectbox("Moeda:", ["$", "R$"], key="form_new_asset_curr")
+                    new_asset_curr_input = st.selectbox(tr['currency_input'], ["$", "R$"], key="form_new_asset_curr")
 
                 st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-                st.markdown("#### 🗑️ Gerenciar / Remover Ativos Existentes")
-                st.caption("Use a caixa abaixo para visualizar e remover ativos existentes do pool.")
+                st.markdown(f"#### {tr['manage_assets']}")
+                st.caption(tr['manage_assets_caption'])
                 
                 pool_labels_map = {f"{disp} ({tk}) [{cur}]": (disp, tk, cur) for disp, tk, cur in current_asset_pool}
                 default_pool_labels = list(pool_labels_map.keys())
                 
                 selected_pool_labels = st.multiselect(
-                    "Ativos atualmente no pool:",
+                    tr['pool_assets_label'],
                     options=default_pool_labels,
                     default=default_pool_labels,
                     key=f"form_pool_multiselect_{modulo}"
                 )
 
                 st.markdown("---")
-                st.markdown("### 📂 3. Adicionar, Remover e Editar Categorias")
-                st.caption("Organize seus ativos cadastrados dentro de categorias customizadas.")
+                st.markdown(f"### {tr['calib_cats']}")
+                st.caption(tr['calib_cats_caption'])
 
-                cat_action_mode = st.selectbox("Ação de Categoria:", ["Gerenciar/Editar Existente", "Criar Nova Categoria"], key="form_cat_action_mode")
+                cat_action_mode = st.selectbox(tr['cat_action'], ["Gerenciar/Editar Existente", "Criar Nova Categoria"], key="form_cat_action_mode")
                 
                 if cat_action_mode == "Criar Nova Categoria":
-                    new_cat_name_input = st.text_input("Nome da Nova Categoria:", value="", placeholder="Ex: 9 - DeFi & Web3", key="form_new_cat_name")
-                    new_cat_tag_input = st.text_input("Tag da Categoria:", value="", placeholder="Ex: DeFi", key="form_new_cat_tag")
+                    new_cat_name_input = st.text_input(tr['new_cat_name'], value="", placeholder="Ex: 9 - DeFi & Web3", key="form_new_cat_name")
+                    new_cat_tag_input = st.text_input(tr['new_cat_tag'], value="", placeholder="Ex: DeFi", key="form_new_cat_tag")
                     
                     pool_options = [f"{d} ({t}) [{c}]" for d, t, c in current_asset_pool]
                     selected_new_cat_labels = st.multiselect(
-                        "Selecione os ativos para esta nova categoria:",
+                        tr['new_cat_assets'],
                         options=pool_options,
                         key="form_new_cat_assets_sel"
                     )
                 else:
-                    cat_to_edit = st.selectbox("Selecione a Categoria para Gerenciar:", list(active_categories.keys()), key="calib_sel_cat")
+                    cat_to_edit = st.selectbox(tr['cat_to_manage'], list(active_categories.keys()), key="calib_sel_cat")
                     if cat_to_edit:
                         c_data = active_categories[cat_to_edit]
-                        renamed_cat = st.text_input("Renomear Categoria:", value=cat_to_edit, key="calib_rename_cat")
+                        renamed_cat = st.text_input(tr['rename_cat'], value=cat_to_edit, key="calib_rename_cat")
                         
                         current_cat_tickers = {t for _, t, _ in c_data["assets"]}
                         pool_options = [f"{d} ({t}) [{c}]" for d, t, c in current_asset_pool]
                         default_selected_pool = [f"{d} ({t}) [{c}]" for d, t, c in current_asset_pool if t in current_cat_tickers]
                         
                         selected_edit_cat_labels = st.multiselect(
-                            "Selecione os ativos pertencentes a esta categoria:",
+                            tr['edit_cat_assets'],
                             options=pool_options,
                             default=default_selected_pool,
                             key=f"form_edit_cat_assets_sel_{cat_to_edit}"
                         )
-                        delete_cat_flag = st.checkbox("⚠️ Excluir esta Categoria inteira", value=False, key=f"form_delete_cat_{cat_to_edit}")
+                        delete_cat_flag = st.checkbox(tr['delete_cat_flag'], value=False, key=f"form_delete_cat_{cat_to_edit}")
 
                 st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-                submitted_calib = st.form_submit_button("💾 Salvar Parâmetros", use_container_width=True)
+                submitted_calib = st.form_submit_button(tr['save_params'], use_container_width=True)
                 
                 if submitted_calib:
                     updated_pool = [pool_labels_map[lbl] for lbl in selected_pool_labels if lbl in pool_labels_map]
@@ -554,12 +656,12 @@ with col_status:
 with col_health:
     st.markdown(f'<div class="status-bar" style="border-color: #238636; justify-content: space-between;"><span>🟢 <b>Auto-Pilot</b></span><span style="font-size: 12px; color: #8B949E;">Next: <b style="color: #3FB950;">{countdown_text}</b></span></div>', unsafe_allow_html=True)
 with col_btn_refresh:
-    if st.button("🔄 Refresh", use_container_width=True):
+    if st.button(tr['refresh_btn'], use_container_width=True):
         st.cache_data.clear()
         st.rerun()
 
 if modulo == "TradFi (Macro)" and is_weekend:
-    st.markdown('<div class="warning-bar" style="margin-top: 8px;">⚠️ <b>Market Closed (Weekend):</b> Quotes reflect official closing prices from Friday session.</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="warning-bar" style="margin-top: 8px;">{tr["weekend_msg"]}</div>', unsafe_allow_html=True)
 
 symbols_to_fetch = [item["ticker"] for item in MACRO_BENCHMARKS + CRYPTO_BENCHMARKS if item.get("ticker")]
 for cat_info in active_categories.values():
@@ -583,7 +685,7 @@ selected_categories = list(active_display_categories.keys())
 col_left, col_right = st.columns([1.3, 1])
 
 with col_left:
-    st.subheader(f"📋 {tr['deliveries']}")
+    st.subheader(f"📦 {tr['deliveries']}")
     st.caption(tr['deliveries_caption'])
 
     outputs_generated = []
@@ -650,10 +752,10 @@ with col_left:
         st.download_button("📥 PDF", data=pdf_bytes, file_name=f"OMNI_Report_{modulo}_{LANG_KEY}.pdf", mime="application/pdf", use_container_width=True)
     with col_b4:
         if st.button("🚀 CRM Push", use_container_width=True):
-            st.toast(f"Autonomous payload dispatched via {crm_platform}!", icon="🚀")
+            st.toast(f"Autonomous payload dispatched via {crm_platform}!", icon="🛰️")
 
 with col_right:
-    st.subheader(f"📊 {tr['metrics']} ({modulo})")
+    st.subheader(f"📈 {tr['metrics']} ({modulo})")
     st.caption(f"Updated | Source: Official APIs")
 
     for item in active_benchmarks:
@@ -684,9 +786,9 @@ with col_right:
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 4. PAINEL DE ANÁLISE INTEGRADA[cite: 3]
+# 4. PAINEL DE ANÁLISE INTEGRADA
 # -----------------------------------------------------------------------------
-st.subheader(f"🔎 {tr['integrated_panel']} ({modulo})")
+st.subheader(f"🏢 {tr['integrated_panel']} ({modulo})")
 if selected_categories:
     cols = st.columns(min(len(selected_categories), 4))
     for idx, cat_name in enumerate(selected_categories):
@@ -736,8 +838,8 @@ st.markdown("---")
 # -----------------------------------------------------------------------------
 # 5. NOVO MÓDULO: ARQUITETURA DE AGENTES ESPECIALIZADOS (IA & ML)
 # -----------------------------------------------------------------------------
-st.subheader(f"🧠 {tr['agents_title']}")
-st.caption("Orquestração autônoma de Agentes Inteligentes para predição, análise técnica, roteirização e direção de arte.")
+st.subheader(f"🤖 {tr['agents_title']}")
+st.caption(tr['agents_caption'])
 
 agent_tab1, agent_tab2, agent_tab3, agent_tab4 = st.tabs([
     tr['agent_script'], 
@@ -747,7 +849,7 @@ agent_tab1, agent_tab2, agent_tab3, agent_tab4 = st.tabs([
 ])
 
 with agent_tab1:
-    st.markdown("### 🤖 Agente Roteirista (Multi-Format Scriptwriter)")
+    st.markdown("### 📝 Agente Roteirista (Multi-Format Scriptwriter)")
     st.markdown("Responsável por coletar inputs em tempo real (preços, indicadores macro/crypto, sentimento) e sintetizar roteiros direcionados para TXT, JSON, WhatsApp, Telegram e YouTube.")
     
     target_asset_script = st.selectbox("Ativo Alvo para Roteiro:", ["BTC-USD", "ES=F", "ITUB4.SA", "PETR4.SA"], key="script_asset_sel")
@@ -768,7 +870,7 @@ Tone: {script_tone}
         st.text_area("Roteiro Sintetizado pela IA:", value=script_output, height=200)
 
 with agent_tab2:
-    st.markdown("### 🔮 Agente Preditiva (Machine Learning Real-Time)")
+    st.markdown("### 📈 Agente Preditiva (Machine Learning Real-Time)")
     st.markdown("Monitora ativos restritos de alta liquidez (`BTC-USD`, `ES=F`), executando inferências estatísticas e registrando logs de acurácia contínua.")
     
     pred_asset = st.selectbox("Ativo sob Análise Preditiva:", ["BTC-USD", "ES=F"], key="pred_asset_sel")
@@ -786,7 +888,7 @@ with agent_tab2:
         current_conf = "84.5% (Alta Confiança)" if pred_asset == "BTC-USD" else "76.2% (Moderada)"
         st.metric(label="Nível de Confiança da Inferência Atual", value=current_conf)
 
-    st.markdown("#### 📜 Logs de Performance Preditiva")
+    st.markdown("#### 📋 Logs de Performance Preditiva")
     df_logs = pd.DataFrame(st.session_state.ml_prediction_logs)
     st.dataframe(df_logs, use_container_width=True)
     
@@ -796,14 +898,14 @@ with agent_tab2:
             "asset": pred_asset,
             "prediction": "Alta Direcional (Momentum Positivo)",
             "confidence": "81.9%",
-            "status": "Em Monitoramento ⏳"
+            "status": "Em Monitoramento 🔄"
         }
         st.session_state.ml_prediction_logs.insert(0, new_log)
-        st.toast("Nova predição registrada com sucesso na base de logs!", icon="🔮")
+        st.toast("Nova predição registrada com sucesso na base de logs!", icon="📊")
         st.rerun()
 
 with agent_tab3:
-    st.markdown("### 📈 Agente de Análise Técnica Avançada")
+    st.markdown("### 📊 Agente de Análise Técnica Avançada")
     st.markdown("Recebe os dados da Agente Preditiva, processa tempos gráficos múltiplos (`4h`, `1D`, `1W`, `1M`), identifica formações clássicas e gera níveis operacionais.")
     
     ta_asset = st.selectbox("Ativo para Análise Técnica:", ["BTC-USD", "ES=F"], key="ta_asset_sel")
@@ -822,7 +924,7 @@ with agent_tab3:
         """)
 
 with agent_tab4:
-    st.markdown("### 🎬 IA Diretora de Arte (YouTube Auto-Pilot)")
+    st.markdown("### 🎨 IA Diretora de Arte (YouTube Auto-Pilot)")
     st.markdown("Orquestra autonomamente a criação de vídeos institucionais, aplicando técnicas de zoom no dashboard, legendas automatizadas e síntese de voz (TTS) para publicação direta no YouTube via API.")
     
     col_v1, col_v2 = st.columns(2)
@@ -840,7 +942,7 @@ with agent_tab4:
 st.markdown("---")
 
 # -----------------------------------------------------------------------------
-# 6. MÓDULO: MAPA TÉRMICO DE LIQUIDEZ[cite: 3]
+# 6. MÓDULO: MAPA TÉRMICO DE LIQUIDEZ
 # -----------------------------------------------------------------------------
 col_sec_title, col_sec_chk = st.columns([4, 1])
 with col_sec_title:
@@ -950,7 +1052,7 @@ if PLOTLY_AVAILABLE:
         xaxis=dict(gridcolor="#30363D", title="Volume Notional Acumulado")
     )
     st.plotly_chart(fig_oi, use_container_width=True)
-    st.markdown(f"📌 **Fonte Oficial da API Ativa:** `{data_source}`")
+    st.markdown(f"🔗 **Fonte Oficial da API Ativa:** `{data_source}`")
 else:
     st.warning("⚠️ O módulo Plotly não está disponível no momento.")
 
