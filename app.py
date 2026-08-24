@@ -54,10 +54,10 @@ TRANSLATIONS = {
         "integrated_panel": "Painel de Análise Integrada das Categorias",
         "agents_title": "Arquitetura de Agentes Especializados (IA & ML)",
         "agents_caption": "Orquestração autônoma de Agentes Inteligentes para predição, análise técnica, roteirização e direção de arte.",
-        "agent_script": "?? Agente Roteirista",
-        "agent_predictive": "?? Agente Preditiva (ML)",
-        "agent_ta": "?? Agente de Análise Técnica",
-        "agent_art": "?? IA Diretora de Arte (YouTube Auto-Pilot)",
+        "agent_script": "🧠 Agente Roteirista",
+        "agent_predictive": "📊 Agente Preditiva (ML)",
+        "agent_ta": "📈 Agente de Análise Técnica",
+        "agent_art": "🎨 IA Diretora de Arte (YouTube Auto-Pilot)",
         "close": "Fechar",
         "auto_config_title": "Configuração de Automações & Integradores de CRM",
         "trig_config_title": "Configuração Avançada de Gatilhos de Report Automático",
@@ -68,27 +68,27 @@ TRANSLATIONS = {
         "crm_integration": "Integração com Plataformas de CRM (Orquestração):",
         "crm_platform": "Plataforma de CRM Alvo:",
         "crm_apikey": "Chave de API / Token do CRM:",
-        "trig_days_title": "?? 1. Dias da Semana para Geração Automática",
+        "trig_days_title": "📅 1. Dias da Semana para Geração Automática",
         "trig_days_label": "Escolha quais dias da semana os gatilhos dispararão relatórios:",
-        "trig_freq_title": "? 2 & 3. Frequência Diária e Horários dos Reports",
+        "trig_freq_title": "⏱️ 2 & 3. Frequência Diária e Horários dos Reports",
         "trig_freq_label": "Frequência (Nº de reports diários):",
-        "trig_assets_title": "?? 4. Seleção de Ativos Monitorados (Máx. 10)",
+        "trig_assets_title": "🎯 4. Seleção de Ativos Monitorados (Máx. 10)",
         "trig_assets_label": "Selecione os ativos que os gatilhos vão considerar (Máximo de 10):",
-        "calib_creds": "?? 1. Credenciais de API & Integrações",
+        "calib_creds": "🔑 1. Credenciais de API & Integrações",
         "brapi_token": "BRAPI API Token:",
         "custom_api": "Custom Market API Key:",
         "whatsapp_inst": "WhatsApp Instance ID:",
         "whatsapp_token": "WhatsApp API Token:",
-        "calib_assets": "? 2. Adicionar e Remover Ativos",
+        "calib_assets": "📂 2. Adicionar e Remover Ativos",
         "calib_assets_caption": "Cadastre novos ativos ou gerencie o pool global de ativos disponíveis no sistema.",
-        "add_new_asset": "? Adicionar Novo Ativo",
+        "add_new_asset": "➕ Adicionar Novo Ativo",
         "friendly_name": "Nome Amigável:",
         "ticker_input": "Ticker:",
         "currency_input": "Moeda:",
-        "manage_assets": "??? Gerenciar / Remover Ativos Existentes",
+        "manage_assets": "🗑️ Gerenciar / Remover Ativos Existentes",
         "manage_assets_caption": "Use a caixa abaixo para visualizar e remover ativos existentes do pool.",
         "pool_assets_label": "Ativos atualmente no pool:",
-        "calib_cats": "?? 3. Adicionar, Remover e Editar Categorias",
+        "calib_cats": "🗂️ 3. Adicionar, Remover e Editar Categorias",
         "calib_cats_caption": "Organize seus ativos cadastrados dentro de categorias customizadas.",
         "cat_action": "Ação de Categoria:",
         "new_cat_name": "Nome da Nova Categoria:",
@@ -97,36 +97,36 @@ TRANSLATIONS = {
         "cat_to_manage": "Selecione a Categoria para Gerenciar:",
         "rename_cat": "Renomear Categoria:",
         "edit_cat_assets": "Selecione os ativos pertencentes a esta categoria:",
-        "delete_cat_flag": "?? Excluir esta Categoria inteira",
-        "save_params": "?? Salvar Parâmetros",
-        "refresh_btn": "?? Refresh",
-        "weekend_msg": "?? <b>Market Closed (Weekend):</b> Quotes reflect official closing prices from Friday session.",
-        "agent_script_title": "?? Agente Roteirista (Multi-Format Scriptwriter)",
+        "delete_cat_flag": "⚠️ Excluir esta Categoria inteira",
+        "save_params": "💾 Salvar Parâmetros",
+        "refresh_btn": "🔄 Refresh",
+        "weekend_msg": "⚠️ <b>Market Closed (Weekend):</b> Quotes reflect official closing prices from Friday session.",
+        "agent_script_title": "🧠 Agente Roteirista (Multi-Format Scriptwriter)",
         "agent_script_desc": "Responsável por coletar inputs em tempo real (preços, indicadores macro/crypto, sentimento) e sintetizar roteiros direcionados para TXT, JSON, WhatsApp, Telegram e YouTube.",
         "target_asset_script": "Ativo Alvo para Roteiro:",
         "script_tone": "Tom do Roteiro:",
         "generate_script": "Gerar Roteiro Autônomo",
-        "agent_pred_title": "?? Agente Preditiva (Machine Learning Real-Time)",
+        "agent_pred_title": "📊 Agente Preditiva (Machine Learning Real-Time)",
         "agent_pred_desc": "Monitora ativos restritos de alta liquidez (`BTC-USD`, `ES=F`), executando inferências estatísticas e registrando logs de acurácia contínua.",
         "pred_asset_label": "Ativo sob Análise Preditiva:",
         "win_rate_label": "Assertividade Histórica (Win Rate)",
         "confidence_label": "Nível de Confiança da Inferência Atual",
-        "pred_logs_title": "?? Logs de Performance Preditiva",
+        "pred_logs_title": "📋 Logs de Performance Preditiva",
         "run_ml_btn": "Executar Nova Inferência de ML",
-        "agent_ta_title": "?? Agente de Análise Técnica Avançada",
+        "agent_ta_title": "📈 Agente de Análise Técnica Avançada",
         "agent_ta_desc": "Recebe os dados da Agente Preditiva, processa tempos gráficos múltiplos (`4h`, `1D`, `1W`, `1M`), identifica formações clássicas e gera níveis operacionais.",
         "ta_asset_label": "Ativo para Análise Técnica:",
         "ta_tf_label": "Tempo Gráfico:",
         "run_ta_btn": "Executar Varredura de Padrões (TA Agent)",
-        "agent_art_title": "?? IA Diretora de Arte (YouTube Auto-Pilot)",
+        "agent_art_title": "🎨 IA Diretora de Arte (YouTube Auto-Pilot)",
         "agent_art_desc": "Orquestra autonomamente a criação de vídeos institucionais, aplicando técnicas de zoom no dashboard, legendas automatizadas e síntese de voz (TTS) para publicação direta no YouTube via API.",
         "visual_template": "Template Visual:",
         "tts_voice": "Locução (TTS Engine):",
         "yt_status": "Status de Publicação no YouTube:",
         "yt_schedule": "Agendar Publicação após Fechamento de Mercado",
         "render_video": "Renderizar e Disparar Vídeo Autônomo",
-        "heatmap_crypto": "?? Mapa de Alavancagem & Open Interest (Bitcoin / Derivativos)",
-        "heatmap_tradfi": "?? Mapa Térmico de Volume Profile & Liquidez Institucional (S&P 500 Futures / TradFi)",
+        "heatmap_crypto": "📊 Mapa de Alavancagem & Open Interest (Bitcoin / Derivativos)",
+        "heatmap_tradfi": "📊 Mapa Térmico de Volume Profile & Liquidez Institucional (S&P 500 Futures / TradFi)",
         "include_report": "Incluir no Report"
     },
     "EN": {
@@ -153,10 +153,10 @@ TRANSLATIONS = {
         "integrated_panel": "Integrated Category Analysis Panel",
         "agents_title": "Specialized Agents Architecture (AI & ML)",
         "agents_caption": "Autonomous orchestration of Intelligent Agents for prediction, technical analysis, scripting, and art direction.",
-        "agent_script": "?? Scriptwriter Agent",
-        "agent_predictive": "?? Predictive Agent (ML)",
-        "agent_ta": "?? Technical Analysis Agent",
-        "agent_art": "?? Art Director AI (YouTube Auto-Pilot)",
+        "agent_script": "🧠 Scriptwriter Agent",
+        "agent_predictive": "📊 Predictive Agent (ML)",
+        "agent_ta": "📈 Technical Analysis Agent",
+        "agent_art": "🎨 Art Director AI (YouTube Auto-Pilot)",
         "close": "Close",
         "auto_config_title": "Automation Settings & CRM Integrators",
         "trig_config_title": "Advanced Automated Report Triggers Configuration",
@@ -167,27 +167,27 @@ TRANSLATIONS = {
         "crm_integration": "CRM Platform Integration (Orchestration):",
         "crm_platform": "Target CRM Platform:",
         "crm_apikey": "CRM API Key / Token:",
-        "trig_days_title": "?? 1. Days of the Week for Automatic Generation",
+        "trig_days_title": "📅 1. Days of the Week for Automatic Generation",
         "trig_days_label": "Choose which days of the week triggers will fire reports:",
-        "trig_freq_title": "? 2 & 3. Daily Frequency and Report Times",
+        "trig_freq_title": "⏱️ 2 & 3. Daily Frequency and Report Times",
         "trig_freq_label": "Frequency (Number of daily reports):",
-        "trig_assets_title": "?? 4. Monitored Assets Selection (Max 10)",
+        "trig_assets_title": "🎯 4. Monitored Assets Selection (Max 10)",
         "trig_assets_label": "Select the assets triggers will consider (Maximum of 10):",
-        "calib_creds": "?? 1. API Credentials & Integrations",
+        "calib_creds": "🔑 1. API Credentials & Integrations",
         "brapi_token": "BRAPI API Token:",
         "custom_api": "Custom Market API Key:",
         "whatsapp_inst": "WhatsApp Instance ID:",
         "whatsapp_token": "WhatsApp API Token:",
-        "calib_assets": "? 2. Add and Remove Assets",
+        "calib_assets": "📂 2. Add and Remove Assets",
         "calib_assets_caption": "Register new assets or manage the global pool of assets available in the system.",
-        "add_new_asset": "? Add New Asset",
+        "add_new_asset": "➕ Add New Asset",
         "friendly_name": "Friendly Name:",
         "ticker_input": "Ticker:",
         "currency_input": "Currency:",
-        "manage_assets": "??? Manage / Remove Existing Assets",
+        "manage_assets": "🗑️ Manage / Remove Existing Assets",
         "manage_assets_caption": "Use the box below to view and remove existing assets from the pool.",
         "pool_assets_label": "Assets currently in the pool:",
-        "calib_cats": "?? 3. Add, Remove and Edit Categories",
+        "calib_cats": "🗂️ 3. Add, Remove and Edit Categories",
         "calib_cats_caption": "Organize your registered assets within custom categories.",
         "cat_action": "Category Action:",
         "new_cat_name": "New Category Name:",
@@ -196,36 +196,36 @@ TRANSLATIONS = {
         "cat_to_manage": "Select Category to Manage:",
         "rename_cat": "Rename Category:",
         "edit_cat_assets": "Select assets belonging to this category:",
-        "delete_cat_flag": "?? Delete this entire category",
-        "save_params": "?? Save Parameters",
-        "refresh_btn": "?? Refresh",
-        "weekend_msg": "?? <b>Market Closed (Weekend):</b> Quotes reflect official closing prices from Friday session.",
-        "agent_script_title": "?? Scriptwriter Agent (Multi-Format Scriptwriter)",
+        "delete_cat_flag": "⚠️ Delete this entire category",
+        "save_params": "💾 Save Parameters",
+        "refresh_btn": "🔄 Refresh",
+        "weekend_msg": "⚠️ <b>Market Closed (Weekend):</b> Quotes reflect official closing prices from Friday session.",
+        "agent_script_title": "🧠 Scriptwriter Agent (Multi-Format Scriptwriter)",
         "agent_script_desc": "Responsible for collecting real-time inputs (prices, macro/crypto indicators, sentiment) and synthesizing targeted scripts for TXT, JSON, WhatsApp, Telegram, and YouTube.",
         "target_asset_script": "Target Asset for Script:",
         "script_tone": "Script Tone:",
         "generate_script": "Generate Autonomous Script",
-        "agent_pred_title": "?? Predictive Agent (Real-Time Machine Learning)",
+        "agent_pred_title": "📊 Predictive Agent (Real-Time Machine Learning)",
         "agent_pred_desc": "Monitors high-liquidity restricted assets (`BTC-USD`, `ES=F`), executing statistical inferences and recording continuous accuracy logs.",
         "pred_asset_label": "Asset Under Predictive Analysis:",
         "win_rate_label": "Historical Win Rate",
         "confidence_label": "Current Inference Confidence Level",
-        "pred_logs_title": "?? Predictive Performance Logs",
+        "pred_logs_title": "📋 Predictive Performance Logs",
         "run_ml_btn": "Run New ML Inference",
-        "agent_ta_title": "?? Advanced Technical Analysis Agent",
+        "agent_ta_title": "📈 Advanced Technical Analysis Agent",
         "agent_ta_desc": "Receives data from the Predictive Agent, processes multiple timeframes (`4h`, `1D`, `1W`, `1M`), identifies classic patterns, and generates operational levels.",
         "ta_asset_label": "Asset for Technical Analysis:",
         "ta_tf_label": "Timeframe:",
         "run_ta_btn": "Run Pattern Scanner (TA Agent)",
-        "agent_art_title": "?? Art Director AI (YouTube Auto-Pilot)",
+        "agent_art_title": "🎨 Art Director AI (YouTube Auto-Pilot)",
         "agent_art_desc": "Autonomously orchestrates the creation of institutional videos, applying dashboard zoom techniques, automated subtitles, and voice synthesis (TTS) for direct publication to YouTube via API.",
         "visual_template": "Visual Template:",
         "tts_voice": "Voiceover (TTS Engine):",
         "yt_status": "YouTube Publication Status:",
         "yt_schedule": "Schedule Publication After Market Close",
         "render_video": "Render & Dispatch Autonomous Video",
-        "heatmap_crypto": "?? Leverage & Open Interest Heatmap (Bitcoin / Derivatives)",
-        "heatmap_tradfi": "?? Volume Profile & Institutional Liquidity Heatmap (S&P 500 Futures / TradFi)",
+        "heatmap_crypto": "📊 Leverage & Open Interest Heatmap (Bitcoin / Derivatives)",
+        "heatmap_tradfi": "📊 Volume Profile & Institutional Liquidity Heatmap (S&P 500 Futures / TradFi)",
         "include_report": "Include in Report"
     }
 }
@@ -318,7 +318,7 @@ def get_benchmark_source(item) -> str:
 
 st.set_page_config(
     page_title="OMNIRESEARCH Engine",
-    page_icon="?",
+    page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -385,9 +385,9 @@ st.markdown("""<style>
     }
 </style>""", unsafe_allow_html=True)
 
-st.sidebar.title("? OMNI Terminal")
+st.sidebar.title("🔮 OMNI Terminal")
 
-lang_choice = st.sidebar.selectbox("?? Idioma / Language", ["Português (BR)", "English (US)"], index=0)
+lang_choice = st.sidebar.selectbox("🌐 Idioma / Language", ["Português (BR)", "English (US)"], index=0)
 LANG_KEY = "PT" if "Português" in lang_choice else "EN"
 tr = TRANSLATIONS[LANG_KEY]
 
@@ -416,7 +416,7 @@ if "asset_pool_TradFi (Macro)" not in st.session_state:
                 seen_t.add(tk)
     st.session_state.asset_pool_TradFi = init_pool_t
 
-with st.sidebar.expander(f"?? {tr['login']}", expanded=False):
+with st.sidebar.expander(f"👤 {tr['login']}", expanded=False):
     login_user = st.text_input(tr['user_label'], value="analista@omni.com")
     login_pass = st.text_input(tr['pass_label'], value="••••••••", type="password")
     login_keep = st.checkbox(tr['keep_connected'], value=True)
@@ -431,28 +431,28 @@ else:
 st.sidebar.markdown(f"**{tr['active_plan']}** `{tier_selected}`")
 st.sidebar.markdown("---")
 
-modulo = st.sidebar.radio(f"?? {tr['module']}", ["Crypto", "TradFi (Macro)"], index=1, key="modulo_selection")
+modulo = st.sidebar.radio(f"⚙️ {tr['module']}", ["Crypto", "TradFi (Macro)"], index=1, key="modulo_selection")
 
-st.sidebar.markdown(f"### ?? {tr['outputs']}")
+st.sidebar.markdown(f"### 📤 {tr['outputs']}")
 fmt_b2b = st.sidebar.checkbox(tr['fmt_b2b'], value=True)
 fmt_yt = st.sidebar.checkbox(tr['fmt_yt'], value=False)
 fmt_wapp = st.sidebar.checkbox(tr['fmt_wapp'], value=False)
 fmt_tg = st.sidebar.checkbox(tr['fmt_tg'], value=False)
 
 st.sidebar.markdown("<div style='margin-top: 6px;'></div>", unsafe_allow_html=True)
-trigger_production = st.sidebar.button(f"? {tr['production_btn']}", use_container_width=True)
+trigger_production = st.sidebar.button(f"🚀 {tr['production_btn']}", use_container_width=True)
 
 st.sidebar.markdown("---")
-st.sidebar.markdown(f"### ?? {tr['advanced_config']}")
+st.sidebar.markdown(f"### 🛠️ {tr['advanced_config']}")
 
 if "config_window" not in st.session_state:
     st.session_state.config_window = None
 
-if st.sidebar.button(f"?? {tr['automations']}", use_container_width=True):
+if st.sidebar.button(f"⚙️ {tr['automations']}", use_container_width=True):
     st.session_state.config_window = "automations"
-if st.sidebar.button(f"? {tr['triggers']}", use_container_width=True):
+if st.sidebar.button(f"⚡ {tr['triggers']}", use_container_width=True):
     st.session_state.config_window = "triggers"
-if st.sidebar.button(f"??? {tr['calibration']}", use_container_width=True):
+if st.sidebar.button(f"🎛️ {tr['calibration']}", use_container_width=True):
     st.session_state.config_window = "calibration"
 
 allow_customization = "Free" not in tier_selected
@@ -487,10 +487,10 @@ if allow_white_label:
     cnpi_code = "CNPI-T 3421"
 
 if allow_white_label and company_name != "OMNIRESEARCH Engine":
-    st.title(f"??? {company_name} — Terminal Quant")
+    st.title(f"🏛️ {company_name} — Terminal Quant")
     st.caption(f"Análise Exclusiva B2B | Responsável Técnico: {cnpi_code}")
 else:
-    st.title("? OMNIRESEARCH Engine")
+    st.title("⚡ OMNIRESEARCH Engine")
     st.caption("Plataforma Integrada de Inteligência Financeira com IA & Auto-Pilot (Bilingual Ready)")
 
 if st.session_state.config_window:
@@ -498,13 +498,13 @@ if st.session_state.config_window:
         col_w_title, col_w_close = st.columns([5, 1])
         with col_w_title:
             if st.session_state.config_window == "automations":
-                st.subheader(f"?? {tr['auto_config_title']}")
+                st.subheader(f"⚙️ {tr['auto_config_title']}")
             elif st.session_state.config_window == "triggers":
-                st.subheader(f"? {tr['trig_config_title']}")
+                st.subheader(f"⚡ {tr['trig_config_title']}")
             elif st.session_state.config_window == "calibration":
-                st.subheader(f"??? {tr['calib_config_title']}")
+                st.subheader(f"🎛️ {tr['calib_config_title']}")
         with col_w_close:
-            if st.button(f"? {tr['close']}", use_container_width=True):
+            if st.button(f"❌ {tr['close']}", use_container_width=True):
                 st.session_state.config_window = None
                 st.rerun()
 
@@ -672,7 +672,7 @@ if st.session_state.config_window:
                     else:
                         st.session_state.custom_active_categories_tradfi = active_categories
 
-                    st.toast("Parâmetros atualizados com sucesso!", icon="?")
+                    st.toast("Parâmetros atualizados com sucesso!", icon="✅")
                     st.session_state.config_window = None
                     st.rerun()
     st.markdown("---")
@@ -692,9 +692,9 @@ countdown_text = f"{hrs_left}h {m_left:02d}m" if hrs_left > 0 else f"{m_left}m"
 
 col_status, col_health, col_btn_refresh = st.columns([2.3, 1.8, 0.9])
 with col_status:
-    st.markdown(f'<div class="status-bar">?? <b>{now_str[:10]}</b> | Source: {sources_str}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="status-bar">🕒 <b>{now_str[:10]}</b> | Source: {sources_str}</div>', unsafe_allow_html=True)
 with col_health:
-    st.markdown(f'<div class="status-bar" style="border-color: #238636; justify-content: space-between;"><span>?? <b>Auto-Pilot</b></span><span style="font-size: 12px; color: #8B949E;">Next: <b style="color: #3FB950;">{countdown_text}</b></span></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="status-bar" style="border-color: #238636; justify-content: space-between;"><span>🟢 <b>Auto-Pilot</b></span><span style="font-size: 12px; color: #8B949E;">Next: <b style="color: #3FB950;">{countdown_text}</b></span></div>', unsafe_allow_html=True)
 with col_btn_refresh:
     if st.button(tr['refresh_btn'], use_container_width=True):
         st.cache_data.clear()
@@ -725,7 +725,7 @@ selected_categories = list(active_display_categories.keys())
 col_left, col_right = st.columns([1.3, 1])
 
 with col_left:
-    st.subheader(f"?? {tr['deliveries']}")
+    st.subheader(f"📋 {tr['deliveries']}")
     st.caption(tr['deliveries_caption'])
 
     outputs_generated = []
@@ -783,19 +783,19 @@ with col_left:
 
     col_b1, col_b2, col_b3, col_b4 = st.columns(4)
     with col_b1:
-        st.download_button("?? TXT", data=primary_output_text, file_name=f"OMNI_Report_{modulo}_{LANG_KEY}.txt", mime="text/plain", use_container_width=True)
+        st.download_button("📥 TXT", data=primary_output_text, file_name=f"OMNI_Report_{modulo}_{LANG_KEY}.txt", mime="text/plain", use_container_width=True)
     with col_b2:
         json_data = json.dumps({"module": modulo, "language": LANG_KEY, "timestamp": now_str, "content": primary_output_text}, indent=4, ensure_ascii=False)
-        st.download_button("?? JSON", data=json_data, file_name=f"OMNI_Report_{modulo}_{LANG_KEY}.json", mime="application/json", use_container_width=True)
+        st.download_button("📥 JSON", data=json_data, file_name=f"OMNI_Report_{modulo}_{LANG_KEY}.json", mime="application/json", use_container_width=True)
     with col_b3:
         pdf_bytes = generate_pdf_report(primary_output_text, company_name, now_str)
-        st.download_button("?? PDF", data=pdf_bytes, file_name=f"OMNI_Report_{modulo}_{LANG_KEY}.pdf", mime="application/pdf", use_container_width=True)
+        st.download_button("📥 PDF", data=pdf_bytes, file_name=f"OMNI_Report_{modulo}_{LANG_KEY}.pdf", mime="application/pdf", use_container_width=True)
     with col_b4:
-        if st.button("?? CRM Push", use_container_width=True):
-            st.toast(f"Autonomous payload dispatched via {crm_platform}!", icon="???")
+        if st.button("🚀 CRM Push", use_container_width=True):
+            st.toast(f"Autonomous payload dispatched via {crm_platform}!", icon="🎯")
 
 with col_right:
-    st.subheader(f"?? {tr['metrics']} ({modulo})")
+    st.subheader(f"📊 {tr['metrics']} ({modulo})")
     st.caption(f"Updated | Source: Official APIs")
 
     for item in active_benchmarks:
@@ -825,7 +825,7 @@ with col_right:
 
 st.markdown("---")
 
-st.subheader(f"?? {tr['integrated_panel']} ({modulo})")
+st.subheader(f"🗂️ {tr['integrated_panel']} ({modulo})")
 if selected_categories:
     cols = st.columns(min(len(selected_categories), 4))
     for idx, cat_name in enumerate(selected_categories):
@@ -872,7 +872,7 @@ if selected_categories:
 
 st.markdown("---")
 
-st.subheader(f"?? {tr['agents_title']}")
+st.subheader(f"🤖 {tr['agents_title']}")
 st.caption(tr['agents_caption'])
 
 agent_tab1, agent_tab2, agent_tab3, agent_tab4 = st.tabs([
@@ -911,8 +911,8 @@ with agent_tab2:
     
     if "ml_prediction_logs" not in st.session_state:
         st.session_state.ml_prediction_logs = [
-            {"timestamp": "21/08/2026 18:00", "asset": "BTC-USD", "prediction": "Alta (Bullish)", "confidence": "78.4%", "status": "Acerto ?"},
-            {"timestamp": "20/08/2026 12:00", "asset": "ES=F", "prediction": "Neutro / Consolidação", "confidence": "82.1%", "status": "Acerto ?"}
+            {"timestamp": "21/08/2026 18:00", "asset": "BTC-USD", "prediction": "Alta (Bullish)", "confidence": "78.4%", "status": "Acerto ✅"},
+            {"timestamp": "20/08/2026 12:00", "asset": "ES=F", "prediction": "Neutro / Consolidação", "confidence": "82.1%", "status": "Acerto ✅"}
         ]
     
     col_p1, col_p2 = st.columns(2)
@@ -932,10 +932,10 @@ with agent_tab2:
             "asset": pred_asset,
             "prediction": "Alta Direcional (Momentum Positivo)",
             "confidence": "81.9%",
-            "status": "Em Monitoramento ??"
+            "status": "Em Monitoramento 🔄"
         }
         st.session_state.ml_prediction_logs.insert(0, new_log)
-        st.toast("Nova predição registrada com sucesso!", icon="??")
+        st.toast("Nova predição registrada com sucesso!", icon="📊")
         st.rerun()
 
 with agent_tab3:
@@ -967,7 +967,7 @@ with agent_tab4:
         yt_auto_schedule = st.checkbox(tr['yt_schedule'], value=True)
 
     if st.button(tr['render_video'], use_container_width=True):
-        st.toast("Vídeo renderizado e enviado para fila da API do YouTube!", icon="??")
+        st.toast("Vídeo renderizado e enviado para fila da API do YouTube!", icon="🎥")
         st.success("Status: Pipeline de Vídeo 100% concluído e integrado ao Auto-Pilot.")
 
 st.markdown("---")
@@ -1080,66 +1080,66 @@ if PLOTLY_AVAILABLE:
         xaxis=dict(gridcolor="#30363D", title="Accumulated Notional Volume" if LANG_KEY == "EN" else "Volume Notional Acumulado")
     )
     st.plotly_chart(fig_oi, use_container_width=True)
-    st.markdown(f"?? **API Source:** `{data_source}`")
+    st.markdown(f"🌐 **API Source:** `{data_source}`")
 else:
-    st.warning("?? Plotly module unavailable.")
+    st.warning("⚠️ Plotly module unavailable.")
 
 # =============================================================================
-# 7. INTEGRAÇÃO DO TERMÔMETRO NO FINAL DO MÓDULO CRYPTO (Minimizado por padrão)
+# 7. SEÇÃO INTEGRADA: TERMÔMETRO DE CICLO (MACRO & RELÓGIO CÍCLICO) NO MÓDULO CRYPTO
 # =============================================================================
 if modulo == "Crypto":
     st.markdown("---")
     
-    with st.expander("🌡️ Termômetro de Ciclo: Macro & Relógio Cíclico (Marco Zero: Halving)", expanded=False):
-        # Cabeçalho interno com o checkbox "Incluir no Report" exatamente ao lado do título
-        col_exp_t1, col_exp_t2 = st.columns([0.75, 0.25])
-        with col_exp_t1:
-            st.caption("Visão cíclica completa, cronologia histórica e comparativos de desempenho por perfil quantitativo.")
-        with col_exp_t2:
-            st.checkbox("Incluir no Report", value=True, key="chk_include_termometro_cycle")
+    # Cabeçalho da seção com o checkbox "Incluir no Report" ao lado do título principal
+    col_term_title, col_term_chk = st.columns([4, 1])
+    with col_term_title:
+        st.subheader("🌡️ Termômetro de Ciclo: Macro & Relógio Cíclico (Marco Zero: Halving)")
+        st.caption("Visão cíclica completa, cronologia histórica e comparativos de desempenho por perfil quantitativo.")
+    with col_term_chk:
+        st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+        st.checkbox("Incluir no Report", value=True, key="chk_include_termometro_cycle")
 
-        # Abas solicitadas dentro do expander para otimizar carregamento e performance
-        term_tab1, term_tab2 = st.tabs([
-            "Termômetro Macro & Relógio Cíclico (Marco Zero: Halving)", 
-            "Comparativo Dinâmico por Perfil"
-        ])
+    # Abas principais da seção do Termômetro
+    term_tab1, term_tab2 = st.tabs([
+        "Termômetro Macro & Relógio Cíclico (Marco Zero: Halving)", 
+        "Comparativo Dinâmico por Perfil"
+    ])
 
-        with term_tab1:
-            st.markdown("### 📊 Relógio Cíclico & Progresso Global do Halving")
-            
-            # Dados e cálculos estruturados do Halving atual
-            halving_atual_dt = datetime(2024, 4, 19)
-            prox_halving_dt = datetime(2028, 2, 14)
-            total_duration_days = (prox_halving_dt - halving_atual_dt).days
-            elapsed_days = (datetime.now() - halving_atual_dt).days
-            progress_pct = min(max((elapsed_days / total_duration_days) * 100, 0.0), 100.0)
+    with term_tab1:
+        st.markdown("### 📊 Relógio Cíclico & Progresso Global do Halving")
+        
+        halving_atual_dt = datetime(2024, 4, 19)
+        prox_halving_dt = datetime(2028, 2, 14)
+        total_duration_days = (prox_halving_dt - halving_atual_dt).days
+        elapsed_days = (datetime.now() - halving_atual_dt).days
+        progress_pct = min(max((elapsed_days / total_duration_days) * 100, 0.0), 100.0)
 
-            st.write(f"Progresso Global do Halving Atual: **{progress_pct:.1f}%**")
-            st.progress(progress_pct / 100.0)
+        st.write(f"Progresso Global do Halving Atual: **{progress_pct:.1f}%**")
+        st.progress(progress_pct / 100.0)
 
-            col_d1, col_d2, col_d3 = st.columns(3)
-            with col_d1:
-                st.markdown("🔹 **Halving Atual (Marco 0):** `19/04/2024`")
-            with col_d2:
-                st.markdown("🔹 **Fase Tática:** `Pós-Topo / Acumulação`")
-            with col_d3:
-                st.markdown("🔹 **Próximo Halving:** `14/02/2028`")
+        col_d1, col_d2, col_d3 = st.columns(3)
+        with col_d1:
+            st.markdown("🔹 **Halving Atual (Marco 0):** `19/04/2024`")
+        with col_d2:
+            st.markdown("🔹 **Fase Tática:** `Pós-Topo / Acumulação`")
+        with col_d3:
+            st.markdown("🔹 **Próximo Halving:** `14/02/2028`")
 
-            st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-            st.info("💡 **Análise Quantitativa:** O ciclo mantém o comportamento histórico estruturado em janelas uniformes (~240 dias por fase), permitindo leitura precisa da distância temporal até o próximo fundo e topo macroeconômico.")
+        st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+        st.info("💡 **Análise Quantitativa:** O ciclo mantém o comportamento histórico estruturado em janelas uniformes (~240 dias por fase), permitindo leitura precisa da distância temporal até o próximo fundo e topo macroeconômico.")
 
-        with term_tab2:
-            st.markdown("### 📈 Comparativo Dinâmico por Perfil (Retorno Real & Alocação)")
-            st.markdown("Retorno calculado com base no histórico e perfis de risco estipulados pela engine quantitativa:")
+    with term_tab2:
+        st.markdown("### 📈 Comparativo Dinâmico por Perfil (Retorno Real & Alocação)")
+        st.markdown("Retorno calculado com base no histórico e perfis de risco estipulados pela engine quantitativa:")
 
-            perfis_data = [
-                {"Perfil": "Agressivo (64% BTC + 16% Alts + 20% USDT)", "Retorno": "+195.4%", "Regime": "Retração / Acumulação"},
-                {"Perfil": "Moderado (32% BTC + 8% Alts + 60% USDT)", "Retorno": "+112.8%", "Regime": "Retração / Acumulação"},
-                {"Perfil": "Conservador (16% BTC + 4% Alts + 80% USDT)", "Retorno": "+58.2%", "Regime": "Retração / Acumulação"}
-            ]
-            
-            df_perfis = pd.DataFrame(perfis_data)
-            st.dataframe(df_perfis, use_container_width=True)
+        perfis_data = [
+            {"Perfil": "Agressivo (64% BTC + 16% Alts + 20% USDT)", "Retorno": "+195.4%", "Regime": "Retração / Acumulação"},
+            {"Perfil": "Moderado (32% BTC + 8% Alts + 60% USDT)", "Retorno": "+112.8%", "Regime": "Retração / Acumulação"},
+            {"Perfil": "Conservador (16% BTC + 4% Alts + 80% USDT)", "Retorno": "+58.2%", "Regime": "Retração / Acumulação"}
+        ]
+        
+        df_perfis = pd.DataFrame(perfis_data)
+        st.dataframe(df_perfis, use_container_width=True)
 
 st.markdown("---")
-st.caption("©? Powered by OMNIRESEARCH Engine — Predictive Financial Intelligence & Autonomous Agents.")[source: 4, 5]
+st.caption("©️ Powered by OMNIRESEARCH Engine — Predictive Financial Intelligence & Autonomous Agents.")
