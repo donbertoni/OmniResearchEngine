@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# OMNI Terminal - configuração de gatilhos gerada em runtime
+trigger_config.json
