@@ -50,12 +50,32 @@ def build_youtube_script(now_str: str, modulo: str) -> str:
     ])
 
 
-def build_whatsapp_message(now_str: str) -> str:
-    return "\n".join(["=== WHATSAPP MESSAGE ===", f"OMNI Alert - {now_str}"])
+def _highlight_ticker(modulo: str) -> str:
+    return "BTC-USD" if modulo == "Crypto" else "ES=F"
 
 
-def build_telegram_message(now_str: str) -> str:
-    return "\n".join(["=== TELEGRAM MESSAGE ===", f"OMNI Official Channel | {now_str}"])
+def _build_b2c_alert(header: str, now_str: str, modulo: str, sentiment: MarketSentiment, quotes: Dict[str, Quote]) -> str:
+    ticker = _highlight_ticker(modulo)
+    q = quotes.get(ticker)
+    highlight_line = (
+        f"Destaque ({ticker}): {fmt_num(q.price)} ({fmt_pct(q.change)})"
+        if q and q.price
+        else f"Destaque ({ticker}): cotação indisponível no momento."
+    )
+    return "\n".join([
+        header,
+        f"Timestamp: {now_str}",
+        f"Market Sentiment: {sentiment.value} ({sentiment.classification})",
+        highlight_line,
+    ])
+
+
+def build_whatsapp_message(now_str: str, modulo: str, sentiment: MarketSentiment, quotes: Dict[str, Quote]) -> str:
+    return _build_b2c_alert("=== OMNI Alert (WhatsApp) ===", now_str, modulo, sentiment, quotes)
+
+
+def build_telegram_message(now_str: str, modulo: str, sentiment: MarketSentiment, quotes: Dict[str, Quote]) -> str:
+    return _build_b2c_alert("=== OMNI Official Channel (Telegram) ===", now_str, modulo, sentiment, quotes)
 
 
 def export_to_json(modulo: str, lang_key: str, now_str: str, content: str) -> str:

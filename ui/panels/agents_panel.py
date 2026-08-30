@@ -2,9 +2,10 @@ import pandas as pd
 import streamlit as st
 
 from omni.application import agents_service
+from omni.domain.tenancy import LEGACY_ORG_ID
 
 
-def render_agents_panel(tr: dict, lang_key: str, quotes: dict) -> None:
+def render_agents_panel(tr: dict, lang_key: str, quotes: dict, ml_log_repo) -> None:
     st.subheader(f"🤖 {tr['agents_title']}")
     st.caption(tr["agents_caption"])
 
@@ -15,7 +16,7 @@ def render_agents_panel(tr: dict, lang_key: str, quotes: dict) -> None:
     with agent_tab1:
         _render_scriptwriter_tab(tr, lang_key, quotes)
     with agent_tab2:
-        _render_predictive_tab(tr, lang_key)
+        _render_predictive_tab(tr, lang_key, ml_log_repo)
     with agent_tab3:
         _render_ta_tab(tr)
     with agent_tab4:
@@ -37,7 +38,7 @@ def _render_scriptwriter_tab(tr: dict, lang_key: str, quotes: dict) -> None:
         st.text_area("Roteiro Sintetizado pela IA / Synthesized AI Script:", value=script_output, height=200)
 
 
-def _render_predictive_tab(tr: dict, lang_key: str) -> None:
+def _render_predictive_tab(tr: dict, lang_key: str, ml_log_repo) -> None:
     st.markdown(f"### {tr['agent_pred_title']}")
     st.markdown(tr["agent_pred_desc"])
 
@@ -57,6 +58,7 @@ def _render_predictive_tab(tr: dict, lang_key: str) -> None:
     if st.button(tr["run_ml_btn"], use_container_width=True):
         new_log = agents_service.run_ml_inference(pred_asset)
         st.session_state.ml_prediction_logs.insert(0, new_log)
+        ml_log_repo.append(LEGACY_ORG_ID, new_log)
         st.toast("Nova predição registrada com sucesso!", icon="📊")
         st.rerun()
 

@@ -1,7 +1,8 @@
 import streamlit as st
 
-from omni.application import report_service
-from omni.domain.ports import ReportExporterPort
+from omni.application import automation_service, report_service
+from omni.application.automation_service import AutomationSettings
+from omni.domain.ports import EmailPort, NotificationPort, ReportExporterPort, WebhookPort
 
 
 def render_deliveries_panel(
@@ -18,13 +19,21 @@ def render_deliveries_panel(
     fmt_yt: bool,
     fmt_wapp: bool,
     fmt_tg: bool,
-    crm_platform: str,
+    automation_settings: AutomationSettings,
     pdf_exporter: ReportExporterPort,
+    webhook_port: WebhookPort,
+    email_port: EmailPort,
+    whatsapp_port: NotificationPort,
+    telegram_port: NotificationPort,
+    whatsapp_credentials: dict,
+    telegram_credentials: dict,
 ) -> None:
     st.subheader(f"📋 {tr['deliveries']}")
     st.caption(tr["deliveries_caption"])
 
     outputs_generated = []
+    whatsapp_content = None
+    telegram_content = None
 
     if fmt_b2b:
         content = report_service.build_b2b_report(
@@ -44,9 +53,11 @@ def render_deliveries_panel(
     if fmt_yt:
         outputs_generated.append(("B2C (YouTube)", report_service.build_youtube_script(now_str, modulo)))
     if fmt_wapp:
-        outputs_generated.append(("B2C (WhatsApp)", report_service.build_whatsapp_message(now_str)))
+        whatsapp_content = report_service.build_whatsapp_message(now_str, modulo, sentiment, quotes)
+        outputs_generated.append(("B2C (WhatsApp)", whatsapp_content))
     if fmt_tg:
-        outputs_generated.append(("B2C (Telegram)", report_service.build_telegram_message(now_str)))
+        telegram_content = report_service.build_telegram_message(now_str, modulo, sentiment, quotes)
+        outputs_generated.append(("B2C (Telegram)", telegram_content))
 
     if not outputs_generated:
         st.info("No output format selected in sidebar.")
@@ -82,4 +93,28 @@ def render_deliveries_panel(
         )
     with col_b4:
         if st.button("🚀 CRM Push", use_container_width=True):
-            st.toast(f"Autonomous payload dispatched via {crm_platform}!", icon="🎯")
+            results = automation_service.dispatch_crm_push(
+                webhook_port, automation_settings, {"modulo": modulo, "content": primary_output_text, "timestamp": now_str}
+            )
+            for url, ok, msg in results:
+                (st.success if ok else st.error)(msg)
+
+    st.markdown("##### 📨 Disparo Imediato (Auto-Pilot manual)")
+    col_d1, col_d2, col_d3 = st.columns(3)
+    with col_d1:
+        emails = automation_service.split_targets(automation_settings.auto_emails)
+        if st.button(f"✉️ E-mail ({len(emails)})", use_container_width=True, disabled=not (fmt_b2b and emails)):
+            ok, msg = email_port.send(emails, f"OMNI Report - {modulo}", primary_output_text)
+            (st.success if ok else st.error)(msg)
+    with col_d2:
+        numbers = automation_service.split_targets(automation_settings.whatsapp_numbers)
+        if st.button(f"💬 WhatsApp ({len(numbers)})", use_container_width=True, disabled=not (fmt_wapp and numbers)):
+            for number in numbers:
+                ok, msg = whatsapp_port.send(number, whatsapp_content or primary_output_text, whatsapp_credentials)
+                (st.success if ok else st.error)(f"{number}: {msg}")
+    with col_d3:
+        chat_ids = automation_service.split_targets(automation_settings.telegram_chat_ids)
+        if st.button(f"📢 Telegram ({len(chat_ids)})", use_container_width=True, disabled=not (fmt_tg and chat_ids)):
+            for chat_id in chat_ids:
+                ok, msg = telegram_port.send(chat_id, telegram_content or primary_output_text, telegram_credentials)
+                (st.success if ok else st.error)(f"{chat_id}: {msg}")

@@ -5,3 +5,10 @@ pandas
 numpy
 plotly
 reportlab
+psycopg2-binary
+APScheduler
+alembic
+sqlalchemy
+PyJWT
+cryptography
+argon2-cffi

@@ -1,15 +1,6 @@
 from omni.domain.models import TierPermissions
 
 
-def determine_tier(login_user: str) -> str:
-    login_lower = (login_user or "").lower()
-    if "admin" in login_lower or "white" in login_lower:
-        return "Premium (B2B White-Label)"
-    if "free" in login_lower:
-        return "Free (Lead Magnet)"
-    return "Standard (B2C Trader)"
-
-
 def tier_permissions(tier: str) -> TierPermissions:
     allow_customization = "Free" not in tier
     allow_white_label = "Premium" in tier

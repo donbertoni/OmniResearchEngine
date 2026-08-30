@@ -2,16 +2,9 @@ from datetime import datetime
 
 import streamlit as st
 
-from omni.adapters.global_market.coingecko_adapter import CoinGeckoGlobalMarketAdapter
-from omni.adapters.liquidity.deribit_orderbook_adapter import DeribitLiquidityAdapter
-from omni.adapters.liquidity.es_futures_volume_profile_adapter import EsFuturesLiquidityAdapter
-from omni.adapters.market_data.brapi_adapter import BrapiMarketDataAdapter
-from omni.adapters.market_data.composite_adapter import CompositeMarketDataAdapter
-from omni.adapters.market_data.yfinance_adapter import YFinanceMarketDataAdapter
-from omni.adapters.reporting.pdf_reportlab_adapter import ReportLabPdfExporter
-from omni.adapters.sentiment.alternative_me_adapter import AlternativeMeSentimentAdapter
+from omni.adapters.scheduling.report_scheduler import start_background_scheduler
 from omni.application.dashboard_service import fetch_dashboard_snapshot
-from omni.config.settings import load_settings
+from omni.composition import build_infrastructure
 from omni.domain.catalog import CRYPTO_BENCHMARKS, MACRO_BENCHMARKS
 from ui import state, styles
 from ui.panels.agents_panel import render_agents_panel
@@ -24,41 +17,41 @@ from ui.panels.metrics_panel import render_metrics_panel
 from ui.sidebar import render_sidebar
 from ui.translations import TRANSLATIONS
 
-# Composition root: os únicos objetos concretos de infraestrutura instanciados no
-# processo inteiro. Os services de omni/application só recebem essas instâncias
-# via parâmetro/injeção, nunca importam um adapter concreto diretamente.
-_yfinance_adapter = YFinanceMarketDataAdapter()
-_brapi_adapter = BrapiMarketDataAdapter()
-_market_data_port = CompositeMarketDataAdapter(_yfinance_adapter, _brapi_adapter)
-_sentiment_port = AlternativeMeSentimentAdapter()
-_global_market_port = CoinGeckoGlobalMarketAdapter()
-_crypto_liquidity_port = DeribitLiquidityAdapter()
-_tradfi_liquidity_port = EsFuturesLiquidityAdapter(_yfinance_adapter)
-_pdf_exporter_port = ReportLabPdfExporter()
+# Composition root real: omni/composition.py monta todos os adapters concretos
+# (Postgres se DATABASE_URL estiver configurada, fallback local em JSON caso
+# contrário) usados tanto aqui quanto em scheduler_worker.py.
+_infra = build_infrastructure()
+start_background_scheduler(_infra)
 
 
 @st.cache_data(ttl=60, show_spinner=False)
-def _cached_dashboard_snapshot(symbols: tuple, brapi_token: str, custom_api_key: str):
+def _cached_dashboard_snapshot(symbols: tuple, brapi_token: str):
     # Bug corrigido: antes nenhuma das chamadas de API tinha cache, então cada
     # interação (marcar checkbox, trocar de aba) refazia todas as requisições
     # externas, e o botão "Refresh" (que só chamava st.cache_data.clear()) não
     # tinha efeito nenhum porque não havia nada cacheado para limpar.
-    return fetch_dashboard_snapshot(_market_data_port, _sentiment_port, _global_market_port, symbols, brapi_token, custom_api_key)
+    return fetch_dashboard_snapshot(_infra.market_data_port, _infra.sentiment_port, _infra.global_market_port, symbols, brapi_token)
 
 
 def run() -> None:
-    settings = load_settings()
-
     st.set_page_config(page_title="OMNIRESEARCH Engine", page_icon="⚡", layout="wide", initial_sidebar_state="expanded")
     styles.inject(st)
 
-    state.init_session_state(settings)
+    state.init_session_state(_infra)
 
-    selections = render_sidebar(TRANSLATIONS)
+    selections = render_sidebar(TRANSLATIONS, _infra.user_repo)
     tr = selections.tr
     lang_key = selections.lang_key
     modulo = selections.modulo
     permissions = selections.permissions
+
+    if not _infra.using_postgres:
+        st.markdown(
+            '<div class="warning-bar">⚠️ DATABASE_URL não configurada -- login, gatilhos, automações e pools de '
+            "ativos estão em arquivos JSON locais e NÃO sobrevivem a um redeploy. Configure um Postgres dedicado "
+            "(ver .env.example).</div>",
+            unsafe_allow_html=True,
+        )
 
     if modulo == "Crypto":
         active_categories = st.session_state.custom_active_categories_crypto
@@ -84,7 +77,11 @@ def run() -> None:
         st.title("⚡ OMNIRESEARCH Engine")
         st.caption("Plataforma Integrada de Inteligência Financeira com IA & Auto-Pilot (Bilingual Ready)")
 
-    automation_settings = render_config_window(tr, modulo, active_categories, current_asset_pool, pool_state_key)
+    automation_settings = render_config_window(
+        tr, modulo, active_categories, current_asset_pool, pool_state_key,
+        permissions, _infra.trigger_repo, _infra.automation_repo, _infra.credentials_repo,
+    )
+    state.persist_dirty_customizations(_infra)
 
     now_str = datetime.now().strftime("%d/%m/%Y às %H:%M:%S BRT" if lang_key == "PT" else "%Y-%m-%d at %H:%M:%S UTC")
     is_weekend = datetime.now().weekday() >= 5
@@ -122,16 +119,23 @@ def run() -> None:
         for _, ticker, _ in cat_info["assets"]:
             symbols_to_fetch.append(ticker)
 
-    snapshot = _cached_dashboard_snapshot(
-        tuple(dict.fromkeys(symbols_to_fetch)),
-        st.session_state.get("brapi_token", ""),
-        st.session_state.get("custom_data_api_key", ""),
-    )
+    snapshot = _cached_dashboard_snapshot(tuple(dict.fromkeys(symbols_to_fetch)), st.session_state.get("brapi_token", ""))
     quotes = snapshot.quotes
     sentiment = snapshot.sentiment
     global_stats = snapshot.global_stats
 
+    if snapshot.warnings:
+        with st.expander(f"⚠️ {len(snapshot.warnings)} fonte(s) de dado indisponível(is) -- exibindo fallback", expanded=False):
+            for warning in snapshot.warnings:
+                st.warning(warning)
+
     active_display_categories = active_categories.copy()
+
+    whatsapp_credentials = {
+        "instance_id": st.session_state.get("whatsapp_instance", ""),
+        "token": st.session_state.get("whatsapp_token", ""),
+    }
+    telegram_credentials = {"bot_token": st.session_state.get("telegram_bot_token", "")}
 
     col_left, col_right = st.columns([1.3, 1])
     with col_left:
@@ -139,7 +143,9 @@ def run() -> None:
             tr, modulo, lang_key, now_str, company_name, cnpi_code, sentiment,
             active_display_categories, quotes,
             selections.fmt_b2b, selections.fmt_yt, selections.fmt_wapp, selections.fmt_tg,
-            automation_settings.crm_platform, _pdf_exporter_port,
+            automation_settings, _infra.pdf_exporter_port,
+            _infra.webhook_port, _infra.email_port, _infra.whatsapp_port, _infra.telegram_port,
+            whatsapp_credentials, telegram_credentials,
         )
     with col_right:
         render_metrics_panel(tr, modulo, active_benchmarks, quotes, sentiment, global_stats)
@@ -148,10 +154,10 @@ def run() -> None:
     render_category_panel(tr, modulo, active_display_categories, quotes)
 
     st.markdown("---")
-    render_agents_panel(tr, lang_key, quotes)
+    render_agents_panel(tr, lang_key, quotes, _infra.ml_log_repo)
 
     st.markdown("---")
-    render_heatmap_panel(tr, modulo, lang_key, quotes, _crypto_liquidity_port, _tradfi_liquidity_port)
+    render_heatmap_panel(tr, modulo, lang_key, quotes, _infra.crypto_liquidity_port, _infra.tradfi_liquidity_port)
 
     if modulo == "Crypto":
         st.markdown("---")

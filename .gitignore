@@ -217,5 +217,14 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# OMNI Terminal - configuração de gatilhos gerada em runtime
+# OMNI Terminal - estado local gerado em runtime (fallback quando DATABASE_URL
+# não está configurada; ver omni/adapters/persistence/)
 trigger_config.json
+automation_config.json
+asset_pools.json
+asset_categories.json
+ml_prediction_logs.json
+users.json
+api_credentials.json
+organizations.json
+org_members.json

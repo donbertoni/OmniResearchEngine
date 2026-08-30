@@ -1,4 +1,4 @@
-from omni.application.catalog_service import determine_tier, tier_permissions
+from omni.application.catalog_service import tier_permissions
 from omni.domain.catalog import CATEGORIES_CRYPTO, build_initial_asset_pool
 
 
@@ -16,19 +16,6 @@ def test_build_initial_asset_pool_from_real_crypto_catalog_has_no_duplicate_tick
     pool = build_initial_asset_pool(CATEGORIES_CRYPTO)
     tickers = [tk for _, tk, _ in pool]
     assert len(tickers) == len(set(tickers))
-
-
-def test_determine_tier_admin_and_white_are_premium():
-    assert determine_tier("admin@omni.com") == "Premium (B2B White-Label)"
-    assert determine_tier("whitelabel@gestora.com") == "Premium (B2B White-Label)"
-
-
-def test_determine_tier_free_is_lead_magnet():
-    assert determine_tier("free@omni.com") == "Free (Lead Magnet)"
-
-
-def test_determine_tier_default_is_standard():
-    assert determine_tier("analista@omni.com") == "Standard (B2C Trader)"
 
 
 def test_tier_permissions_standard_limits_to_five_tickers():
