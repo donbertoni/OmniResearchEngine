@@ -6,6 +6,7 @@ from omni.adapters.scheduling.report_scheduler import start_background_scheduler
 from omni.application.dashboard_service import fetch_dashboard_snapshot
 from omni.composition import build_infrastructure
 from omni.domain.catalog import CRYPTO_BENCHMARKS, MACRO_BENCHMARKS
+from omni.domain.tenancy import LEGACY_ORG_ID
 from ui import state, styles
 from ui.panels.agents_panel import render_agents_panel
 from ui.panels.category_panel import render_category_panel
@@ -39,7 +40,7 @@ def run() -> None:
 
     state.init_session_state(_infra)
 
-    selections = render_sidebar(TRANSLATIONS, _infra.user_repo)
+    selections = render_sidebar(TRANSLATIONS, _infra.user_repo, _infra.org_member_repo)
     tr = selections.tr
     lang_key = selections.lang_key
     modulo = selections.modulo
@@ -67,8 +68,13 @@ def run() -> None:
     company_name = "OMNIRESEARCH Engine"
     cnpi_code = "CNPI-T 0000"
     if permissions.allow_white_label:
-        company_name = "XP / BTG / Gestora"
-        cnpi_code = "CNPI-T 3421"
+        # Branding real da organização (Calibragem -> "Marca White-Label"),
+        # não mais um placeholder fixo ("XP / BTG / Gestora") mostrado pra
+        # todo cliente Premium independente do que ele configurou.
+        org = _infra.org_repo.get_by_id(LEGACY_ORG_ID)
+        if org and org.company_name:
+            company_name = org.company_name
+            cnpi_code = org.cnpi_code or cnpi_code
 
     if permissions.allow_white_label and company_name != "OMNIRESEARCH Engine":
         st.title(f"🏛️ {company_name} — Terminal Quant")
@@ -79,7 +85,7 @@ def run() -> None:
 
     automation_settings = render_config_window(
         tr, modulo, active_categories, current_asset_pool, pool_state_key,
-        permissions, _infra.trigger_repo, _infra.automation_repo, _infra.credentials_repo,
+        permissions, _infra.trigger_repo, _infra.automation_repo, _infra.credentials_repo, _infra.org_repo,
     )
     state.persist_dirty_customizations(_infra)
 

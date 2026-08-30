@@ -17,10 +17,11 @@ from typing import Optional, Tuple
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
+from omni.domain import tiers
 from omni.domain.models import User
 from omni.domain.ports import UserRepositoryPort
 
-DEFAULT_TIER = "Standard (B2C Trader)"
+DEFAULT_TIER = tiers.STANDARD
 _PBKDF2_ITERATIONS = 260_000
 _argon2_hasher = PasswordHasher()
 
@@ -36,9 +37,9 @@ def _is_argon2_hash(stored_hash: str) -> bool:
 def _verify_legacy_pbkdf2(password: str, stored_hash: str) -> bool:
     try:
         salt_hex, derived_hex = stored_hash.split("$", 1)
+        salt = bytes.fromhex(salt_hex)
     except ValueError:
         return False
-    salt = bytes.fromhex(salt_hex)
     derived = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, _PBKDF2_ITERATIONS)
     return hmac.compare_digest(derived.hex(), derived_hex)
 

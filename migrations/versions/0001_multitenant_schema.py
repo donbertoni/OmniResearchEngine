@@ -7,6 +7,10 @@ JSON local até uma DATABASE_URL dedicada ser configurada -- ver
 docs/ARCHITECTURE.md), esta é a única migration: já nasce multi-tenant, sem
 precisar de uma segunda migration de "backfill" para dados que não existem.
 
+Nota: os valores literais de tier ('Free (Lead Magnet)', 'Standard (B2C
+Trader)') abaixo precisam ser mantidos manualmente em sincronia com
+omni/domain/tiers.py (SQL não consegue importar as constantes Python).
+
 Revision ID: 0001
 Revises:
 Create Date: 2026-08-29

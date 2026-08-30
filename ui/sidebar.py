@@ -4,8 +4,10 @@ from typing import Optional
 import streamlit as st
 
 from omni.application import auth_service, catalog_service, session_token_service
+from omni.domain import tiers
 from omni.domain.models import TierPermissions, User
-from omni.domain.ports import UserRepositoryPort
+from omni.domain.ports import OrgMemberRepositoryPort, UserRepositoryPort
+from omni.domain.tenancy import LEGACY_ORG_ID
 
 
 @dataclass
@@ -36,7 +38,7 @@ def _try_auto_login_from_query_param(user_repo: UserRepositoryPort) -> None:
             st.session_state.auth_user = user
 
 
-def _render_login_box(tr: dict, user_repo: UserRepositoryPort) -> None:
+def _render_login_box(tr: dict, user_repo: UserRepositoryPort, org_member_repo: OrgMemberRepositoryPort) -> None:
     user: Optional[User] = st.session_state.get("auth_user")
 
     if user:
@@ -70,12 +72,24 @@ def _render_login_box(tr: dict, user_repo: UserRepositoryPort) -> None:
         if st.button(tr["create_account_btn"], use_container_width=True, key="signup_submit"):
             ok, msg = auth_service.register(user_repo, new_email, new_password)
             if ok:
+                # Streamlit (ui/) ainda não resolve organização por usuário --
+                # todo mundo que se cadastra aqui vira membro da mesma
+                # organização legado (ver omni/domain/tenancy.py). Isso é
+                # intencional e temporário (Fase 0), não um bug: só existe
+                # isolamento real de dados por cliente a partir da Fase 1
+                # (FastAPI + Next.js). "owner" porque, nesta interface, quem
+                # loga é literalmente quem opera o terminal -- não há RBAC
+                # aplicado em ui/ ainda.
+                new_user = user_repo.get_by_email(new_email.strip().lower())
+                if new_user:
+                    org_member_repo.add_member(LEGACY_ORG_ID, new_user.id, "owner")
                 st.success(msg)
+                st.caption(tr["shared_tenant_notice"])
             else:
                 st.error(msg)
 
 
-def render_sidebar(translations: dict, user_repo: UserRepositoryPort) -> SidebarSelections:
+def render_sidebar(translations: dict, user_repo: UserRepositoryPort, org_member_repo: OrgMemberRepositoryPort) -> SidebarSelections:
     st.sidebar.title("🔮 OMNI Terminal")
 
     lang_choice = st.sidebar.selectbox("🌐 Idioma / Language", ["Português (BR)", "English (US)"], index=0)
@@ -85,10 +99,10 @@ def render_sidebar(translations: dict, user_repo: UserRepositoryPort) -> Sidebar
     _try_auto_login_from_query_param(user_repo)
 
     with st.sidebar.expander(f"👤 {tr['login']}", expanded=st.session_state.get("auth_user") is None):
-        _render_login_box(tr, user_repo)
+        _render_login_box(tr, user_repo, org_member_repo)
 
     user: Optional[User] = st.session_state.get("auth_user")
-    tier = user.tier if user else "Free (Lead Magnet)"
+    tier = user.tier if user else tiers.FREE
     permissions = catalog_service.tier_permissions(tier)
 
     st.sidebar.markdown(f"**{tr['active_plan']}** `{tier}`" + ("" if user else f" ({tr['login_required_hint']})"))

@@ -13,6 +13,16 @@ except ImportError:
     PLOTLY_AVAILABLE = False
 
 
+@st.cache_data(ttl=60, show_spinner=False)
+def _cached_liquidity_heatmap(modulo: str, base_price: float, _crypto_port, _tradfi_port):
+    # Mesmo bug que _cached_dashboard_snapshot (ui/main.py) já corrigiu: sem
+    # cache, qualquer interação não relacionada (marcar um checkbox em outro
+    # painel) refazia a chamada ao order book da Deribit / volume profile do
+    # ES=F. Parâmetros prefixados com "_" não entram na chave de cache -- é
+    # assim que o Streamlit lida com argumentos não-hasheáveis como adapters.
+    return liquidity_service.get_liquidity_heatmap(modulo, base_price, _crypto_port, _tradfi_port)
+
+
 def render_heatmap_panel(
     tr: dict,
     modulo: str,
@@ -36,7 +46,7 @@ def render_heatmap_panel(
     q = quotes.get(default_ticker)
     base_price = q.price if q and q.price else (77000.0 if modulo == "Crypto" else 5000.0)
 
-    liquidity = liquidity_service.get_liquidity_heatmap(modulo, base_price, crypto_liquidity_port, tradfi_liquidity_port)
+    liquidity = _cached_liquidity_heatmap(modulo, base_price, crypto_liquidity_port, tradfi_liquidity_port)
 
     arr_v = np.array(liquidity.volumes, dtype=float)
     max_v = arr_v.max() if len(arr_v) > 0 and arr_v.max() > 0 else 1.0

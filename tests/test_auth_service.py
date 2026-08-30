@@ -80,6 +80,16 @@ def test_new_passwords_are_hashed_with_argon2id_not_plaintext():
     assert not auth_service.verify_password("wrong", hashed)
 
 
+def test_malformed_legacy_hash_fails_cleanly_instead_of_crashing():
+    repo = FakeUserRepository()
+    repo.create_user("corrupted@omni.com", "not-valid-hex$alsonotvalid", auth_service.DEFAULT_TIER)
+
+    user, msg = auth_service.authenticate(repo, "corrupted@omni.com", "whatever123")
+
+    assert user is None
+    assert "inválid" in msg.lower()
+
+
 def test_legacy_pbkdf2_hash_still_verifies():
     legacy_hash = _legacy_pbkdf2_hash("oldpassword123")
     assert not legacy_hash.startswith("$argon2")

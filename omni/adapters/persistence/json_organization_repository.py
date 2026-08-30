@@ -4,6 +4,7 @@ import os
 import uuid
 from typing import List, Optional
 
+from omni.domain import tiers
 from omni.domain.models import Organization
 from omni.domain.tenancy import LEGACY_ORG_ID
 
@@ -13,7 +14,7 @@ _LEGACY_ORG_SEED = {
     "id": LEGACY_ORG_ID,
     "name": "Legacy (Streamlit)",
     "slug": "legacy-streamlit",
-    "tier": "Standard (B2C Trader)",
+    "tier": tiers.STANDARD,
     "subscription_status": "trialing",
     "stripe_customer_id": "",
     "stripe_subscription_id": "",

@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
 
@@ -20,9 +21,17 @@ def fetch_dashboard_snapshot(
     symbols: Tuple[str, ...],
     brapi_token: str = "",
 ) -> DashboardSnapshot:
-    quotes = market_data_port.fetch_quotes(symbols, brapi_token=brapi_token)
-    sentiment = sentiment_port.fetch_fear_greed()
-    global_stats = global_market_port.fetch_global_stats()
+    # As três chamadas vão para provedores diferentes e nenhuma depende do
+    # resultado da outra -- rodar em paralelo faz o tempo de espera ser o
+    # máximo das três, não a soma, em cada cache-miss de 60s.
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        quotes_future = executor.submit(market_data_port.fetch_quotes, symbols, brapi_token=brapi_token)
+        sentiment_future = executor.submit(sentiment_port.fetch_fear_greed)
+        global_stats_future = executor.submit(global_market_port.fetch_global_stats)
+
+        quotes = quotes_future.result()
+        sentiment = sentiment_future.result()
+        global_stats = global_stats_future.result()
 
     # Falha de adapter era invisível: um símbolo sem cotação real virava
     # silenciosamente Quote(0.0, 0.0) e a UI só mostrava "0"/"--", sem indicar

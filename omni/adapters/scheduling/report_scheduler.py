@@ -18,7 +18,6 @@ app não inicia o scheduler embutido) e rode `scheduler_worker.py` como um
 """
 
 import logging
-import os
 from datetime import datetime
 from typing import List
 
@@ -48,16 +47,24 @@ def check_and_dispatch(now: datetime, infra) -> List[str]:
     for org_id in infra.org_repo.list_active_org_ids():
         all_configs = infra.trigger_repo.load_all(org_id)
 
-        for modulo, config in all_configs.items():
-            if weekday_name not in config.get("dias_semana", []):
-                continue
-            if current_hm not in config.get("horarios", []):
-                continue
-            if config.get("last_dispatched_at") == dedup_marker:
-                continue
+        due_modules = [
+            (modulo, config)
+            for modulo, config in all_configs.items()
+            if weekday_name in config.get("dias_semana", [])
+            and current_hm in config.get("horarios", [])
+            and config.get("last_dispatched_at") != dedup_marker
+        ]
+        if not due_modules:
+            continue
 
-            automation = automation_service.load_automation_settings(infra.automation_repo, org_id)
-            credentials = infra.credentials_repo.load(org_id)
+        # Automação/credenciais são dados por organização, não por módulo --
+        # carregados uma vez aqui fora, não a cada módulo (evita reabrir a
+        # mesma conexão Postgres 2x quando uma org tem Crypto e TradFi
+        # configurados no mesmo tick).
+        automation = automation_service.load_automation_settings(infra.automation_repo, org_id)
+        credentials = infra.credentials_repo.load(org_id)
+
+        for modulo, config in due_modules:
             tickers = config.get("ativos_selecionados_tickers", [])
 
             quotes = (
@@ -110,7 +117,7 @@ def start_background_scheduler(infra) -> None:
     global _scheduler
     if _scheduler is not None:
         return
-    if os.environ.get("OMNI_DISABLE_INLINE_SCHEDULER") == "1":
+    if infra.settings.disable_inline_scheduler:
         logger.info("Inline Auto-Pilot scheduler disabled via OMNI_DISABLE_INLINE_SCHEDULER=1.")
         return
 

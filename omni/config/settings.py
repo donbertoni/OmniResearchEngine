@@ -15,6 +15,7 @@ class AppSettings:
     smtp_password: str = ""
     smtp_from: str = ""
     smtp_use_tls: bool = True
+    disable_inline_scheduler: bool = False
 
 
 def load_settings() -> AppSettings:
@@ -38,4 +39,5 @@ def load_settings() -> AppSettings:
         smtp_password=os.environ.get("SMTP_PASSWORD", ""),
         smtp_from=os.environ.get("SMTP_FROM", ""),
         smtp_use_tls=os.environ.get("SMTP_USE_TLS", "true").lower() != "false",
+        disable_inline_scheduler=os.environ.get("OMNI_DISABLE_INLINE_SCHEDULER") == "1",
     )

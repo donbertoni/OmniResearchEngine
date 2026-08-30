@@ -4,8 +4,14 @@ import streamlit as st
 
 from omni.application import automation_service, catalog_service, trigger_service
 from omni.application.automation_service import AutomationSettings
+from omni.domain import tiers
 from omni.domain.models import TierPermissions
-from omni.domain.ports import AutomationConfigRepositoryPort, CredentialsRepositoryPort, TriggerConfigRepositoryPort
+from omni.domain.ports import (
+    AutomationConfigRepositoryPort,
+    CredentialsRepositoryPort,
+    OrganizationRepositoryPort,
+    TriggerConfigRepositoryPort,
+)
 from omni.domain.tenancy import LEGACY_ORG_ID
 
 CRM_PLATFORMS = ["HubSpot", "Salesforce", "RD Station", "Outro Webhook/API"]
@@ -22,6 +28,7 @@ def render_config_window(
     trigger_repo: TriggerConfigRepositoryPort,
     automation_repo: AutomationConfigRepositoryPort,
     credentials_repo: CredentialsRepositoryPort,
+    org_repo: OrganizationRepositoryPort,
 ) -> AutomationSettings:
     # Carregado incondicionalmente (não só quando a janela de Automações está
     # aberta): o botão de CRM Push e o disparo imediato nas Entregas precisam
@@ -50,7 +57,9 @@ def render_config_window(
         elif st.session_state.config_window == "triggers":
             _render_triggers_tab(tr, modulo, active_categories, permissions, trigger_repo)
         elif st.session_state.config_window == "calibration":
-            _render_calibration_tab(tr, modulo, active_categories, current_asset_pool, pool_state_key, permissions, credentials_repo)
+            _render_calibration_tab(
+                tr, modulo, active_categories, current_asset_pool, pool_state_key, permissions, credentials_repo, org_repo
+            )
 
     st.markdown("---")
     return automation_settings
@@ -161,6 +170,7 @@ def _render_calibration_tab(
     pool_state_key: str,
     permissions: TierPermissions,
     credentials_repo: CredentialsRepositoryPort,
+    org_repo: OrganizationRepositoryPort,
 ) -> None:
     with st.form("calibration_form"):
         st.markdown(f"### {tr['calib_creds']}")
@@ -177,12 +187,30 @@ def _render_calibration_tab(
         if brapi_token_input and (" " in brapi_token_input or any(c in brapi_token_input for c in "\"'")):
             st.warning(tr["brapi_token_invalid"])
 
+        company_name_input, cnpi_code_input = "", ""
+        if permissions.allow_white_label:
+            st.markdown("---")
+            st.markdown(f"### {tr['white_label_title']}")
+            current_org = org_repo.get_by_id(LEGACY_ORG_ID)
+            col_wl1, col_wl2 = st.columns(2)
+            with col_wl1:
+                company_name_input = st.text_input(
+                    tr["company_name_label"], value=(current_org.company_name if current_org else "")
+                )
+            with col_wl2:
+                cnpi_code_input = st.text_input(
+                    tr["cnpi_code_label"], value=(current_org.cnpi_code if current_org else "")
+                )
+
         if not permissions.allow_customization:
-            st.warning(tr["tier_locked_msg"].format(tier="Free (Lead Magnet)"))
+            st.warning(tr["tier_locked_msg"].format(tier=tiers.FREE))
             st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
             submitted_calib = st.form_submit_button(tr["save_params"], use_container_width=True)
             if submitted_calib:
-                _apply_credentials_only(credentials_repo, brapi_token_input, whatsapp_instance_input, whatsapp_token_input, telegram_token_input)
+                _save_credentials(credentials_repo, brapi_token_input, whatsapp_instance_input, whatsapp_token_input, telegram_token_input)
+                st.toast("Credenciais atualizadas com sucesso!", icon="✅")
+                st.session_state.config_window = None
+                st.rerun()
             return
 
         st.markdown("---")
@@ -256,10 +284,15 @@ def _render_calibration_tab(
                 whatsapp_token_input,
                 telegram_token_input,
                 credentials_repo,
+                org_repo,
+                company_name_input,
+                cnpi_code_input,
             )
 
 
-def _apply_credentials_only(credentials_repo, brapi_token_input, whatsapp_instance_input, whatsapp_token_input, telegram_token_input) -> None:
+def _save_credentials(credentials_repo, brapi_token_input, whatsapp_instance_input, whatsapp_token_input, telegram_token_input) -> None:
+    """Compartilhado entre o form completo de Calibragem e o form reduzido do
+    tier Free (só credenciais) -- antes duplicado byte a byte nos dois."""
     st.session_state.brapi_token = brapi_token_input
     st.session_state.whatsapp_instance = whatsapp_instance_input
     st.session_state.whatsapp_token = whatsapp_token_input
@@ -270,9 +303,6 @@ def _apply_credentials_only(credentials_repo, brapi_token_input, whatsapp_instan
         "whatsapp_token": whatsapp_token_input,
         "telegram_bot_token": telegram_token_input,
     })
-    st.toast("Credenciais atualizadas com sucesso!", icon="✅")
-    st.session_state.config_window = None
-    st.rerun()
 
 
 def _apply_calibration_submit(
@@ -287,6 +317,9 @@ def _apply_calibration_submit(
     whatsapp_token_input: str,
     telegram_token_input: str,
     credentials_repo: CredentialsRepositoryPort,
+    org_repo: OrganizationRepositoryPort,
+    company_name_input: str,
+    cnpi_code_input: str,
 ) -> None:
     selected_pool_labels = st.session_state.get(f"form_pool_multiselect_{modulo}", [])
     updated_pool = catalog_service.apply_pool_selection(pool_labels_map, selected_pool_labels)
@@ -328,16 +361,10 @@ def _apply_calibration_submit(
         st.session_state.custom_active_categories_tradfi = active_categories
     st.session_state[f"categories_{modulo}_dirty"] = True
 
-    st.session_state.brapi_token = brapi_token_input
-    st.session_state.whatsapp_instance = whatsapp_instance_input
-    st.session_state.whatsapp_token = whatsapp_token_input
-    st.session_state.telegram_bot_token = telegram_token_input
-    credentials_repo.save(LEGACY_ORG_ID, {
-        "brapi_token": brapi_token_input,
-        "whatsapp_instance": whatsapp_instance_input,
-        "whatsapp_token": whatsapp_token_input,
-        "telegram_bot_token": telegram_token_input,
-    })
+    _save_credentials(credentials_repo, brapi_token_input, whatsapp_instance_input, whatsapp_token_input, telegram_token_input)
+
+    if company_name_input or cnpi_code_input:
+        org_repo.update(LEGACY_ORG_ID, {"company_name": company_name_input, "cnpi_code": cnpi_code_input})
 
     st.toast("Parâmetros atualizados com sucesso!", icon="✅")
     st.session_state.config_window = None

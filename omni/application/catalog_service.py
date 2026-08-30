@@ -1,12 +1,17 @@
+from omni.domain import tiers
 from omni.domain.models import TierPermissions
 
 
 def tier_permissions(tier: str) -> TierPermissions:
-    allow_customization = "Free" not in tier
-    allow_white_label = "Premium" in tier
-    if "Standard" in tier:
+    """Comparação exata contra omni.domain.tiers (não mais substring) -- um
+    tier desconhecido ou com typo cai no branch menos privilegiado de forma
+    intencional e óbvia, em vez de silenciosamente "quase" bater por
+    substring."""
+    allow_customization = tier != tiers.FREE
+    allow_white_label = tier == tiers.PREMIUM
+    if tier == tiers.STANDARD:
         max_free_tickers = 5
-    elif "Premium" in tier:
+    elif tier == tiers.PREMIUM:
         max_free_tickers = 999
     else:
         max_free_tickers = 0
