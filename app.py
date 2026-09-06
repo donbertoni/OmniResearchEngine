@@ -320,6 +320,15 @@ html = r"""﻿<!doctype html>
       .api-error { margin-bottom: 12px; padding: 10px 12px; color: var(--red); border: 1px solid rgba(251, 113, 133, .4); background: rgba(190, 18, 60, .08); font: 10px/1.5 "IBM Plex Mono"; }
       .loading-state { padding: 22px; color: var(--muted); border: 1px dashed var(--line); font: 10px "IBM Plex Mono"; }
       .metric-value { margin: 5px 0 3px; color: var(--text); font-size: 20px; font-weight: 600; }
+      /* Alignment-only adjustment: compact the five metric cards and give the report body the reclaimed height. */
+      .panel.cyan .delivery-box { min-height: 345px; }
+      .panel.cyan .delivery-box textarea { min-height: 283px; }
+      .panel.purple .metric-list { gap: 5px; }
+      .panel.purple .metric-card { padding: 8px 11px; }
+      .panel.purple .metric-value { margin: 3px 0 1px; font-size: 16px; }
+      .panel.purple .data-meta { margin-top: 3px; line-height: 1.25; }
+      .panel.purple .stale-note { margin-top: 3px; padding: 4px 6px; line-height: 1.25; }
+
       .positive { color: var(--green) !important; }
       .negative { color: var(--red) !important; }
       .neutral { color: var(--cyan) !important; }
