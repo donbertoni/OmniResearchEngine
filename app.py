@@ -26,7 +26,12 @@ def build_overview(module):
             if symbol not in symbols:
                 symbols.append(symbol)
         categories.append((category, assets))
-    benchmark_defs = MACRO_BENCHMARKS if module == "tradfi" else CRYPTO_BENCHMARKS
+    benchmark_defs = list(MACRO_BENCHMARKS if module == "tradfi" else CRYPTO_BENCHMARKS)
+    if module == "tradfi":
+        benchmark_defs.extend([
+            {"key": "NDX", "ticker": "^NDX", "label": "NASDAQ 100", "badge": "Direct API"},
+            {"key": "VIX", "ticker": "^VIX", "label": "VOLATILITY INDEX", "badge": "Direct API"},
+        ])
     symbols.extend(item["ticker"] for item in benchmark_defs if item.get("ticker"))
     symbols = tuple(dict.fromkeys(symbols))
     try:
@@ -50,15 +55,16 @@ def build_overview(module):
                 "isStale": not bool(price), "timestamp": timestamp, "sparkline": [], "error": None,
             })
     for definition in benchmark_defs:
-        symbol = definition.get("ticker")
-        if not symbol:
+        ticker = definition.get("ticker")
+        if not ticker:
             continue
-        quote = raw.get(symbol, {"price": 0.0, "change": 0.0})
+        quote = raw.get(ticker, {"price": 0.0, "change": 0.0})
         price = float(quote.get("price", 0) or 0)
+        dashboard_symbol = definition.get("key", ticker)
         assets.append({
-            "name": definition["label"], "symbol": symbol, "price": price,
+            "name": definition["label"], "symbol": dashboard_symbol, "ticker": ticker, "price": price,
             "changePercent": float(quote.get("change", 0) or 0),
-            "assetClass": "crypto" if "-USD" in symbol else "equity",
+            "assetClass": "crypto" if "-USD" in ticker else "equity",
             "source": definition.get("badge", "provider"), "dataStatus": "live" if price else "unavailable",
             "isStale": not bool(price), "timestamp": timestamp, "sparkline": [], "error": None,
         })
