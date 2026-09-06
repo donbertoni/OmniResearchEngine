@@ -284,7 +284,11 @@ html = r"""﻿<!doctype html>
       .status-pill { min-height: 38px; padding: 10px 12px; color: var(--muted); border: 1px solid var(--line); background: var(--panel); font: 10px "IBM Plex Mono"; }
       .status-pill strong { color: var(--text); font-weight: 500; }
       .status-pill.live { color: var(--green); border-color: rgba(110, 231, 183, .35); }
-      .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(300px, .8fr); gap: 14px; align-items: start; }
+      .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(300px, .8fr); gap: 14px; align-items: stretch; }
+      .dashboard-grid > .panel.cyan, .dashboard-grid > .panel.purple { height: 100%; box-sizing: border-box; }
+      .dashboard-grid > .panel.cyan { display: flex; flex-direction: column; }
+      .dashboard-grid > .panel.cyan .delivery-box { flex: 1 1 auto; min-height: 0; }
+      .dashboard-grid > .panel.cyan .delivery-box textarea { height: 100%; min-height: 476px; box-sizing: border-box; }
       .panel {
         position: relative;
         overflow: hidden;
@@ -320,9 +324,7 @@ html = r"""﻿<!doctype html>
       .api-error { margin-bottom: 12px; padding: 10px 12px; color: var(--red); border: 1px solid rgba(251, 113, 133, .4); background: rgba(190, 18, 60, .08); font: 10px/1.5 "IBM Plex Mono"; }
       .loading-state { padding: 22px; color: var(--muted); border: 1px dashed var(--line); font: 10px "IBM Plex Mono"; }
       .metric-value { margin: 5px 0 3px; color: var(--text); font-size: 20px; font-weight: 600; }
-      /* Alignment-only adjustment: preserve card density and enlarge only the report body. */
-      .panel.cyan .delivery-box { min-height: 538px; }
-      .panel.cyan .delivery-box textarea { min-height: 476px; }
+      /* The grid now determines the shared bottom edge; no manual centimeter offset. */
 
       .positive { color: var(--green) !important; }
       .negative { color: var(--red) !important; }
@@ -836,17 +838,17 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
         const moduleName = currentModule() === "crypto" ? "CRYPTO" : "TRADFI (MACRO)";
         const selected = new Set(Array.from(document.querySelectorAll("#category-grid input[data-category]:checked")).map((input) => input.dataset.category));
         const categories = categoriesForModule();
-        const lines = [`=== OMNI ${moduleName} REPORT ===`, configState.language === "EN" ? "Issuer: OMNIRESEARCH Engine | Analyst ID: CNPI-T 0000" : "Emissor: OMNIRESEARCH Engine | ID do analista: CNPI-T 0000", `Timestamp: ${formatTime(overview.asOf)} | Language: ${configState.language}`, `${configState.language === "EN" ? "Market state" : "Estado do mercado"}: ${overview.dataStatus}${overview.isStale ? " / STALE DATA" : ""}`, "", "--- ASSETS & MONITORED CATEGORIES ---"];
+        const sourceLabel = "OMNI Normalized Market Feed";
+        const lines = [`=== OMNI ${moduleName} REPORT ===`, configState.language === "EN" ? "Issuer: OMNIRESEARCH Engine | Analyst ID: CNPI-T 0000" : "Emissor: OMNIRESEARCH Engine | ID do analista: CNPI-T 0000", `Timestamp: ${formatTime(overview.asOf)} | Language: ${configState.language}`, `Data source: ${sourceLabel}`, `${configState.language === "EN" ? "Market state" : "Estado do mercado"}: ${overview.dataStatus}${overview.isStale ? " / STALE DATA" : ""}`, "", "--- ASSETS & MONITORED CATEGORIES ---"];
         categories.forEach(([categoryName, categoryAssets]) => {
           if (selected.size && !selected.has(categoryName)) return;
           lines.push("", `[${categoryName.toUpperCase()}]`);
           categoryAssets.forEach(([assetName, ticker]) => {
             const quote = overview.assets.find((item) => item.symbol === ticker);
-            if (quote) lines.push(`${quote.name} (${quote.symbol}): ${displayPrice(quote)} (${formatPercent(quote.changePercent)}) | ${quote.source} | ${quote.dataStatus}${quote.isStale ? " / STALE" : ""} | ${formatTime(quote.timestamp)}`);
+            if (quote) lines.push(`${quote.name} (${quote.symbol}): ${displayPrice(quote)} | ${formatPercent(quote.changePercent)}`);
           });
         });
-        lines.push("", `Sources: ${overview.source}`, `Status: ${overview.dataStatus}${overview.isStale ? " / provider warnings present" : " / provider responses nominal"}`);
-        if (overview.errors?.length) lines.push("", "Provider warnings:", ...overview.errors);
+        lines.push("", `Source: ${sourceLabel}`, `Status: ${overview.dataStatus}${overview.isStale ? " / provider warning present" : " / nominal"}`);
         $("#report").value = lines.join("\n");
       }
 
