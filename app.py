@@ -321,8 +321,8 @@ html = r"""﻿<!doctype html>
       .loading-state { padding: 22px; color: var(--muted); border: 1px dashed var(--line); font: 10px "IBM Plex Mono"; }
       .metric-value { margin: 5px 0 3px; color: var(--text); font-size: 20px; font-weight: 600; }
       /* Alignment-only adjustment: preserve card density and enlarge only the report body. */
-      .panel.cyan .delivery-box { min-height: 500px; }
-      .panel.cyan .delivery-box textarea { min-height: 438px; }
+      .panel.cyan .delivery-box { min-height: 538px; }
+      .panel.cyan .delivery-box textarea { min-height: 476px; }
 
       .positive { color: var(--green) !important; }
       .negative { color: var(--red) !important; }
