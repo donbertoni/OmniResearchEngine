@@ -702,6 +702,16 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
              <div class="field"><label for="new-category-name">${en ? "Category name" : "Nome da categoria"}</label><input id="new-category-name" placeholder="${en ? "Example: 9 - DeFi & Web3" : "Ex.: 9 - DeFi & Web3"}" /></div>
              <div class="field"><label for="new-category-assets">${en ? "Assets for new category" : "Ativos da nova categoria"}</label><select id="new-category-assets" multiple size="6">${pool.map(([name, ticker]) => `<option value="${escapeHtml(ticker)}">${escapeHtml(name)} (${escapeHtml(ticker)})</option>`).join("")}</select></div>
            </div>
+           <div class="section-rule"></div>
+           <div class="eyebrow" style="color:var(--purple)">${en ? "Provider API keys" : "API Keys dos provedores"}</div>
+           <div class="calibration-grid">
+             <div class="field"><label for="key-brapi">BRAPI Token</label><input id="key-brapi" type="password" value="${escapeHtml(configState.apiKeys?.brapi || "")}" /></div>
+             <div class="field"><label for="key-market">Custom Market API</label><input id="key-market" type="password" value="${escapeHtml(configState.apiKeys?.market || "")}" /></div>
+           </div>
+           <div class="calibration-grid">
+             <div class="field"><label for="key-whatsapp">WhatsApp Token</label><input id="key-whatsapp" type="password" value="${escapeHtml(configState.apiKeys?.whatsapp || "")}" /></div>
+             <div class="field"><label for="key-crm">CRM / Webhook URL</label><input id="key-crm" value="${escapeHtml(configState.apiKeys?.crm || "")}" /></div>
+           </div>
            <button class="button" id="calibration-save">${en ? "SAVE PARAMETERS" : "SALVAR PARÂMETROS"}</button>
            <div id="calibration-feedback" class="data-meta"></div>`;
          $("#calibration-module").addEventListener("change", () => {
@@ -721,6 +731,7 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
          const newTicker = $("#new-asset-ticker").value.trim().toUpperCase();
          if (newName && newTicker && !poolByTicker.has(newTicker)) selectedPool.push([newName, newTicker]);
          configState.pools[module] = selectedPool;
+         configState.apiKeys = { brapi: $("#key-brapi")?.value || "", market: $("#key-market")?.value || "", whatsapp: $("#key-whatsapp")?.value || "", crm: $("#key-crm")?.value || "" };
          const categoryIndex = categories.findIndex(([name]) => name === selectedCategory);
          if (categoryIndex >= 0) {
            if ($("#delete-category").checked) categories.splice(categoryIndex, 1);
