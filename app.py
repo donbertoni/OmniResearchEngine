@@ -393,6 +393,35 @@ st.markdown("""<style>
     }
 </style>""", unsafe_allow_html=True)
 
+# OMNI HIGH-TECH VISUAL THEME
+# The frontend10.py Streamlit engine remains unchanged below this layer.
+st.markdown(r"""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+:root { color-scheme: dark; }
+.stApp { background: radial-gradient(circle at 15% 0%, rgba(6,182,212,.14), transparent 27%), linear-gradient(rgba(15,23,42,.23) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,.23) 1px, transparent 1px), #02050d !important; background-size:auto,44px 44px,44px 44px !important; color:#d8e7ed !important; }
+.stApp::before { content:""; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.08; background:repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(34,211,238,.07) 4px); }
+[data-testid="stSidebar"] { background:linear-gradient(180deg,rgba(3,11,20,.98),rgba(4,13,22,.92)) !important; border-right:1px solid rgba(103,232,249,.22); }
+[data-testid="stSidebar"] * { font-family:'IBM Plex Mono',monospace; }
+.main .block-container { max-width:1500px; padding-top:2.2rem; padding-bottom:4rem; }
+h1,h2,h3,h4 { font-family:'Space Grotesk',sans-serif !important; letter-spacing:-.045em !important; color:#effcff !important; }
+p, label, .stCaption { color:#a8bdc6; }
+[data-testid="stVerticalBlockBorderWrapper"] { background:linear-gradient(145deg,rgba(8,20,33,.90),rgba(2,8,16,.82)) !important; border:1px solid rgba(100,116,139,.36) !important; border-radius:5px !important; box-shadow:inset 0 1px rgba(148,163,184,.06),0 0 30px -24px rgba(34,211,238,.8) !important; }
+[data-testid="stVerticalBlockBorderWrapper"]:hover { border-color:rgba(103,232,249,.50) !important; }
+[data-testid="stMetric"] { background:rgba(10,21,35,.82); border:1px solid rgba(216,180,254,.28); border-radius:5px; padding:14px; }
+[data-testid="stMetricLabel"] { color:#8293a1 !important; font-family:'IBM Plex Mono',monospace; font-size:10px !important; text-transform:uppercase; }
+[data-testid="stMetricValue"] { color:#e8f3f7 !important; font-family:'IBM Plex Mono',monospace; }
+.stButton > button,.stDownloadButton > button { border:1px solid rgba(103,232,249,.40) !important; border-radius:3px !important; background:rgba(34,211,238,.07) !important; color:#67e8f9 !important; font-family:'IBM Plex Mono',monospace !important; font-size:11px !important; transition:.2s ease; }
+.stButton > button:hover,.stDownloadButton > button:hover { border-color:#67e8f9 !important; background:rgba(34,211,238,.16) !important; box-shadow:0 0 35px -18px #22d3ee; transform:translateY(-1px); }
+.stTextArea textarea,.stTextInput input,[data-baseweb="select"] > div,.stSelectbox select { background:#050d17 !important; color:#c9f8ff !important; border-color:rgba(100,116,139,.55) !important; border-radius:3px !important; font-family:'IBM Plex Mono',monospace !important; }
+[data-testid="stTabs"] button { color:#8293a1 !important; font-family:'IBM Plex Mono',monospace !important; }
+[data-testid="stTabs"] button[aria-selected="true"] { color:#67e8f9 !important; }
+[data-testid="stDataFrame"] { border:1px solid rgba(100,116,139,.34); }
+hr { border-color:rgba(103,232,249,.20) !important; }
+</style>
+""", unsafe_allow_html=True)
+
+
 # -----------------------------------------------------------------------------
 # 2. SIDEBAR & ESTADOS PERSISTENTES DE CATEGORIAS E ATIVOS
 # -----------------------------------------------------------------------------
