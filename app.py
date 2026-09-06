@@ -320,14 +320,9 @@ html = r"""﻿<!doctype html>
       .api-error { margin-bottom: 12px; padding: 10px 12px; color: var(--red); border: 1px solid rgba(251, 113, 133, .4); background: rgba(190, 18, 60, .08); font: 10px/1.5 "IBM Plex Mono"; }
       .loading-state { padding: 22px; color: var(--muted); border: 1px dashed var(--line); font: 10px "IBM Plex Mono"; }
       .metric-value { margin: 5px 0 3px; color: var(--text); font-size: 20px; font-weight: 600; }
-      /* Alignment-only adjustment: compact the five metric cards and give the report body the reclaimed height. */
-      .panel.cyan .delivery-box { min-height: 345px; }
-      .panel.cyan .delivery-box textarea { min-height: 283px; }
-      .panel.purple .metric-list { gap: 5px; }
-      .panel.purple .metric-card { padding: 8px 11px; }
-      .panel.purple .metric-value { margin: 3px 0 1px; font-size: 16px; }
-      .panel.purple .data-meta { margin-top: 3px; line-height: 1.25; }
-      .panel.purple .stale-note { margin-top: 3px; padding: 4px 6px; line-height: 1.25; }
+      /* Alignment-only adjustment: preserve card density and enlarge only the report body. */
+      .panel.cyan .delivery-box { min-height: 500px; }
+      .panel.cyan .delivery-box textarea { min-height: 438px; }
 
       .positive { color: var(--green) !important; }
       .negative { color: var(--red) !important; }
@@ -819,7 +814,7 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
         const assets = marketState.data?.assets || [];
         $("#category-grid").innerHTML = categories.map(([name, categoryAssets]) => `
           <div class="category-card">
-             <div class="category-top"><div class="category-name" title="${escapeHtml(t(name))}">${escapeHtml(t(name))}</div><input type="checkbox" checked aria-label="${configState.language === "EN" ? "Include" : "Incluir"} ${escapeHtml(t(name))}" /></div>
+             <div class="category-top"><div class="category-name" title="${escapeHtml(t(name))}">${escapeHtml(t(name))}</div><input type="checkbox" data-category="${escapeHtml(name)}" checked onchange="renderReport()" aria-label="${configState.language === "EN" ? "Include" : "Incluir"} ${escapeHtml(t(name))}" /></div>
             ${categoryAssets.map(([asset, ticker]) => {
               const quote = assets.find((item) => item.symbol === ticker);
                return `<div class="asset-row"><div class="asset-name">${escapeHtml(asset)}<br /><span class="mono" style="font-size:8px;color:var(--muted-2)">${escapeHtml(ticker)}</span></div><div class="asset-detail ${trendClass(quote?.changePercent || 0)}">${quote ? `${displayPrice(quote)} ${formatPercent(quote.changePercent)}` : copy().noData}</div>${statusMarkup(quote)}</div>`;
@@ -839,8 +834,17 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
         const overview = marketState.data;
         if (!overview) { $("#report").value = ""; return; }
         const moduleName = currentModule() === "crypto" ? "CRYPTO" : "TRADFI (MACRO)";
-         const lines = [`=== OMNI ${moduleName} REPORT ===`, configState.language === "EN" ? "Issuer: OMNIRESEARCH Engine | Analyst ID: CNPI-T 0000" : "Emissor: OMNIRESEARCH Engine | ID do analista: CNPI-T 0000", `Timestamp: ${formatTime(overview.asOf)} | Language: ${configState.language}`, `${configState.language === "EN" ? "Market state" : "Estado do mercado"}: ${overview.dataStatus}${overview.isStale ? " / STALE DATA" : ""}`, "", "--- NORMALIZED QUOTES ---"];
-        overview.assets.slice(0, 12).forEach((quote) => lines.push(`${quote.name} (${quote.symbol}): ${displayPrice(quote)} (${formatPercent(quote.changePercent)}) | ${quote.source} | ${quote.dataStatus}${quote.isStale ? " / STALE" : ""} | ${formatTime(quote.timestamp)}`));
+        const selected = new Set(Array.from(document.querySelectorAll("#category-grid input[data-category]:checked")).map((input) => input.dataset.category));
+        const categories = categoriesForModule();
+        const lines = [`=== OMNI ${moduleName} REPORT ===`, configState.language === "EN" ? "Issuer: OMNIRESEARCH Engine | Analyst ID: CNPI-T 0000" : "Emissor: OMNIRESEARCH Engine | ID do analista: CNPI-T 0000", `Timestamp: ${formatTime(overview.asOf)} | Language: ${configState.language}`, `${configState.language === "EN" ? "Market state" : "Estado do mercado"}: ${overview.dataStatus}${overview.isStale ? " / STALE DATA" : ""}`, "", "--- ASSETS & MONITORED CATEGORIES ---"];
+        categories.forEach(([categoryName, categoryAssets]) => {
+          if (selected.size && !selected.has(categoryName)) return;
+          lines.push("", `[${categoryName.toUpperCase()}]`);
+          categoryAssets.forEach(([assetName, ticker]) => {
+            const quote = overview.assets.find((item) => item.symbol === ticker);
+            if (quote) lines.push(`${quote.name} (${quote.symbol}): ${displayPrice(quote)} (${formatPercent(quote.changePercent)}) | ${quote.source} | ${quote.dataStatus}${quote.isStale ? " / STALE" : ""} | ${formatTime(quote.timestamp)}`);
+          });
+        });
         lines.push("", `Sources: ${overview.source}`, `Status: ${overview.dataStatus}${overview.isStale ? " / provider warnings present" : " / provider responses nominal"}`);
         if (overview.errors?.length) lines.push("", "Provider warnings:", ...overview.errors);
         $("#report").value = lines.join("\n");
@@ -937,8 +941,8 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
         event.currentTarget.classList.toggle("green");
         toast(event.currentTarget.classList.contains("green") ? "Liquidity module included in report." : "Liquidity module removed from report.");
       });
-      $("#select-all").addEventListener("click", () => $$("#category-grid input").forEach((input) => input.checked = true));
-      $("#clear-all").addEventListener("click", () => $$("#category-grid input").forEach((input) => input.checked = false));
+      $("#select-all").addEventListener("click", () => { $$("#category-grid input").forEach((input) => input.checked = true); renderReport(); });
+      $("#clear-all").addEventListener("click", () => { $$("#category-grid input").forEach((input) => input.checked = false); renderReport(); });
       $$("[data-export]").forEach((button) => button.addEventListener("click", () => {
         const type = button.dataset.export;
         const content = $("#report").value;
