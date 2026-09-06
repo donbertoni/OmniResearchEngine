@@ -915,13 +915,15 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
        $$(".config-button").forEach((button) => button.addEventListener("click", () => {
          const en = configState.language === "EN";
          const key = button.dataset.config;
+         const saved = JSON.parse(localStorage.getItem("omni.config") || "{}");
          if (key === "calibration") renderCalibration();
          else {
            $("#modal-title").textContent = key === "automations"
              ? (en ? "Automation settings & CRM integrators" : "Automações e integrações CRM")
-             : (en ? "Automated report triggers" : "Gatilhos automáticos de report");
-           $("#modal-body").innerHTML = `<div class="field"><label>${en ? "Dispatch channels" : "Canais de distribuição"}</label><input placeholder="${en ? "Email, webhook, CRM" : "E-mail, webhook, CRM"}" /></div><div class="field"><label>${en ? "Schedule" : "Agendamento"}</label><select><option>${en ? "After market close" : "Após fechamento do mercado"}</option><option>${en ? "Every refresh" : "A cada atualização"}</option></select></div><button class="button" id="config-save">${en ? "SAVE CONFIGURATION" : "SALVAR CONFIGURAÇÃO"}</button>`;
-           $("#config-save").addEventListener("click", () => toast(en ? "Configuration saved locally." : "Configuração salva localmente."));
+             : (en ? "Automated report triggers" : "Gatilhos de report");
+           const api = key === "automations" ? `<div class="section-rule"></div><div class="eyebrow" style="color:var(--cyan)">API KEYS / INTEGRATIONS</div><div class="calibration-grid"><div class="field"><label>BRAPI API Token</label><input id="cfg-brapi" type="password" value="${saved.brapi || ""}" /></div><div class="field"><label>WhatsApp API Token</label><input id="cfg-whatsapp" type="password" value="${saved.whatsapp || ""}" /></div></div><div class="calibration-grid"><div class="field"><label>CRM API Key</label><input id="cfg-crm" type="password" value="${saved.crm || ""}" /></div><div class="field"><label>Webhook URL</label><input id="cfg-webhook" value="${saved.webhook || ""}" /></div></div>` : "";
+           $("#modal-body").innerHTML = `<div class="field"><label>${en ? "Dispatch channels" : "Canais de distribuição"}</label><input id="cfg-channels" value="${saved.channels || ""}" placeholder="${en ? "Email, webhook, CRM" : "E-mail, webhook, CRM"}" /></div><div class="field"><label>${en ? "Schedule" : "Agendamento"}</label><select id="cfg-schedule"><option>${en ? "After market close" : "Após fechamento do mercado"}</option><option>${en ? "Every refresh" : "A cada atualização"}</option></select></div>${api}<button class="button" id="config-save">${en ? "SAVE CONFIGURATION" : "SALVAR CONFIGURAÇÃO"}</button>`;
+           $("#config-save").addEventListener("click", () => { ["channels","brapi","whatsapp","crm","webhook"].forEach(id => { const n=$("#cfg-"+id); if(n) saved[id]=n.value; }); localStorage.setItem("omni.config", JSON.stringify(saved)); toast(en ? "Configuration saved locally." : "Configuração salva localmente."); });
          }
          $("#modal").classList.add("open");
        }));
@@ -938,165 +940,5 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
     </script>
   </body>
 </html>"""
-# OMNI dashboard integration section 001: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 002: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 003: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 004: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 005: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 006: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 007: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 008: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 009: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 010: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 011: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 012: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 013: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 014: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 015: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 016: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 017: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 018: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 019: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 020: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 021: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 022: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 023: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 024: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 025: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 026: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 027: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 028: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 029: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 030: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 031: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 032: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 033: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 034: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 035: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 036: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 037: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 038: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 039: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 040: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 041: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 042: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 043: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 044: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 045: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 046: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 047: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 048: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 049: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 050: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 051: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 052: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 053: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 054: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 055: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 056: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 057: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 058: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 059: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 060: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 061: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 062: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 063: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 064: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 065: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 066: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 067: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 068: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 069: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 070: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 071: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 072: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 073: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 074: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 075: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 076: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 077: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 078: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 079: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 080: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 081: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 082: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 083: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 084: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 085: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 086: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 087: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 088: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 089: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 090: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 091: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 092: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 093: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 094: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 095: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 096: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 097: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 098: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 099: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 100: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 101: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 102: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 103: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 104: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 105: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 106: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 107: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 108: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 109: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 110: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 111: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 112: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 113: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 114: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 115: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 116: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 117: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 118: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 119: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 120: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 121: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 122: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 123: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 124: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 125: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 126: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 127: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 128: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 129: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 130: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 131: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 132: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 133: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 134: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 135: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 136: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 137: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 138: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 139: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 140: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 141: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 142: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 143: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 144: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 145: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 146: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 147: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 148: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 149: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 150: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 151: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 152: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 153: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 154: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 155: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 156: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 157: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 158: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 159: expanded source retained for GitHub editing and audit.
-# OMNI dashboard integration section 160: expanded source retained for GitHub editing and audit.
 html = html.replace("__OMNI_BOOTSTRAP_PLACEHOLDER__", json.dumps(boot, ensure_ascii=False))
 components.html(html, height=3600, scrolling=True)
