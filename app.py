@@ -712,7 +712,8 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
        function getAssetPool(module) {
          if (!configState.pools) configState.pools = {};
          if (!configState.pools[module]) {
-           configState.pools[module] = categoriesForModule().flatMap(([, assets]) => assets).filter((asset, index, all) => all.findIndex((item) => item[1] === asset[1]) === index);
+           const moduleCategories = configState.categories[module] || DEFAULT_CATEGORIES[module];
+           configState.pools[module] = moduleCategories.flatMap(([, assets]) => assets).filter((asset, index, all) => all.findIndex((item) => item[1] === asset[1]) === index);
          }
          return configState.pools[module];
        }
@@ -972,18 +973,23 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
          renderModule();
        });
        $$(".config-button").forEach((button) => button.addEventListener("click", () => {
-         const en = configState.language === "EN";
-         const key = button.dataset.config;
-         if (key === "calibration") renderCalibration();
-         else {
-           $("#modal-title").textContent = key === "automations"
-             ? (en ? "Automation settings & CRM integrators" : "Automações e integrações CRM")
-             : (en ? "Automated report triggers" : "Gatilhos automáticos de report");
-           $("#modal-body").innerHTML = `<div class="field"><label>${en ? "Dispatch channels" : "Canais de distribuição"}</label><input placeholder="${en ? "Email, webhook, CRM" : "E-mail, webhook, CRM"}" /></div><div class="field"><label>${en ? "Schedule" : "Agendamento"}</label><select><option>${en ? "After market close" : "Após fechamento do mercado"}</option><option>${en ? "Every refresh" : "A cada atualização"}</option></select></div><button class="button" id="config-save">${en ? "SAVE CONFIGURATION" : "SALVAR CONFIGURAÇÃO"}</button>`;
-           $("#config-save").addEventListener("click", () => toast(en ? "Configuration saved locally." : "Configuração salva localmente."));
-         }
-         $("#modal").classList.add("open");
-       }));
+        const en = configState.language === "EN";
+        const key = button.dataset.config;
+        const saved = JSON.parse(localStorage.getItem("omni.settings") || "{}");
+        if (key === "calibration") renderCalibration();
+        else if (key === "automations") {
+          $("#modal-title").textContent = en ? "Automation Settings & CRM Integrators" : "Automações e Integrações CRM";
+          $("#modal-body").innerHTML = `<div class="eyebrow" style="color:var(--cyan)">${en ? "Payload channels" : "Canais de payload"}</div><div class="calibration-grid"><div class="field"><label>${en ? "Email notifications" : "E-mails de notificação"}</label><input id="auto-emails" value="${escapeHtml(saved.emails || "mesa@gestora.com, compliance@gestora.com")}" /></div><div class="field"><label>URLs / Webhooks</label><input id="auto-urls" value="${escapeHtml(saved.urls || "")}" /></div></div><div class="section-rule"></div><div class="eyebrow" style="color:var(--purple)">${en ? "CRM integration" : "Integração CRM"}</div><div class="calibration-grid"><div class="field"><label>${en ? "CRM platform" : "Plataforma CRM"}</label><select id="crm-platform"><option>HubSpot</option><option>Salesforce</option><option>RD Station</option><option>Outro Webhook/API</option></select></div><div class="field"><label>${en ? "CRM API Key / Token" : "Chave de API / Token do CRM"}</label><input id="crm-key" type="password" value="${escapeHtml(saved.crmKey || "")}" /></div></div><button class="button" id="config-save">${en ? "SAVE AUTOMATIONS" : "SALVAR AUTOMAÇÕES"}</button>`;
+          $("#config-save").addEventListener("click", () => { saved.emails=$("#auto-emails").value; saved.urls=$("#auto-urls").value; saved.crmKey=$("#crm-key").value; saved.crmPlatform=$("#crm-platform").value; localStorage.setItem("omni.settings",JSON.stringify(saved)); toast(en ? "Automation settings saved." : "Configurações de automação salvas."); });
+        } else {
+          const module = currentModule();
+          const moduleAssets = getAssetPool(module);
+          $("#modal-title").textContent = en ? "Advanced Automated Report Triggers Configuration" : "Configuração Avançada de Gatilhos Automáticos";
+          $("#modal-body").innerHTML = `<div class="eyebrow" style="color:var(--cyan)">${en ? "Active module" : "Módulo ativo"}: ${module.toUpperCase()}</div><div class="eyebrow" style="color:var(--purple);margin-top:15px">${en ? "Days of the week" : "Dias da semana"}</div><div class="check-list">${["Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado","Domingo"].map((day,i)=>`<label class="check-row"><input type="checkbox" class="trigger-day" value="${day}" ${i<5 ? "checked" : ""}/> ${day}</label>`).join("")}</div><div class="field" style="margin-top:15px"><label>${en ? "Reports per day (1–5)" : "Relatórios por dia (1–5)"}</label><input id="trigger-frequency" type="number" min="1" max="5" value="${saved.frequency || 2}" /></div><div class="calibration-grid"><div class="field"><label>Horário 1</label><input class="trigger-time" type="time" value="09:00" /></div><div class="field"><label>Horário 2</label><input class="trigger-time" type="time" value="12:00" /></div><div class="field"><label>Horário 3</label><input class="trigger-time" type="time" value="15:00" /></div><div class="field"><label>Horário 4</label><input class="trigger-time" type="time" value="18:00" /></div><div class="field"><label>Horário 5</label><input class="trigger-time" type="time" value="21:00" /></div></div><div class="field" style="margin-top:15px"><label>${en ? "Assets (maximum 10)" : "Ativos (máximo 10)"} · ${module.toUpperCase()}</label><select id="trigger-assets" multiple size="8">${moduleAssets.map(([name,ticker])=>`<option value="${escapeHtml(ticker)}">${escapeHtml(name)} (${escapeHtml(ticker)})</option>`).join("")}</select></div><button class="button" id="trigger-save">${en ? "SAVE TRIGGERS" : "SALVAR GATILHOS"}</button>`;
+          $("#trigger-save").addEventListener("click", () => { const assets=Array.from($("#trigger-assets").selectedOptions).slice(0,10).map(o=>o.value); saved.triggerModule=module; saved.days=$$(".trigger-day:checked").map(i=>i.value); saved.frequency=Math.min(5,Math.max(1,Number($("#trigger-frequency").value)||1)); saved.times=$$(".trigger-time").slice(0,saved.frequency).map(i=>i.value); saved.assets=assets; localStorage.setItem("omni.settings",JSON.stringify(saved)); toast(en ? `Triggers saved for ${module}.` : `Gatilhos salvos para ${module}.`); });
+        }
+        $("#modal").classList.add("open");
+      }));
       $("#modal-close").addEventListener("click", () => $("#modal").classList.remove("open"));
       $("#modal").addEventListener("click", (event) => { if (event.target.id === "modal") $("#modal").classList.remove("open"); });
       document.addEventListener("keydown", (event) => { if (event.key === "Escape") $("#modal").classList.remove("open"); });
