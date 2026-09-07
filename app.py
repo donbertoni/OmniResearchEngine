@@ -278,7 +278,7 @@ html = r"""﻿<!doctype html>
       h1, h2, h3, p { margin: 0; }
       h1 { font-size: clamp(32px, 5vw, 63px); line-height: .92; letter-spacing: -.06em; }
       h1 span { color: var(--cyan); }
-      .page-heading p { max-width: 570px; margin-top: 11px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+      .page-heading p { max-width: 570px; margin-top: 11px; color: #c5d7dc; font-size: 14px; line-height: 1.65; }
       .heading-actions { display: flex; flex-wrap: wrap; gap: 7px; justify-content: flex-end; }
       .status-strip { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 9px; margin-bottom: 16px; }
       .status-pill { min-height: 38px; padding: 10px 12px; color: var(--muted); border: 1px solid var(--line); background: var(--panel); font: 10px "IBM Plex Mono"; }
@@ -336,7 +336,7 @@ html = r"""﻿<!doctype html>
       .category-top { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-bottom: 11px; }
       .category-name { overflow: hidden; color: var(--text); font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
       .asset-row { display: grid; grid-template-columns: 1fr auto; gap: 6px; padding: 8px 0; border-top: 1px solid rgba(71, 85, 105, .28); }
-      .asset-name { color: var(--muted); font-size: 10px; }
+      .asset-name { color: #c5d7dc; font-size: 11px; font-weight: 500; line-height: 1.35; }
       .asset-detail { display: flex; gap: 7px; justify-content: flex-end; align-items: center; color: var(--text); font: 10px "IBM Plex Mono"; }
       .agent-tabs { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 13px; }
       .tab { padding: 8px 10px; color: var(--muted); border: 1px solid var(--line); background: transparent; font: 9px "IBM Plex Mono"; text-transform: uppercase; }
