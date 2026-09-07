@@ -375,13 +375,13 @@ html = r"""﻿<!doctype html>
       .modal-header h2 { margin-top: 6px; font-size: 24px; letter-spacing: -.05em; }
       .close { color: var(--muted); border: 0; background: transparent; font-size: 22px; }
       .modal-body { padding-top: 17px; color: var(--muted); font-size: 12px; line-height: 1.7; }
-      .chart-drawer-backdrop { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 55; display: none; place-items: center; padding: 28px; box-sizing: border-box; background: rgba(1, 5, 13, .86); backdrop-filter: blur(8px); }
-      .chart-drawer-backdrop.open { display: grid; }
-      .chart-drawer { position: relative; width: min(980px, 94vw); max-height: min(780px, 92vh); padding: 24px; overflow-y: auto; border: 1px solid rgba(103, 232, 249, .48); border-radius: 5px; background: linear-gradient(145deg, #0a1d2b, #030914); box-shadow: 0 0 80px -25px rgba(34,211,238,.72), 0 24px 80px rgba(0,0,0,.62); }
+      .chart-drawer-backdrop { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 55; display: none; box-sizing: border-box; background: rgba(1, 5, 13, .86); backdrop-filter: blur(8px); }
+      .chart-drawer-backdrop.open { display: block; }
+      .chart-drawer { position: absolute; top: var(--chart-anchor-top, 24px); left: 50%; transform: translateX(-50%); width: min(980px, 94vw); max-height: calc(100vh - var(--chart-anchor-top, 24px) - 24px); padding: 24px; overflow-y: auto; border: 1px solid rgba(103, 232, 249, .48); border-radius: 5px; background: linear-gradient(145deg, #0a1d2b, #030914); box-shadow: 0 0 80px -25px rgba(34,211,238,.72), 0 24px 80px rgba(0,0,0,.62); }
       .chart-drawer-header { display: flex; align-items: start; justify-content: space-between; gap: 15px; margin-bottom: 15px; }
       .chart-drawer-header h2 { margin-top: 5px; font-size: 26px; }
       .chart-frame { display: block; width: 100%; height: min(560px, 62vh); border: 1px solid rgba(103, 232, 249, .32); background: #050a12; }
-      @media (max-width: 620px) { .chart-drawer-backdrop { padding: 10px; } .chart-drawer { width: 100%; padding: 16px; } .chart-frame { height: 58vh; } }
+      @media (max-width: 620px) { .chart-drawer { width: calc(100vw - 20px); padding: 16px; } .chart-frame { height: 58vh; } }
       .chart-test-badge { display: inline-block; padding: 4px 7px; color: var(--amber); border: 1px solid rgba(253,230,138,.34); font: 8px "IBM Plex Mono"; letter-spacing: .08em; text-transform: uppercase; }
       .asset-title-line { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
       .asset-chart-trigger { margin-top: 0; padding: 3px 6px; cursor: pointer; color: var(--cyan); border: 1px solid rgba(103,232,249,.30); background: rgba(34,211,238,.06); font: 8px "IBM Plex Mono"; }
@@ -612,9 +612,9 @@ html = r"""﻿<!doctype html>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <div class="chart-drawer-backdrop" id="solana-chart" role="dialog" aria-modal="true" aria-labelledby="solana-chart-title">
       <aside class="chart-drawer">
-        <div class="chart-drawer-header"><div><div class="eyebrow" style="color:var(--cyan)">Crypto · quick context</div><h2 id="solana-chart-title">Solana · SOL/USDT</h2></div><button class="close" id="solana-chart-close" aria-label="Close">×</button></div>
-        <div class="chart-test-badge">TradingView · read-only test</div>
-        <p style="margin:12px 0 15px;color:var(--muted);font-size:11px;line-height:1.55">Consulta rápida de performance sem sair do Omni Research Engine. Ferramentas avançadas permanecem no TradingView completo.</p>
+        <div class="chart-drawer-header"><div><div class="eyebrow" id="solana-chart-kicker" style="color:var(--cyan)">Crypto · consulta rápida</div><h2 id="solana-chart-title">Solana · SOL/USDT</h2></div><button class="close" id="solana-chart-close" aria-label="Close">×</button></div>
+        <div class="chart-test-badge" id="solana-chart-badge">TradingView · teste somente leitura</div>
+        <p id="solana-chart-description" style="margin:12px 0 15px;color:var(--muted);font-size:11px;line-height:1.55">Consulta rápida de performance sem sair do Omni Research Engine. Ferramentas avançadas permanecem no TradingView completo.</p>
         <iframe class="chart-frame" title="TradingView chart for Solana" src="https://www.tradingview.com/widgetembed/?symbol=BINANCE%3ASOLUSDT&interval=D&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=f5f5f5&studies=%5B%5D&theme=dark&style=1&timezone=America%2FSao_Paulo" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
         <div class="data-meta" style="margin-top:12px">Symbol mapping: BINANCE:SOLUSDT · Visualization provided by TradingView.</div>
       </aside>
@@ -842,7 +842,7 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
              <div class="category-top"><div class="category-name" title="${escapeHtml(t(name))}">${escapeHtml(t(name))}</div><input type="checkbox" data-category="${escapeHtml(name)}" checked onchange="renderReport()" aria-label="${configState.language === "EN" ? "Include" : "Incluir"} ${escapeHtml(t(name))}" /></div>
             ${categoryAssets.map(([asset, ticker]) => {
               const quote = assets.find((item) => item.symbol === ticker);
-               return `<div class="asset-row"><div class="asset-name"><div class="asset-title-line"><span>${escapeHtml(asset)}</span>${ticker === "SOL-USD" ? `<button class="asset-chart-trigger" data-chart="solana" type="button">VIEW CHART</button>` : ""}</div>${ticker === "SOL-USD" ? "" : `<br /><span class="mono" style="font-size:8px;color:var(--muted-2)">${escapeHtml(ticker)}</span>`}</div><div class="asset-detail ${trendClass(quote?.changePercent || 0)}">${quote ? `${displayPrice(quote)} ${formatPercent(quote.changePercent)}` : copy().noData}</div>${statusMarkup(quote)}</div>`;
+               return `<div class="asset-row"><div class="asset-name"><div class="asset-title-line"><span>${escapeHtml(asset)}</span>${ticker === "SOL-USD" ? `<button class="asset-chart-trigger" data-chart="solana" type="button">${configState.language === "EN" ? "VIEW CHART" : "VER GRÁFICO"}</button>` : ""}</div>${ticker === "SOL-USD" ? "" : `<br /><span class="mono" style="font-size:8px;color:var(--muted-2)">${escapeHtml(ticker)}</span>`}</div><div class="asset-detail ${trendClass(quote?.changePercent || 0)}">${quote ? `${displayPrice(quote)} ${formatPercent(quote.changePercent)}` : copy().noData}</div>${statusMarkup(quote)}</div>`;
             }).join("")}
           </div>
         `).join("");
@@ -954,6 +954,13 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
         const trigger = event.target.closest("[data-chart=\"solana\"]");
         if (!trigger) return;
         event.preventDefault();
+        const rect = trigger.getBoundingClientRect();
+        const maxTop = Math.max(18, window.innerHeight - 620);
+        $("#solana-chart").style.setProperty("--chart-anchor-top", `${Math.max(18, Math.min(rect.top, maxTop))}px`);
+        const en = configState.language === "EN";
+        $("#solana-chart-kicker").textContent = en ? "Crypto · quick context" : "Crypto · consulta rápida";
+        $("#solana-chart-badge").textContent = en ? "TradingView · read-only test" : "TradingView · teste somente leitura";
+        $("#solana-chart-description").textContent = en ? "Quick performance context without leaving the Omni Research Engine. Advanced tools remain available in full TradingView." : "Consulta rápida de performance sem sair do Omni Research Engine. Ferramentas avançadas permanecem no TradingView completo.";
         $("#solana-chart").classList.add("open");
       });
       $("#solana-chart-close").addEventListener("click", () => $("#solana-chart").classList.remove("open"));
