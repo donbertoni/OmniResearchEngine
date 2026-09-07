@@ -337,9 +337,12 @@ html = r"""﻿<!doctype html>
       .category-card:hover { border-color: rgba(103, 232, 249, .42); background: rgba(34, 211, 238, .05); }
       .category-top { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-bottom: 11px; }
       .category-name { overflow: hidden; color: var(--text); font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-      .asset-row { display: grid; grid-template-columns: 1fr auto; gap: 6px; padding: 8px 0; border-top: 1px solid rgba(71, 85, 105, .28); }
+      .asset-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid rgba(71, 85, 105, .28); }
+      .asset-main { min-width: 0; }
       .asset-name { color: #c5d7dc; font-size: 11px; font-weight: 500; line-height: 1.35; }
-      .asset-detail { display: flex; gap: 7px; justify-content: flex-end; align-items: center; color: var(--text); font: 10px "IBM Plex Mono"; }
+      .asset-detail { display: flex; gap: 7px; justify-content: flex-start; align-items: center; margin-top: 3px; color: var(--text); font: 10px "IBM Plex Mono"; }
+      .asset-action { display: flex; align-items: center; justify-content: flex-end; }
+      .asset-action .category-chart-trigger { margin-left: 0; white-space: nowrap; }
       .agent-tabs { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 13px; }
       .tab { padding: 8px 10px; color: var(--muted); border: 1px solid var(--line); background: transparent; font: 9px "IBM Plex Mono"; text-transform: uppercase; }
       .tab.active, .tab:hover { color: var(--cyan); border-color: rgba(103, 232, 249, .5); background: rgba(34, 211, 238, .08); }
@@ -380,7 +383,7 @@ html = r"""﻿<!doctype html>
       .asset-title-line { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
       .asset-chart-trigger { margin-top: 0; padding: 3px 6px; cursor: pointer; color: var(--cyan); border: 1px solid rgba(103,232,249,.30); background: rgba(34,211,238,.06); font: 8px "IBM Plex Mono"; }
       .asset-chart-trigger:hover { background: rgba(34,211,238,.16); border-color: var(--cyan); }
-      .category-chart-trigger { margin-left: 5px; padding: 2px 4px; cursor: pointer; color: var(--cyan); border: 1px solid rgba(103,232,249,.24); background: transparent; font: 7px "IBM Plex Mono"; letter-spacing: .02em; vertical-align: middle; }
+      .category-chart-trigger { margin-left: 5px; padding: 3px 6px; cursor: pointer; color: var(--cyan); border: 1px solid rgba(103,232,249,.24); background: transparent; font: 8px "IBM Plex Mono"; letter-spacing: .02em; vertical-align: middle; }
       .category-chart-trigger:hover { color: var(--text); border-color: rgba(103,232,249,.65); background: rgba(34,211,238,.10); }
 
       .hidden { display: none !important; }
@@ -833,7 +836,7 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
         if (/^[A-Z]{1,6}$/.test(raw)) return `NASDAQ:${raw}`;
         return "";
       }
-      const chartButton = (ticker) => { const symbol=tradingViewSymbol(ticker); return symbol ? `<button class="category-chart-trigger" data-popup-chart="${escapeHtml(symbol)}" type="button">${configState.language === "EN" ? "VIEW" : "VER"}</button>` : ""; };
+      const chartButton = (ticker) => { const symbol=tradingViewSymbol(ticker); return symbol ? `<button class="category-chart-trigger" data-popup-chart="${escapeHtml(symbol)}" type="button">${configState.language === "EN" ? "VIEW CHART" : "VER GRÁFICO"}</button>` : ""; };
 
       function renderCategories() {
          const categories = categoriesForModule();
@@ -843,7 +846,7 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
              <div class="category-top"><div class="category-name" title="${escapeHtml(t(name))}">${escapeHtml(t(name))}</div><input type="checkbox" data-category="${escapeHtml(name)}" checked onchange="renderReport()" aria-label="${configState.language === "EN" ? "Include" : "Incluir"} ${escapeHtml(t(name))}" /></div>
             ${categoryAssets.map(([asset, ticker]) => {
               const quote = assets.find((item) => item.symbol === ticker);
-               return `<div class="asset-row"><div class="asset-name"><div class="asset-title-line"><span>${escapeHtml(asset)}</span>${chartButton(ticker)}</div>${ticker === "SOL-USD" ? "" : `<br /><span class="mono" style="font-size:8px;color:var(--muted-2)">${escapeHtml(ticker)}</span>`}</div><div class="asset-detail ${trendClass(quote?.changePercent || 0)}">${quote ? `${displayPrice(quote)} ${formatPercent(quote.changePercent)}` : copy().noData}</div>${statusMarkup(quote)}</div>`;
+               return `<div class="asset-row"><div class="asset-main"><div class="asset-name">${escapeHtml(asset)}</div><div class="asset-detail ${trendClass(quote?.changePercent || 0)}">${quote ? `${displayPrice(quote)} ${formatPercent(quote.changePercent)}` : copy().noData}</div></div><div class="asset-action">${chartButton(ticker)}</div>${statusMarkup(quote)}</div>`;
             }).join("")}
           </div>
         `).join("");
