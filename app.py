@@ -1056,4 +1056,4 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
   </body>
 </html>"""
 html = html.replace("__OMNI_BOOTSTRAP_PLACEHOLDER__", json.dumps(bootstrap, ensure_ascii=False))
-components.html(html, height=900, scrolling=True)
+components.html(html, height=3400, scrolling=False)
