@@ -813,12 +813,13 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
       const formatNumber = (value, currency = "USD") => new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
       const formatPercent = (value) => `${value >= 0 ? "+" : ""}${Number(value).toFixed(2)}%`;
       const formatTime = (value) => value ? new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "medium" }) : "timestamp unavailable";
-      const statusMarkup = (quote, overview = marketState.data) => {
+      const statusMarkup = (quote, overview = marketState.data, ticker = "") => {
         const stale = quote ? quote.isStale : overview?.isStale;
         const status = quote?.dataStatus || overview?.dataStatus || "demo";
         const source = quote?.source || overview?.source || "unknown provider";
         const timestamp = quote?.timestamp || overview?.asOf;
-        return `<div class="data-meta ${stale ? "stale" : ""}"><span class="data-status ${status}">${status.toUpperCase()}${stale ? " · STALE" : ""}</span>· ${escapeHtml(source)} · ${escapeHtml(formatTime(timestamp))}</div>${quote?.error ? `<div class="stale-note">Provider warning: ${escapeHtml(quote.error)}</div>` : ""}`;
+        const prefix = ticker || quote?.symbol || "";
+        return `<div class="data-meta ${stale ? "stale" : ""}"><span class="data-status ${status}">${status.toUpperCase()}${stale ? " · STALE" : ""}</span>${prefix ? ` · ${escapeHtml(prefix)}` : ""} · ${escapeHtml(source)} · ${escapeHtml(formatTime(timestamp))}</div>${quote?.error ? `<div class="stale-note">Provider warning: ${escapeHtml(quote.error)}</div>` : ""}`;
       };
       const quoteFor = (symbol) => marketState.data?.assets?.find((asset) => asset.symbol === symbol);
       const displayPrice = (quote) => quote ? `${quote.assetClass === "equity" && quote.symbol.endsWith(".SA") ? "R$ " : "$ "}${formatNumber(quote.price)}` : "NO DATA";
@@ -846,7 +847,7 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
              <div class="category-top"><div class="category-name" title="${escapeHtml(t(name))}">${escapeHtml(t(name))}</div><input type="checkbox" data-category="${escapeHtml(name)}" checked onchange="renderReport()" aria-label="${configState.language === "EN" ? "Include" : "Incluir"} ${escapeHtml(t(name))}" /></div>
             ${categoryAssets.map(([asset, ticker]) => {
               const quote = assets.find((item) => item.symbol === ticker);
-               return `<div class="asset-row"><div class="asset-main"><div class="asset-name">${escapeHtml(asset)}</div><div class="asset-detail ${trendClass(quote?.changePercent || 0)}">${quote ? `${displayPrice(quote)} ${formatPercent(quote.changePercent)}` : copy().noData}</div></div><div class="asset-action">${chartButton(ticker)}</div>${statusMarkup(quote)}</div>`;
+               return `<div class="asset-row"><div class="asset-main"><div class="asset-name">${escapeHtml(asset)}</div><div class="asset-detail ${trendClass(quote?.changePercent || 0)}">${quote ? `${displayPrice(quote)} ${formatPercent(quote.changePercent)}` : copy().noData}</div></div><div class="asset-action">${chartButton(ticker)}</div>${statusMarkup(quote, marketState.data, ticker)}</div>`;
             }).join("")}
           </div>
         `).join("");
