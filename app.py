@@ -863,6 +863,19 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
         $("#heatmap-note").innerHTML = `<div class="eyebrow" style="color:var(--purple);margin-bottom:10px">Analyst readout</div><p><strong>${escapeHtml(heat.note)}</strong></p><div class="agent-kpis" style="margin-top:22px"><div class="mini-kpi"><div class="eyebrow">Spot</div><strong>${escapeHtml(formatNumber(heat.basePrice))}</strong></div><div class="mini-kpi"><div class="eyebrow">Source</div><strong>${escapeHtml(heat.source)}</strong></div><div class="mini-kpi"><div class="eyebrow">Clusters</div><strong>${heat.prices.length}</strong></div></div>`;
       }
 
+      function brazilHoliday(date) {
+        const year = date.getFullYear();
+        const fixed = [`${year}-01-01`, `${year}-04-21`, `${year}-05-01`, `${year}-09-07`, `${year}-10-12`, `${year}-11-02`, `${year}-11-15`, `${year}-12-25`];
+        const easter = (y) => { const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),month=Math.floor((h+l-7*m+114)/31),day=((h+l-7*m+114)%31)+1; return new Date(y,month-1,day); };
+        const pascoa=easter(year); const movable=[-48,-47,-2,60].map(offset=>{ const d=new Date(pascoa); d.setDate(d.getDate()+offset); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; });
+        const key=`${year}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+        return fixed.includes(key) || movable.includes(key);
+      }
+      function tradfiMarketClosed() {
+        const now = new Date();
+        return currentModule() === "tradfi" && (now.getDay() === 0 || now.getDay() === 6 || brazilHoliday(now));
+      }
+
       function renderModule() {
         const crypto = currentModule() === "crypto";
         $("#metrics-title").textContent = crypto ? "Crypto Market" : "TradFi (Macro)";
@@ -871,10 +884,15 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
         const overview = marketState.data;
         $("#source-label").textContent = overview?.source || "CONNECTING";
         $("#date-label").textContent = overview?.asOf ? new Date(overview.asOf).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase() : "--";
-        $("#auto-status").classList.toggle("live", !overview?.isStale);
-        $("#auto-status").innerHTML = `<span class="status-dot${overview?.isStale ? " stale" : ""}"></span><strong>${overview?.dataStatus?.toUpperCase() || "CONNECTING"}</strong> · ${overview?.isStale ? "stale data visible" : "provider monitoring"}`;
-        $("#api-status").innerHTML = `<i class="status-dot${overview?.isStale ? " stale" : ""}"></i>API STATUS · ${overview ? (overview.isStale ? "STALE WARNINGS" : "NOMINAL") : "CONNECTING"}`;
-        $("#health").textContent = overview?.isStale ? "● DATA HEALTH · STALE" : overview ? "● DATA HEALTH · NOMINAL" : "● DATA HEALTH · CONNECTING";
+        const marketClosed = tradfiMarketClosed();
+        $("#auto-status").classList.toggle("live", !overview?.isStale && !marketClosed);
+        $("#auto-status").innerHTML = marketClosed
+          ? `<span class="status-dot stale"></span><strong>MERCADO FECHADO</strong> · Últimas cotações do último dia útil`
+          : `<span class="status-dot${overview?.isStale ? " stale" : ""}"></span><strong>${overview?.dataStatus?.toUpperCase() || "CONNECTING"}</strong> · ${overview?.isStale ? "stale data visible" : "provider monitoring"}`;
+        $("#api-status").innerHTML = marketClosed
+          ? `<i class="status-dot stale"></i>MARKET STATUS · CLOSED`
+          : `<i class="status-dot${overview?.isStale ? " stale" : ""}"></i>API STATUS · ${overview ? (overview.isStale ? "STALE WARNINGS" : "NOMINAL") : "CONNECTING"}`;
+        $("#health").textContent = marketClosed ? "● MARKET CLOSED · LAST BUSINESS-DAY QUOTES" : overview?.isStale ? "● DATA HEALTH · STALE" : overview ? "● DATA HEALTH · NOMINAL" : "● DATA HEALTH · CONNECTING";
         renderCategories();
         renderMetrics();
         renderReport();
