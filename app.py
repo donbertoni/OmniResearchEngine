@@ -380,6 +380,8 @@ html = r"""﻿<!doctype html>
       .asset-title-line { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
       .asset-chart-trigger { margin-top: 0; padding: 3px 6px; cursor: pointer; color: var(--cyan); border: 1px solid rgba(103,232,249,.30); background: rgba(34,211,238,.06); font: 8px "IBM Plex Mono"; }
       .asset-chart-trigger:hover { background: rgba(34,211,238,.16); border-color: var(--cyan); }
+      .category-chart-trigger { margin-left: 5px; padding: 2px 4px; cursor: pointer; color: var(--cyan); border: 1px solid rgba(103,232,249,.24); background: transparent; font: 7px "IBM Plex Mono"; letter-spacing: .02em; vertical-align: middle; }
+      .category-chart-trigger:hover { color: var(--text); border-color: rgba(103,232,249,.65); background: rgba(34,211,238,.10); }
 
       .hidden { display: none !important; }
       @media (max-width: 1100px) {
@@ -831,7 +833,7 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
         if (/^[A-Z]{1,6}$/.test(raw)) return `NASDAQ:${raw}`;
         return "";
       }
-      const chartButton = (ticker) => { const symbol=tradingViewSymbol(ticker); return symbol ? `<button class="asset-chart-trigger" data-popup-chart="${escapeHtml(symbol)}" type="button">${configState.language === "EN" ? "VIEW CHART" : "VER GRÁFICO"}</button>` : ""; };
+      const chartButton = (ticker) => { const symbol=tradingViewSymbol(ticker); return symbol ? `<button class="category-chart-trigger" data-popup-chart="${escapeHtml(symbol)}" type="button">${configState.language === "EN" ? "VIEW" : "VER"}</button>` : ""; };
 
       function renderCategories() {
          const categories = categoriesForModule();
