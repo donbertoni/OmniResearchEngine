@@ -375,10 +375,6 @@ html = r"""﻿<!doctype html>
       .modal-header h2 { margin-top: 6px; font-size: 24px; letter-spacing: -.05em; }
       .close { color: var(--muted); border: 0; background: transparent; font-size: 22px; }
       .modal-body { padding-top: 17px; color: var(--muted); font-size: 12px; line-height: 1.7; }
-      .inline-chart { display: none; grid-column: 1 / -1; margin: 12px 0 4px; padding: 10px; border: 1px solid rgba(103,232,249,.32); background: rgba(2,8,16,.78); }
-      .inline-chart.open { display: block; }
-      .inline-chart-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; color: var(--cyan); font: 9px "IBM Plex Mono"; text-transform: uppercase; }
-      .inline-chart-frame { display: block; width: 100%; height: 390px; border: 1px solid rgba(103,232,249,.28); background: #050a12; }
       .asset-title-line { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
       .asset-chart-trigger { margin-top: 0; padding: 3px 6px; cursor: pointer; color: var(--cyan); border: 1px solid rgba(103,232,249,.30); background: rgba(34,211,238,.06); font: 8px "IBM Plex Mono"; }
       .asset-chart-trigger:hover { background: rgba(34,211,238,.16); border-color: var(--cyan); }
@@ -829,7 +825,7 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
              <div class="category-top"><div class="category-name" title="${escapeHtml(t(name))}">${escapeHtml(t(name))}</div><input type="checkbox" data-category="${escapeHtml(name)}" checked onchange="renderReport()" aria-label="${configState.language === "EN" ? "Include" : "Incluir"} ${escapeHtml(t(name))}" /></div>
             ${categoryAssets.map(([asset, ticker]) => {
               const quote = assets.find((item) => item.symbol === ticker);
-               return `<div class="asset-row"><div class="asset-name"><div class="asset-title-line"><span>${escapeHtml(asset)}</span>${ticker === "SOL-USD" ? `<button class="asset-chart-trigger" data-inline-chart="solana" type="button">${configState.language === "EN" ? "VIEW CHART" : "VER GRÁFICO"}</button>` : ""}</div>${ticker === "SOL-USD" ? "" : `<br /><span class="mono" style="font-size:8px;color:var(--muted-2)">${escapeHtml(ticker)}</span>`}</div><div class="asset-detail ${trendClass(quote?.changePercent || 0)}">${quote ? `${displayPrice(quote)} ${formatPercent(quote.changePercent)}` : copy().noData}</div>${statusMarkup(quote)}${ticker === "SOL-USD" ? `<div class="inline-chart" data-inline-panel="solana"><div class="inline-chart-header"><span>${configState.language === "EN" ? "Solana · quick context" : "Solana · consulta rápida"}</span><button class="close-inline-chart" data-close-inline="solana" type="button">×</button></div><iframe class="inline-chart-frame" title="TradingView chart for Solana" src="https://www.tradingview.com/widgetembed/?symbol=BINANCE%3ASOLUSDT&interval=D&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=f5f5f5&studies=%5B%5D&theme=dark&style=1&timezone=America%2FSao_Paulo" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>` : ""}</div>`;
+               return `<div class="asset-row"><div class="asset-name"><div class="asset-title-line"><span>${escapeHtml(asset)}</span>${ticker === "SOL-USD" ? `<button class="asset-chart-trigger" data-popup-chart="solana" type="button">${configState.language === "EN" ? "VIEW CHART" : "VER GRÁFICO"}</button>` : ""}</div>${ticker === "SOL-USD" ? "" : `<br /><span class="mono" style="font-size:8px;color:var(--muted-2)">${escapeHtml(ticker)}</span>`}</div><div class="asset-detail ${trendClass(quote?.changePercent || 0)}">${quote ? `${displayPrice(quote)} ${formatPercent(quote.changePercent)}` : copy().noData}</div>${statusMarkup(quote)}</div>`;
             }).join("")}
           </div>
         `).join("");
@@ -938,14 +934,18 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
       }
 
       $("#category-grid").addEventListener("click", (event) => {
-        const trigger = event.target.closest("[data-inline-chart=\"solana\"]");
-        const close = event.target.closest("[data-close-inline=\"solana\"]");
-        if (!trigger && !close) return;
+        const trigger = event.target.closest("[data-popup-chart=\"solana\"]");
+        if (!trigger) return;
         event.preventDefault();
-        const panel = $("[data-inline-panel=\"solana\"]");
-        if (panel) panel.classList.toggle("open", Boolean(trigger) || !panel.classList.contains("open"));
+        const width = 1100;
+        const height = 720;
+        const left = Math.max(0, Math.round((screen.availWidth - width) / 2));
+        const top = Math.max(0, Math.round((screen.availHeight - height) / 2));
+        const url = "https://www.tradingview.com/widgetembed/?symbol=BINANCE%3ASOLUSDT&interval=D&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=f5f5f5&studies=%5B%5D&theme=dark&style=1&timezone=America%2FSao_Paulo";
+        const popup = window.open(url, "OMNI_SOLANA_CHART", `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+        if (popup) popup.focus();
+        else toast(configState.language === "EN" ? "Allow popups to open the TradingView chart." : "Permita pop-ups para abrir o gráfico do TradingView.");
       });
-
       $$('input[name="module"]').forEach((input) => input.addEventListener("change", () => {
         marketState.data = null;
         renderModule();
