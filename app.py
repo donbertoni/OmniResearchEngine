@@ -941,7 +941,7 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
         const height = 720;
         const left = Math.max(0, Math.round((screen.availWidth - width) / 2));
         const top = Math.max(0, Math.round((screen.availHeight - height) / 2));
-        const url = "https://www.tradingview.com/widgetembed/?symbol=BINANCE%3ASOLUSDT&interval=D&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=f5f5f5&studies=%5B%5D&theme=dark&style=1&timezone=America%2FSao_Paulo";
+        const url = "https://www.tradingview.com/chart/?symbol=BINANCE%3ASOLUSDT&locale=br";
         const popup = window.open(url, "OMNI_SOLANA_CHART", `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`);
         if (popup) popup.focus();
         else toast(configState.language === "EN" ? "Allow popups to open the TradingView chart." : "Permita pop-ups para abrir o gráfico do TradingView.");
