@@ -375,12 +375,13 @@ html = r"""﻿<!doctype html>
       .modal-header h2 { margin-top: 6px; font-size: 24px; letter-spacing: -.05em; }
       .close { color: var(--muted); border: 0; background: transparent; font-size: 22px; }
       .modal-body { padding-top: 17px; color: var(--muted); font-size: 12px; line-height: 1.7; }
-      .chart-drawer-backdrop { position: fixed; inset: 0; z-index: 55; display: none; background: rgba(1, 5, 13, .66); backdrop-filter: blur(5px); }
-      .chart-drawer-backdrop.open { display: block; }
-      .chart-drawer { position: absolute; top: 0; right: 0; width: min(620px, 96vw); height: 100%; padding: 20px; overflow-y: auto; border-left: 1px solid rgba(103, 232, 249, .42); background: linear-gradient(145deg, #0a1d2b, #030914); box-shadow: -18px 0 50px rgba(0,0,0,.42); }
+      .chart-drawer-backdrop { position: fixed; inset: 0; z-index: 55; display: none; place-items: center; padding: 28px; background: rgba(1, 5, 13, .86); backdrop-filter: blur(8px); }
+      .chart-drawer-backdrop.open { display: grid; }
+      .chart-drawer { position: relative; width: min(980px, 94vw); max-height: min(780px, 92vh); padding: 24px; overflow-y: auto; border: 1px solid rgba(103, 232, 249, .48); border-radius: 5px; background: linear-gradient(145deg, #0a1d2b, #030914); box-shadow: 0 0 80px -25px rgba(34,211,238,.72), 0 24px 80px rgba(0,0,0,.62); }
       .chart-drawer-header { display: flex; align-items: start; justify-content: space-between; gap: 15px; margin-bottom: 15px; }
-      .chart-drawer-header h2 { margin-top: 5px; font-size: 24px; }
-      .chart-frame { width: 100%; height: 430px; border: 1px solid rgba(103, 232, 249, .28); background: #050a12; }
+      .chart-drawer-header h2 { margin-top: 5px; font-size: 26px; }
+      .chart-frame { display: block; width: 100%; height: min(560px, 62vh); border: 1px solid rgba(103, 232, 249, .32); background: #050a12; }
+      @media (max-width: 620px) { .chart-drawer-backdrop { padding: 10px; } .chart-drawer { width: 100%; padding: 16px; } .chart-frame { height: 58vh; } }
       .chart-test-badge { display: inline-block; padding: 4px 7px; color: var(--amber); border: 1px solid rgba(253,230,138,.34); font: 8px "IBM Plex Mono"; letter-spacing: .08em; text-transform: uppercase; }
       .asset-chart-trigger { margin-top: 7px; padding: 4px 7px; cursor: pointer; color: var(--cyan); border: 1px solid rgba(103,232,249,.30); background: rgba(34,211,238,.06); font: 8px "IBM Plex Mono"; }
       .asset-chart-trigger:hover { background: rgba(34,211,238,.16); border-color: var(--cyan); }
