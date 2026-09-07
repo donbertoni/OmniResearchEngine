@@ -367,8 +367,9 @@ html = r"""﻿<!doctype html>
       .footer { margin-top: 24px; padding-top: 15px; color: var(--muted-2); border-top: 1px solid var(--line); font: 9px "IBM Plex Mono"; text-align: center; letter-spacing: .1em; text-transform: uppercase; }
       .toast { position: fixed; right: 22px; bottom: 22px; z-index: 50; max-width: 350px; padding: 13px 15px; color: var(--text); border: 1px solid rgba(103, 232, 249, .45); background: rgba(2, 8, 16, .94); box-shadow: var(--shadow-cyan); font: 11px/1.5 "IBM Plex Mono"; opacity: 0; transform: translateY(12px); pointer-events: none; transition: .25s ease; }
       .toast.show { opacity: 1; transform: translateY(0); }
-      .modal-backdrop { position: fixed; inset: 0; z-index: 40; display: none; place-items: center; padding: 20px; background: rgba(1, 5, 13, .82); backdrop-filter: blur(10px); }
+      .modal-backdrop { position: fixed; inset: 0; z-index: 40; display: none; align-items: start; justify-items: center; padding: 24px 20px; overflow-y: auto; background: rgba(1, 5, 13, .82); backdrop-filter: blur(10px); }
       .modal-backdrop.open { display: grid; }
+      .modal { margin-top: 0; }
       .modal { width: min(650px, 100%); max-height: calc(100dvh - 40px); overflow-y: auto; padding: 22px; border: 1px solid rgba(103, 232, 249, .35); background: linear-gradient(145deg, #0a1d2b, #030914); box-shadow: var(--shadow-cyan); }
       .modal-header { display: flex; justify-content: space-between; gap: 15px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
       .modal-header h2 { margin-top: 6px; font-size: 24px; letter-spacing: -.05em; }
