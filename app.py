@@ -73,11 +73,11 @@ def build_overview(module):
     if module == "crypto":
         fng, fng_class = fetch_btc_fng(); glob = fetch_global_crypto_data()
     for item in benchmarks:
-        if item.get("type") == "fng_api": metrics.append({"label":item["label"],"value":fng,"change":f"Sentiment: {fng_class}","changeValue":1 if fng_class=="Greed" else -1,"source":"Alternative.me"})
+        if item.get("type") == "fng_api": metrics.append({"label":item["label"],"value":fng,"change":f"Sentiment: {fng_class}","changeValue":1 if fng_class=="Greed" else -1,"source":"Alternative.me","ticker":"FEAR_GREED"})
         elif item.get("type") == "global_api":
-            key=item.get("sub_key"); val=glob["btc_d_val"] if key=="btc_d" else glob["usdt_d_val"]; ch=glob["btc_d_chg"] if key=="btc_d" else glob["usdt_d_chg"]; metrics.append({"label":item["label"],"value":val,"change":f"{ch:+.2f}%","changeValue":ch,"source":"CoinGecko"})
+            key=item.get("sub_key"); val=glob["btc_d_val"] if key=="btc_d" else glob["usdt_d_val"]; ch=glob["btc_d_chg"] if key=="btc_d" else glob["usdt_d_chg"]; metrics.append({"label":item["label"],"value":val,"change":f"{ch:+.2f}%","changeValue":ch,"source":"CoinGecko","ticker":("BTC.D" if key=="btc_d" else "USDT.D")})
         else:
-            q=quotes.get(item["ticker"], {"price":0.0,"change":0.0}); ch=float(q.get("change",0) or 0); p=float(q.get("price",0) or 0); metrics.append({"label":item["label"],"value":f"{item.get('prefix','')}{p:,.2f}" if p else "NO DATA","change":f"{ch:+.2f}%","changeValue":ch,"source":"Yahoo Finance"})
+            q=quotes.get(item["ticker"], {"price":0.0,"change":0.0}); ch=float(q.get("change",0) or 0); p=float(q.get("price",0) or 0); metrics.append({"label":item["label"],"value":f"{item.get('prefix','')}{p:,.2f}" if p else "NO DATA","change":f"{ch:+.2f}%","changeValue":ch,"source":"Yahoo Finance","ticker":item["ticker"],"key":item.get("key")})
     available=[a for a in assets if a["price"]>0]
     return {"module":module,"asOf":now,"source":"Yahoo Finance / BRAPI / Deribit","dataStatus":"live" if available else "unavailable","isStale":not bool(available),"assets":assets,"metrics":metrics,"kpis":{"advancing":sum(a["changePercent"]>0 for a in available),"declining":sum(a["changePercent"]<0 for a in available),"total":len(assets),"available":len(available)},"heatmap":heatmap(module,quotes),"errors":[]}
 
@@ -817,6 +817,20 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
       const displayPrice = (quote) => quote ? `${quote.assetClass === "equity" && quote.symbol.endsWith(".SA") ? "R$ " : "$ "}${formatNumber(quote.price)}` : "NO DATA";
       const trendClass = (value) => value > 0 ? "positive" : value < 0 ? "negative" : "neutral";
 
+      const TRADINGVIEW_SYMBOLS = {
+        "SOL-USD": "BINANCE:SOLUSDT", "BTC-USD": "BINANCE:BTCUSDT", "ETH-USD": "BINANCE:ETHUSDT", "BNB-USD": "BINANCE:BNBUSDT", "AVAX-USD": "BINANCE:AVAXUSDT", "UNI7083-USD": "BINANCE:UNIUSDT", "AAVE-USD": "BINANCE:AAVEUSDT", "LINK-USD": "BINANCE:LINKUSDT",
+        "USDT-USD": "CRYPTOCAP:USDT", "USDC-USD": "CRYPTOCAP:USDC", "BRL=X": "FX_IDC:USDBRL", "^GSPC": "SP:SPX", "^BVSP": "BMFBOVESPA:IBOV", "BZ=F": "TVC:UKOIL", "GC=F": "TVC:GOLD", "ES=F": "CME_MINI:ES1!", "SPX": "SP:SPX", "IBOV": "BMFBOVESPA:IBOV", "NDX": "NASDAQ:NDX", "VIX": "CBOE:VIX", "BTC": "BINANCE:BTCUSDT", "ETH": "BINANCE:ETHUSDT", "BTC.D": "CRYPTOCAP:BTC.D", "USDT.D": "CRYPTOCAP:USDT.D", "FEAR_GREED": ""
+      };
+      function tradingViewSymbol(ticker) {
+        const raw = String(ticker || "").trim().toUpperCase();
+        if (TRADINGVIEW_SYMBOLS[raw]) return TRADINGVIEW_SYMBOLS[raw];
+        if (raw.endsWith(".SA")) return `BMFBOVESPA:${raw.slice(0, -3)}`;
+        if (raw.endsWith("-USD")) return `BINANCE:${raw.slice(0, -4)}USDT`;
+        if (/^[A-Z]{1,6}$/.test(raw)) return `NASDAQ:${raw}`;
+        return "";
+      }
+      const chartButton = (ticker) => { const symbol=tradingViewSymbol(ticker); return symbol ? `<button class="asset-chart-trigger" data-popup-chart="${escapeHtml(symbol)}" type="button">${configState.language === "EN" ? "VIEW CHART" : "VER GRÁFICO"}</button>` : ""; };
+
       function renderCategories() {
          const categories = categoriesForModule();
         const assets = marketState.data?.assets || [];
@@ -825,7 +839,7 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
              <div class="category-top"><div class="category-name" title="${escapeHtml(t(name))}">${escapeHtml(t(name))}</div><input type="checkbox" data-category="${escapeHtml(name)}" checked onchange="renderReport()" aria-label="${configState.language === "EN" ? "Include" : "Incluir"} ${escapeHtml(t(name))}" /></div>
             ${categoryAssets.map(([asset, ticker]) => {
               const quote = assets.find((item) => item.symbol === ticker);
-               return `<div class="asset-row"><div class="asset-name"><div class="asset-title-line"><span>${escapeHtml(asset)}</span>${ticker === "SOL-USD" ? `<button class="asset-chart-trigger" data-popup-chart="solana" type="button">${configState.language === "EN" ? "VIEW CHART" : "VER GRÁFICO"}</button>` : ""}</div>${ticker === "SOL-USD" ? "" : `<br /><span class="mono" style="font-size:8px;color:var(--muted-2)">${escapeHtml(ticker)}</span>`}</div><div class="asset-detail ${trendClass(quote?.changePercent || 0)}">${quote ? `${displayPrice(quote)} ${formatPercent(quote.changePercent)}` : copy().noData}</div>${statusMarkup(quote)}</div>`;
+               return `<div class="asset-row"><div class="asset-name"><div class="asset-title-line"><span>${escapeHtml(asset)}</span>${chartButton(ticker)}</div>${ticker === "SOL-USD" ? "" : `<br /><span class="mono" style="font-size:8px;color:var(--muted-2)">${escapeHtml(ticker)}</span>`}</div><div class="asset-detail ${trendClass(quote?.changePercent || 0)}">${quote ? `${displayPrice(quote)} ${formatPercent(quote.changePercent)}` : copy().noData}</div>${statusMarkup(quote)}</div>`;
             }).join("")}
           </div>
         `).join("");
@@ -835,7 +849,7 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
         const overview = marketState.data;
         if (!overview) { $("#metric-list").innerHTML = `<div class="${marketState.error ? "api-error" : "loading-state"}">${escapeHtml(marketState.error || "Connecting to the market data service…")}</div>`; return; }
         const metrics = overview.metrics || [];
-        $("#metric-list").innerHTML = metrics.map((metric) => `<div class="metric-card"><div class="metric-top"><span>${escapeHtml(metric.label)}</span><span class="source">${escapeHtml(metric.source)}</span></div><div class="metric-value">${escapeHtml(metric.value)}</div><div class="${trendClass(metric.changeValue || 0)}">${escapeHtml(metric.change)}</div>${statusMarkup(null, overview)}</div>`).join("");
+        $("#metric-list").innerHTML = metrics.map((metric) => { const ticker=metric.ticker || metric.symbol || metric.key || metric.label; const symbol=tradingViewSymbol(ticker); return `<div class="metric-card"><div class="metric-top"><span>${escapeHtml(metric.label)}</span><span class="source">${escapeHtml(metric.source)}</span></div><div class="metric-value">${escapeHtml(metric.value)}</div><div class="${trendClass(metric.changeValue || 0)}">${escapeHtml(metric.change)}</div>${statusMarkup(null, overview)}${symbol ? `<button class="asset-chart-trigger" data-popup-chart="${escapeHtml(symbol)}" type="button">${configState.language === "EN" ? "VIEW CHART" : "VER GRÁFICO"}</button>` : ""}</div>`; }).join("");
       }
 
       function renderReport() {
@@ -933,16 +947,17 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
         $("#clock").textContent = now.toLocaleTimeString("pt-BR", { hour12: false }) + " BRT";
       }
 
-      $("#category-grid").addEventListener("click", (event) => {
-        const trigger = event.target.closest("[data-popup-chart=\"solana\"]");
+      document.addEventListener("click", (event) => {
+        const trigger = event.target.closest("[data-popup-chart]");
         if (!trigger) return;
         event.preventDefault();
-        const width = 1100;
-        const height = 720;
+        const symbol = trigger.dataset.popupChart;
+        const width = 1100; const height = 720;
         const left = Math.max(0, Math.round((screen.availWidth - width) / 2));
         const top = Math.max(0, Math.round((screen.availHeight - height) / 2));
-        const url = "https://www.tradingview.com/chart/?symbol=BINANCE%3ASOLUSDT&locale=br";
-        const popup = window.open(url, "OMNI_SOLANA_CHART", `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+        const locale = configState.language === "EN" ? "en" : "br";
+        const url = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(symbol)}&locale=${locale}`;
+        const popup = window.open(url, "OMNI_TRADINGVIEW_CHART", `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`);
         if (popup) popup.focus();
         else toast(configState.language === "EN" ? "Allow popups to open the TradingView chart." : "Permita pop-ups para abrir o gráfico do TradingView.");
       });
