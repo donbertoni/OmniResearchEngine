@@ -375,6 +375,16 @@ html = r"""﻿<!doctype html>
       .modal-header h2 { margin-top: 6px; font-size: 24px; letter-spacing: -.05em; }
       .close { color: var(--muted); border: 0; background: transparent; font-size: 22px; }
       .modal-body { padding-top: 17px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+      .chart-drawer-backdrop { position: fixed; inset: 0; z-index: 55; display: none; background: rgba(1, 5, 13, .66); backdrop-filter: blur(5px); }
+      .chart-drawer-backdrop.open { display: block; }
+      .chart-drawer { position: absolute; top: 0; right: 0; width: min(620px, 96vw); height: 100%; padding: 20px; overflow-y: auto; border-left: 1px solid rgba(103, 232, 249, .42); background: linear-gradient(145deg, #0a1d2b, #030914); box-shadow: -18px 0 50px rgba(0,0,0,.42); }
+      .chart-drawer-header { display: flex; align-items: start; justify-content: space-between; gap: 15px; margin-bottom: 15px; }
+      .chart-drawer-header h2 { margin-top: 5px; font-size: 24px; }
+      .chart-frame { width: 100%; height: 430px; border: 1px solid rgba(103, 232, 249, .28); background: #050a12; }
+      .chart-test-badge { display: inline-block; padding: 4px 7px; color: var(--amber); border: 1px solid rgba(253,230,138,.34); font: 8px "IBM Plex Mono"; letter-spacing: .08em; text-transform: uppercase; }
+      .asset-chart-trigger { margin-top: 7px; padding: 4px 7px; cursor: pointer; color: var(--cyan); border: 1px solid rgba(103,232,249,.30); background: rgba(34,211,238,.06); font: 8px "IBM Plex Mono"; }
+      .asset-chart-trigger:hover { background: rgba(34,211,238,.16); border-color: var(--cyan); }
+
       .hidden { display: none !important; }
       @media (max-width: 1100px) {
         .app-shell { grid-template-columns: 220px minmax(0, 1fr); }
@@ -598,6 +608,15 @@ html = r"""﻿<!doctype html>
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="chart-drawer-backdrop" id="solana-chart" role="dialog" aria-modal="true" aria-labelledby="solana-chart-title">
+      <aside class="chart-drawer">
+        <div class="chart-drawer-header"><div><div class="eyebrow" style="color:var(--cyan)">Crypto · quick context</div><h2 id="solana-chart-title">Solana · SOL/USDT</h2></div><button class="close" id="solana-chart-close" aria-label="Close">×</button></div>
+        <div class="chart-test-badge">TradingView · read-only test</div>
+        <p style="margin:12px 0 15px;color:var(--muted);font-size:11px;line-height:1.55">Consulta rápida de performance sem sair do Omni Research Engine. Ferramentas avançadas permanecem no TradingView completo.</p>
+        <iframe class="chart-frame" title="TradingView chart for Solana" src="https://www.tradingview.com/widgetembed/?symbol=BINANCE%3ASOLUSDT&interval=D&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=f5f5f5&studies=%5B%5D&theme=dark&style=1&timezone=America%2FSao_Paulo" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        <div class="data-meta" style="margin-top:12px">Symbol mapping: BINANCE:SOLUSDT · Visualization provided by TradingView.</div>
+      </aside>
+    </div>
     <div class="modal-backdrop" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div class="modal">
         <div class="modal-header"><div><div class="eyebrow" style="color:var(--cyan)">Configuration surface</div><h2 id="modal-title">Advanced settings</h2></div><button class="close" id="modal-close" aria-label="Close">×</button></div>
@@ -821,7 +840,7 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
              <div class="category-top"><div class="category-name" title="${escapeHtml(t(name))}">${escapeHtml(t(name))}</div><input type="checkbox" data-category="${escapeHtml(name)}" checked onchange="renderReport()" aria-label="${configState.language === "EN" ? "Include" : "Incluir"} ${escapeHtml(t(name))}" /></div>
             ${categoryAssets.map(([asset, ticker]) => {
               const quote = assets.find((item) => item.symbol === ticker);
-               return `<div class="asset-row"><div class="asset-name">${escapeHtml(asset)}<br /><span class="mono" style="font-size:8px;color:var(--muted-2)">${escapeHtml(ticker)}</span></div><div class="asset-detail ${trendClass(quote?.changePercent || 0)}">${quote ? `${displayPrice(quote)} ${formatPercent(quote.changePercent)}` : copy().noData}</div>${statusMarkup(quote)}</div>`;
+               return `<div class="asset-row"><div class="asset-name">${escapeHtml(asset)}<br /><span class="mono" style="font-size:8px;color:var(--muted-2)">${escapeHtml(ticker)}</span>${ticker === "SOL-USD" ? `<button class="asset-chart-trigger" data-chart="solana" type="button">VIEW CHART</button>` : ""}</div><div class="asset-detail ${trendClass(quote?.changePercent || 0)}">${quote ? `${displayPrice(quote)} ${formatPercent(quote.changePercent)}` : copy().noData}</div>${statusMarkup(quote)}</div>`;
             }).join("")}
           </div>
         `).join("");
@@ -928,6 +947,15 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
         const now = new Date();
         $("#clock").textContent = now.toLocaleTimeString("pt-BR", { hour12: false }) + " BRT";
       }
+
+      $("#category-grid").addEventListener("click", (event) => {
+        const trigger = event.target.closest("[data-chart=\"solana\"]");
+        if (!trigger) return;
+        event.preventDefault();
+        $("#solana-chart").classList.add("open");
+      });
+      $("#solana-chart-close").addEventListener("click", () => $("#solana-chart").classList.remove("open"));
+      $("#solana-chart").addEventListener("click", (event) => { if (event.target.id === "solana-chart") $("#solana-chart").classList.remove("open"); });
 
       $$('input[name="module"]').forEach((input) => input.addEventListener("change", () => {
         marketState.data = null;
