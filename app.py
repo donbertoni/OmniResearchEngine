@@ -83,7 +83,7 @@ def build_overview(module):
 
 bootstrap = {"tradfi":build_overview("tradfi"),"crypto":build_overview("crypto")}
 html = r"""﻿<!doctype html>
-<html lang="pt-BR" data-theme="dark">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -111,27 +111,6 @@ html = r"""﻿<!doctype html>
         --purple: #d8b4fe;
         --radius: 5px;
         --shadow-cyan: 0 0 55px -23px rgba(34, 211, 238, 0.8);
-      }
-
-      [data-theme="light"] {
-        color-scheme: light;
-        --bg: #e8f0f2;
-        --bg-2: #f8fbfb;
-        --panel: rgba(255, 255, 255, 0.88);
-        --panel-solid: #ffffff;
-        --panel-soft: rgba(236, 246, 247, 0.9);
-        --line: rgba(15, 54, 67, 0.18);
-        --line-strong: rgba(8, 145, 178, 0.42);
-        --text: #122733;
-        --muted: #526b78;
-        --muted-2: #738b95;
-        --cyan: #087f9b;
-        --cyan-strong: #0891b2;
-        --green: #047857;
-        --red: #be123c;
-        --amber: #a16207;
-        --purple: #7e22ce;
-        --shadow-cyan: 0 0 45px -22px rgba(8, 145, 178, 0.5);
       }
 
       * { box-sizing: border-box; }
@@ -399,7 +378,6 @@ html = r"""﻿<!doctype html>
         .topbar-meta { display: flex; gap: 8px; font-size: 8px; }
         #clock { display: none; }
         #api-status { white-space: nowrap; }
-        #theme-toggle { min-height: 32px; padding: 7px 8px; font-size: 8px; }
         .workspace { padding: 22px 16px 38px; }
         .page-heading { display: block; }
         .heading-actions { justify-content: flex-start; margin-top: 17px; }
@@ -493,7 +471,7 @@ html = r"""﻿<!doctype html>
           <div class="topbar-meta">
              <span id="api-status"><i class="status-dot"></i>API STATUS · CONNECTING</span>
             <span id="clock">--:--:-- BRT</span>
-            <button class="button secondary" id="theme-toggle">LIGHT MODE</button>
+            
           </div>
         </header>
 
@@ -657,7 +635,7 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
            terminal: "Market intelligence terminal", description: "Plataforma integrada de inteligência financeira com análise TradFi, módulo crypto, automações e arquitetura de agentes especializados.",
            deliveries: "Report production bay", deliveriesDescription: "Geração de relatórios e scripts a partir das cotações, benchmarks e seleções do dashboard.",
            integrated: "Market map / monitored assets", agents: "Signal orchestration layer", agentsDescription: "Agentes para predição, análise técnica, roteirização e direção de arte. Cada módulo está preparado para receber um serviço real.",
-           selectAll: "SELECIONAR TODOS", clear: "LIMPAR", light: "MODO CLARO", dark: "MODO ESCURO", noData: "SEM DADOS",
+           selectAll: "SELECIONAR TODOS", clear: "LIMPAR", noData: "SEM DADOS",
            outputLabels: ["B2B · Relatório analítico", "B2C · YouTube Auto-Pilot", "B2C · WhatsApp Auto-Pilot", "B2C · Telegram Auto-Pilot"]
          },
          EN: {
@@ -666,7 +644,7 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
            terminal: "Market intelligence terminal", description: "Integrated financial intelligence platform with TradFi analysis, crypto module, automations, and specialized agent architecture.",
            deliveries: "Report production bay", deliveriesDescription: "Generate reports and scripts from quotes, benchmarks, and dashboard selections.",
            integrated: "Market map / monitored assets", agents: "Signal orchestration layer", agentsDescription: "Agents for prediction, technical analysis, scripting, and art direction. Each module is ready to receive a real service.",
-           selectAll: "SELECT ALL", clear: "CLEAR", light: "LIGHT MODE", dark: "DARK MODE", noData: "NO DATA",
+           selectAll: "SELECT ALL", clear: "CLEAR", noData: "NO DATA",
            outputLabels: ["B2B · Analytical report", "B2C · YouTube Auto-Pilot", "B2C · WhatsApp Auto-Pilot", "B2C · Telegram Auto-Pilot"]
          }
        };
@@ -717,8 +695,6 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
          $("#clear-all").textContent = text.clear;
          $$(".config-button").forEach((button) => button.textContent = text[button.dataset.config]);
          $$(".check-row").forEach((row, index) => row.lastChild.textContent = ` ${text.outputLabels[index]}`);
-         const themeIsLight = document.documentElement.dataset.theme === "light";
-         $("#theme-toggle").textContent = themeIsLight ? text.dark : text.light;
          renderAgent(document.querySelector(".tab.active")?.dataset.agent || "script");
        }
        function getAssetPool(module) {
@@ -1020,11 +996,6 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
           toast(`${type} export generated.`);
         }
       }));
-       $("#theme-toggle").addEventListener("click", () => {
-        const light = document.documentElement.dataset.theme === "light";
-        document.documentElement.dataset.theme = light ? "dark" : "light";
-         $("#theme-toggle").textContent = light ? copy().light : copy().dark;
-      });
        $("#language").addEventListener("change", (event) => {
          configState.language = event.target.value;
          persistConfig();
