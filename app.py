@@ -247,11 +247,10 @@ html = r"""﻿<!doctype html>
         background: rgba(2, 7, 15, .80);
         backdrop-filter: blur(18px);
       }
-      .topbar-title { color: var(--text); font-size: 13px; font-weight: 600; }
-      .topbar-title span { color: var(--cyan); }
       .topbar-meta { display: flex; gap: 18px; align-items: center; color: var(--muted); font: 10px "IBM Plex Mono"; }
       .status-dot { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); }
       .status-dot.stale { background: var(--amber); box-shadow: 0 0 10px var(--amber); }
+      .status-dot.closed { background: var(--red); box-shadow: 0 0 10px var(--red); }
       .workspace { width: min(1440px, 100%); margin: 0 auto; padding: 28px 30px 50px; }
       .page-heading { display: flex; justify-content: space-between; gap: 20px; align-items: end; margin-bottom: 19px; }
       h1, h2, h3, p { margin: 0; }
@@ -467,7 +466,6 @@ html = r"""﻿<!doctype html>
 
       <main>
         <header class="topbar">
-          <div class="topbar-title"><span>OMNI</span> / <span id="terminal-title">Market intelligence terminal</span></div>
           <div class="topbar-meta">
              <span id="api-status"><i class="status-dot"></i>API STATUS · CONNECTING</span>
             <span id="clock">--:--:-- BRT</span>
@@ -491,7 +489,7 @@ html = r"""﻿<!doctype html>
 
           <div class="status-strip">
              <div class="status-pill"><strong id="date-label">--</strong> · Market session / provider timestamp</div>
-             <div class="status-pill live" id="auto-status"><span class="status-dot"></span><strong>Auto-Pilot</strong> · monitoring</div>
+             <div class="status-pill live" id="auto-status"><span class="status-dot"></span><strong>MARKET STATUS · OPEN</strong> <span id="market-status-time">--:--:-- BRT</span></div>
              <div class="status-pill">Sources · <strong id="source-label">CONNECTING</strong></div>
           </div>
 
@@ -632,7 +630,7 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
          PT: {
            module: "Módulo / Module", outputs: "Formatos de saída", advanced: "Configurações avançadas", plan: "Plano ativo",
            production: "Acionar produção automática", automations: "Automações", triggers: "Gatilhos de report", calibration: "Calibragem da engine",
-           terminal: "Market intelligence terminal", description: "Plataforma integrada de inteligência financeira com análise TradFi, módulo crypto, automações e arquitetura de agentes especializados.",
+           description: "Plataforma integrada de inteligência financeira com análise TradFi, módulo crypto, automações e arquitetura de agentes especializados.",
            deliveries: "Report production bay", deliveriesDescription: "Geração de relatórios e scripts a partir das cotações, benchmarks e seleções do dashboard.",
            integrated: "Market map / monitored assets", agents: "Signal orchestration layer", agentsDescription: "Agentes para predição, análise técnica, roteirização e direção de arte. Cada módulo está preparado para receber um serviço real.",
            selectAll: "SELECIONAR TODOS", clear: "LIMPAR", noData: "SEM DADOS",
@@ -641,7 +639,7 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
          EN: {
            module: "Select Module", outputs: "Output Formats", advanced: "Advanced Settings", plan: "Active Plan",
            production: "Trigger automated production", automations: "Automations", triggers: "Report triggers", calibration: "Engine calibration",
-           terminal: "Market intelligence terminal", description: "Integrated financial intelligence platform with TradFi analysis, crypto module, automations, and specialized agent architecture.",
+           description: "Integrated financial intelligence platform with TradFi analysis, crypto module, automations, and specialized agent architecture.",
            deliveries: "Report production bay", deliveriesDescription: "Generate reports and scripts from quotes, benchmarks, and dashboard selections.",
            integrated: "Market map / monitored assets", agents: "Signal orchestration layer", agentsDescription: "Agents for prediction, technical analysis, scripting, and art direction. Each module is ready to receive a real service.",
            selectAll: "SELECT ALL", clear: "CLEAR", noData: "NO DATA",
@@ -684,7 +682,6 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
          $("#advanced-label").textContent = text.advanced;
          $("#plan-label").textContent = text.plan;
          $("#production").textContent = text.production;
-         $("#terminal-title").textContent = text.terminal;
          $("#page-description").textContent = text.description;
          $("#deliveries-title").textContent = text.deliveries;
          $("#deliveries-description").textContent = text.deliveriesDescription;
@@ -887,10 +884,12 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
         $("#source-label").textContent = overview?.source || "CONNECTING";
         $("#date-label").textContent = overview?.asOf ? new Date(overview.asOf).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase() : "--";
         const marketClosed = tradfiMarketClosed();
+        const marketTime = new Date().toLocaleTimeString("pt-BR", { hour12: false }) + " BRT";
         $("#auto-status").classList.toggle("live", !overview?.isStale && !marketClosed);
+        $("#auto-status").classList.toggle("closed", marketClosed);
         $("#auto-status").innerHTML = marketClosed
-          ? `<span class="status-dot stale"></span><strong>MERCADO FECHADO</strong> · Últimas cotações do último dia útil`
-          : `<span class="status-dot${overview?.isStale ? " stale" : ""}"></span><strong>${overview?.dataStatus?.toUpperCase() || "CONNECTING"}</strong> · ${overview?.isStale ? "stale data visible" : "provider monitoring"}`;
+          ? `<span class="status-dot closed"></span><strong>MARKET STATUS · CLOSED</strong> <span>${marketTime}</span>`
+          : `<span class="status-dot${overview?.isStale ? " stale" : ""}"></span><strong>MARKET STATUS · OPEN</strong> <span>${marketTime}</span>`;
         $("#api-status").innerHTML = marketClosed
           ? `<i class="status-dot stale"></i>MARKET STATUS · CLOSED`
           : `<i class="status-dot${overview?.isStale ? " stale" : ""}"></i>API STATUS · ${overview ? (overview.isStale ? "STALE WARNINGS" : "NOMINAL") : "CONNECTING"}`;
@@ -928,7 +927,9 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
 
       function updateClock() {
         const now = new Date();
-        $("#clock").textContent = now.toLocaleTimeString("pt-BR", { hour12: false }) + " BRT";
+        const formatted = now.toLocaleTimeString("pt-BR", { hour12: false }) + " BRT";
+        $("#clock").textContent = formatted;
+        if (!tradfiMarketClosed()) $("#market-status-time").textContent = formatted;
       }
 
       document.addEventListener("click", (event) => {
