@@ -68,7 +68,7 @@ def build_overview(module):
     for _, aa in cats:
         for name, symbol in aa:
             q=quotes.get(symbol, {"price":0.0,"change":0.0}); p=float(q.get("price",0) or 0)
-            assets.append({"name":name,"symbol":symbol,"price":p,"changePercent":float(q.get("change",0) or 0),"assetClass":"crypto" if "-USD" in symbol else "equity","source":"Yahoo Finance / BRAPI","dataStatus":"live" if p else "unavailable","isStale":not bool(p),"timestamp":now,"sparkline":[]})
+            assets.append({"name":name,"symbol":symbol,"price":p,"changePercent":float(q.get("change",0) or 0),"assetClass":"crypto" if "-USD" in symbol else "equity","source":q.get("source", "Unavailable") if p else "Unavailable","dataStatus":"live" if p else "unavailable","isStale":not bool(p),"timestamp":now,"sparkline":[]})
     metrics=[]
     if module == "crypto":
         fng, fng_class = fetch_btc_fng(); glob = fetch_global_crypto_data()
@@ -77,9 +77,9 @@ def build_overview(module):
         elif item.get("type") == "global_api":
             key=item.get("sub_key"); val=glob["btc_d_val"] if key=="btc_d" else glob["usdt_d_val"]; ch=glob["btc_d_chg"] if key=="btc_d" else glob["usdt_d_chg"]; metrics.append({"label":item["label"],"value":val,"change":f"{ch:+.2f}%","changeValue":ch,"source":"CoinGecko","ticker":("BTC.D" if key=="btc_d" else "USDT.D")})
         else:
-            q=quotes.get(item["ticker"], {"price":0.0,"change":0.0}); ch=float(q.get("change",0) or 0); p=float(q.get("price",0) or 0); metrics.append({"label":item["label"],"value":f"{item.get('prefix','')}{p:,.2f}" if p else "NO DATA","change":f"{ch:+.2f}%","changeValue":ch,"source":"Yahoo Finance","ticker":item["ticker"],"key":item.get("key")})
+            q=quotes.get(item["ticker"], {"price":0.0,"change":0.0}); ch=float(q.get("change",0) or 0); p=float(q.get("price",0) or 0); metrics.append({"label":item["label"],"value":f"{item.get('prefix','')}{p:,.2f}" if p else "NO DATA","change":f"{ch:+.2f}%","changeValue":ch,"source":q.get("source", "Unavailable") if p else "Unavailable","ticker":item["ticker"],"key":item.get("key")})
     available=[a for a in assets if a["price"]>0]
-    return {"module":module,"asOf":now,"source":"Yahoo Finance / BRAPI / Deribit","dataStatus":"live" if available else "unavailable","isStale":not bool(available),"assets":assets,"metrics":metrics,"kpis":{"advancing":sum(a["changePercent"]>0 for a in available),"declining":sum(a["changePercent"]<0 for a in available),"total":len(assets),"available":len(available)},"heatmap":heatmap(module,quotes),"errors":[]}
+    return {"module":module,"asOf":now,"source":"Provider-specific quotes","dataStatus":"live" if available else "unavailable","isStale":not bool(available),"assets":assets,"metrics":metrics,"kpis":{"advancing":sum(a["changePercent"]>0 for a in available),"declining":sum(a["changePercent"]<0 for a in available),"total":len(assets),"available":len(available)},"heatmap":heatmap(module,quotes),"errors":[]}
 
 bootstrap = {"tradfi":build_overview("tradfi"),"crypto":build_overview("crypto")}
 html = r"""﻿<!doctype html>
