@@ -1,14 +1,8 @@
 import io
 import json
-import os
 import requests
 import pandas as pd
 import yfinance as yf
-
-# -----------------------------------------------------------------------------
-# ARQUIVO DE PERSISTÊNCIA DOS GATILHOS
-# -----------------------------------------------------------------------------
-CONFIG_FILE = "trigger_config.json"
 
 # -----------------------------------------------------------------------------
 # ACERVO MESTRE DE DADOS & CATEGORIAS (TRADFI & CRYPTO)
@@ -100,32 +94,6 @@ CRYPTO_BENCHMARKS = [
 ]
 
 # -----------------------------------------------------------------------------
-# FUNÇÕES DE PERSISTÊNCIA DOS GATILHOS (BACK-END LOGIC)
-# -----------------------------------------------------------------------------
-def save_trigger_configurations(config_data):
-    """Valida e salva no backend as regras avançadas de gatilhos configuradas pelo analista."""
-    ativos = config_data.get("ativos_selecionados", [])
-    if len(ativos) > 10:
-        return False, f"Erro crítico: O limite máximo é de 10 ativos (enviados: {len(ativos)})."
-    
-    try:
-        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-            json.dump(config_data, f, ensure_ascii=False, indent=4)
-        return True, "Parâmetros e gatilhos atualizados com sucesso no backend!"
-    except Exception as e:
-        return False, f"Falha ao gravar configurações: {str(e)}"
-
-def load_trigger_configurations():
-    """Carrega as configurações salvas para uso da engine autônoma."""
-    if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {}
-
-# -----------------------------------------------------------------------------
 # FUNÇÕES AUXILIARES E DE INGESTÃO
 # -----------------------------------------------------------------------------
 def fmt_num(val, dec=2):
@@ -163,16 +131,6 @@ def generate_pdf_report(text_content, company, timestamp):
         return buffer.getvalue()
     except Exception:
         return text_content.encode('utf-8')
-
-def send_whatsapp_report(phone, instance_id, token, message):
-    if not phone or not token:
-        return False, "Credenciais de WhatsApp incompletas."
-    try:
-        headers = {"Content-Type": "application/json", "apikey": token}
-        payload = {"number": phone, "textMessage": {"text": message}}
-        return True, "Relatório disparado com sucesso via WhatsApp!"
-    except Exception as e:
-        return False, f"Erro ao disparar WhatsApp: {str(e)}"
 
 def fetch_btc_fng():
     try:
@@ -220,14 +178,14 @@ def fetch_brapi_fallback(failed_symbols, token=""):
                 price = item.get("regularMarketPrice") or item.get("close") or item.get("price") or 0.0
                 chg = item.get("regularMarketChangePercent") or item.get("changePercent") or 0.0
                 if price and float(price) > 0:
-                    brapi_quotes[orig_sym] = {"price": float(price), "change": float(chg)}
+                    brapi_quotes[orig_sym] = {"price": float(price), "change": float(chg), "source": "BRAPI"}
     except Exception:
         pass
     return brapi_quotes
 
-def fetch_realtime_quotes(symbols_tuple, brapi_token="", custom_api_key=""):
-    quotes = {sym: {"price": 0.0, "change": 0.0} for sym in symbols_tuple}
-    alias_map = {"UNI-USD": "UNI7083-USD", "BITF": "BITF"}
+def fetch_realtime_quotes(symbols_tuple, brapi_token=""):
+    quotes = {sym: {"price": 0.0, "change": 0.0, "source": "Unavailable"} for sym in symbols_tuple}
+    alias_map = {"UNI-USD": "UNI7083-USD"}
     try:
         download_list = [alias_map.get(s, s) for s in symbols_tuple]
         if "ES=F" not in download_list:
@@ -244,7 +202,7 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token="", custom_api_key=""):
                         prev = float(df_clean["Close"].iloc[-2]) if len(df_clean) >= 2 else p
                         c = ((p - prev) / prev) * 100 if prev > 0 else 0.0
                         if p > 0:
-                            quotes[orig_sym] = {"price": p, "change": c}
+                            quotes[orig_sym] = {"price": p, "change": c, "source": "Yahoo Finance"}
             except Exception:
                 pass
     except Exception:
@@ -258,7 +216,7 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token="", custom_api_key=""):
                 prev = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else p
                 c = ((p - prev) / prev) * 100 if prev > 0 else 0.0
                 if p > 0:
-                    quotes[orig_sym] = {"price": p, "change": c}
+                    quotes[orig_sym] = {"price": p, "change": c, "source": "Yahoo Finance"}
         except Exception:
             pass
 
@@ -267,3 +225,194 @@ def fetch_realtime_quotes(symbols_tuple, brapi_token="", custom_api_key=""):
         for sym, data_dict in fetch_brapi_fallback(failed_b3, token=brapi_token).items():
             quotes[sym] = data_dict
     return quotes
+
+
+# -----------------------------------------------------------------------------
+# OMNI RESEARCH ENGINE - API FLASK
+# -----------------------------------------------------------------------------
+import os
+import time
+from datetime import datetime, timezone
+from flask import Flask, jsonify, request, Response, send_from_directory
+
+try:
+    from flask_cors import CORS
+except ImportError:
+    CORS = None
+
+app = Flask(__name__)
+app.config["JSON_SORT_KEYS"] = False
+if CORS:
+    CORS(app, resources={r"/api/*": {"origins": os.getenv("OMNI_CORS_ORIGINS", "*").split(",")}})
+
+BRAPI_TOKEN = os.getenv("BRAPI_TOKEN", "")
+CACHE_TTL = int(os.getenv("OMNI_CACHE_TTL", "60"))
+_market_cache = {}
+
+
+def _utc_now():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _module_name(value):
+    return "crypto" if str(value or "tradfi").lower() == "crypto" else "tradfi"
+
+
+def _module_catalog(module):
+    source = CATEGORIES_CRYPTO if module == "crypto" else {
+        key: value for key, value in CATEGORIES_TRADFI.items()
+        if "Crypto" not in key and "Digital" not in value.get("tag", "")
+    }
+    categories = []
+    symbols = []
+    for category, data in source.items():
+        assets = []
+        for item in data.get("assets", []):
+            name, symbol = item[0], item[1]
+            assets.append((name, symbol))
+            if symbol not in symbols:
+                symbols.append(symbol)
+        categories.append((category, assets))
+    return categories, symbols
+
+
+def _quote_payload(name, symbol, quote, timestamp, source, status, error=None, sparkline=None):
+    price = float(quote.get("price", 0) or 0)
+    change = float(quote.get("change", 0) or 0)
+    return {
+        "name": name, "symbol": symbol, "price": price,
+        "changePercent": change,
+        "assetClass": "crypto" if ("-USD" in symbol or symbol in {"BTC-USD", "ETH-USD"}) else "equity",
+        "source": source, "dataStatus": status, "isStale": status != "live",
+        "timestamp": timestamp, "sparkline": sparkline or [], "error": error,
+    }
+
+
+def _load_overview(module, force=False):
+    module = _module_name(module)
+    now = time.time()
+    cached = _market_cache.get(module)
+    if cached and not force and now - cached["created"] < CACHE_TTL:
+        return cached["data"]
+    categories, symbols = _module_catalog(module)
+    if module == "tradfi":
+        symbols = symbols + [item["ticker"] for item in MACRO_BENCHMARKS]
+    else:
+        symbols = symbols + [item["ticker"] for item in CRYPTO_BENCHMARKS if item.get("ticker")]
+    symbols = tuple(dict.fromkeys(symbols))
+    timestamp = _utc_now()
+    errors = []
+    try:
+        raw_quotes = fetch_realtime_quotes(symbols, brapi_token=BRAPI_TOKEN)
+    except Exception as exc:
+        raw_quotes = {symbol: {"price": 0.0, "change": 0.0} for symbol in symbols}
+        errors.append(f"Quote provider error: {exc}")
+    assets = []
+    for category, category_assets in categories:
+        for name, symbol in category_assets:
+            quote = raw_quotes.get(symbol, {"price": 0.0, "change": 0.0})
+            status = "live" if quote.get("price", 0) else "unavailable"
+            assets.append(_quote_payload(name, symbol, quote, timestamp, "Yahoo Finance / BRAPI", status))
+    benchmarks = []
+    benchmark_defs = MACRO_BENCHMARKS if module == "tradfi" else CRYPTO_BENCHMARKS
+    for definition in benchmark_defs:
+        symbol = definition.get("ticker")
+        if not symbol:
+            continue
+        quote = raw_quotes.get(symbol, {"price": 0.0, "change": 0.0})
+        benchmarks.append(_quote_payload(definition["label"], symbol, quote, timestamp, definition.get("badge", "provider"), "live" if quote.get("price") else "unavailable"))
+    all_quotes = assets + benchmarks
+    available = [item for item in all_quotes if item["price"] > 0]
+    overview = {
+        "module": module, "asOf": timestamp,
+        "source": "Yahoo Finance / BRAPI fallback",
+        "dataStatus": "live" if available else "unavailable",
+        "isStale": not bool(available), "assets": all_quotes,
+        "categories": [{"name": name, "assets": [{"name": n, "symbol": s} for n, s in items]} for name, items in categories],
+        "benchmarks": benchmarks,
+        "kpis": {"advancing": sum(1 for x in available if x["changePercent"] > 0), "declining": sum(1 for x in available if x["changePercent"] < 0), "total": len(all_quotes), "available": len(available)},
+        "errors": errors + (["No provider quote returned for the selected symbols."] if not available else []),
+    }
+    _market_cache[module] = {"created": now, "data": overview}
+    return overview
+
+
+def _report_text(module, selected_symbols=None):
+    overview = _load_overview(module)
+    selected = set(selected_symbols or [])
+    assets = [x for x in overview["assets"] if not selected or x["symbol"] in selected]
+    lines = [f"=== OMNI {module.upper()} REPORT ===", "Emissor: OMNIRESEARCH Engine | Modo: pesquisa e educação financeira", f"Gerado em: {overview['asOf']}", f"Status dos dados: {overview['dataStatus']}", "", "--- COTAÇÕES NORMALIZADAS ---"]
+    for item in assets:
+        price = fmt_num(item["price"]) if item["price"] else "--"
+        lines.append(f"{item['name']} ({item['symbol']}): {price} | {fmt_pct(item['changePercent'])} | {item['source']} | {item['dataStatus']}")
+    lines += ["", f"Fontes: {overview['source']}", f"Amplitude: {overview['kpis']['advancing']} altas / {overview['kpis']['declining']} baixas"]
+    if overview.get("errors"):
+        lines += ["", "Avisos:"] + [f"- {error}" for error in overview["errors"]]
+    return "\n".join(lines)
+
+
+@app.get("/api/health")
+def health():
+    return jsonify({"ok": True, "service": "omni-research-engine", "timestamp": _utc_now()})
+
+
+@app.get("/api/market/overview")
+def market_overview():
+    return jsonify(_load_overview(request.args.get("module"), request.args.get("refresh") == "1"))
+
+
+@app.post("/api/market/refresh")
+def market_refresh():
+    payload = request.get_json(silent=True) or {}
+    return jsonify(_load_overview(payload.get("module"), force=True))
+
+
+@app.post("/api/report")
+def create_report():
+    payload = request.get_json(silent=True) or {}
+    module = _module_name(payload.get("module"))
+    return jsonify({"ok": True, "module": module, "generatedAt": _utc_now(), "content": _report_text(module, payload.get("symbols"))})
+
+
+@app.post("/api/report/pdf")
+def report_pdf():
+    payload = request.get_json(silent=True) or {}
+    module = _module_name(payload.get("module"))
+    return Response(generate_pdf_report(_report_text(module, payload.get("symbols")), f"OMNI {module.upper()} REPORT", _utc_now()), mimetype="application/pdf", headers={"Content-Disposition": f"attachment; filename=OMNI_Report_{module}.pdf"})
+
+
+@app.post("/api/agents/run")
+def run_agent():
+    payload = request.get_json(silent=True) or {}
+    module = _module_name(payload.get("module"))
+    asset, agent, tone = payload.get("asset", ""), payload.get("agent", "script"), payload.get("tone", "Institucional / B2B")
+    return jsonify({"ok": True, "status": "queued_for_review", "agent": agent, "module": module, "asset": asset, "tone": tone, "output": _report_text(module, [asset] if asset else None), "generatedAt": _utc_now()})
+
+
+@app.post("/api/crm/push")
+def crm_push():
+    payload = request.get_json(silent=True) or {}
+    webhook = os.getenv("OMNI_CRM_WEBHOOK", "").strip()
+    result = {"ok": True, "status": "preview", "message": "CRM payload prepared; no external request was sent.", "payload": payload}
+    if webhook and payload.get("dispatch") is True:
+        try:
+            response = requests.post(webhook, json=payload, timeout=8)
+            result.update({"status": "sent" if response.ok else "error", "httpStatus": response.status_code})
+        except Exception as exc:
+            result.update({"status": "error", "message": str(exc)})
+    return jsonify(result)
+
+
+@app.errorhandler(Exception)
+def handle_error(error):
+    app.logger.exception("Unhandled API error")
+    return jsonify({"ok": False, "error": str(error)}), 500
+
+
+@app.get("/")
+def dashboard():
+    return send_from_directory("/home/ubuntu", "Omnidashboard.html")
+
+
+if __name__ == "__main__":
+    app.run(host=os.getenv("OMNI_HOST", "0.0.0.0"), port=int(os.getenv("PORT", "5000")), debug=os.getenv("FLASK_DEBUG", "0") == "1")
