@@ -314,6 +314,8 @@ html = r"""﻿<!doctype html>
       .metric-card { position: relative; padding: 13px; border: 1px solid var(--line); background: rgba(6, 16, 27, .7); transition: .2s ease; }
       .metric-card:hover { border-color: rgba(103, 232, 249, .5); transform: translateX(2px); }
       .metric-top { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 10px; }
+      .metric-title-line { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+      .metric-title-line .asset-chart-trigger { margin-top: 0; flex: 0 0 auto; }
       .source { padding: 3px 5px; color: var(--muted-2); border: 1px solid var(--line); font: 8px "IBM Plex Mono"; }
       .data-meta { margin-top: 7px; color: var(--muted-2); font: 8px/1.45 "IBM Plex Mono"; }
       .asset-row .data-meta { grid-column: 1 / -1; }
@@ -849,7 +851,7 @@ const TRADFI_METRICS = [["S&P 500 INDEX", "SPX"], ["NASDAQ 100", "NDX"], ["VOLAT
         const overview = marketState.data;
         if (!overview) { $("#metric-list").innerHTML = `<div class="${marketState.error ? "api-error" : "loading-state"}">${escapeHtml(marketState.error || "Connecting to the market data service…")}</div>`; return; }
         const metrics = overview.metrics || [];
-        $("#metric-list").innerHTML = metrics.map((metric) => { const ticker=metric.ticker || metric.symbol || metric.key || metric.label; const symbol=tradingViewSymbol(ticker); return `<div class="metric-card"><div class="metric-top"><span>${escapeHtml(metric.label)}</span><span class="source">${escapeHtml(metric.source)}</span></div><div class="metric-value">${escapeHtml(metric.value)}</div><div class="${trendClass(metric.changeValue || 0)}">${escapeHtml(metric.change)}</div>${statusMarkup(null, overview)}${symbol ? `<button class="asset-chart-trigger" data-popup-chart="${escapeHtml(symbol)}" type="button">${configState.language === "EN" ? "VIEW CHART" : "VER GRÁFICO"}</button>` : ""}</div>`; }).join("");
+        $("#metric-list").innerHTML = metrics.map((metric) => { const ticker=metric.ticker || metric.symbol || metric.key || metric.label; const symbol=tradingViewSymbol(ticker); return `<div class="metric-card"><div class="metric-top"><span class="metric-title-line"><span>${escapeHtml(metric.label)}</span>${symbol ? `<button class="asset-chart-trigger" data-popup-chart="${escapeHtml(symbol)}" type="button">${configState.language === "EN" ? "VIEW CHART" : "VER GRÁFICO"}</button>` : ""}</span><span class="source">${escapeHtml(metric.source)}</span></div><div class="metric-value">${escapeHtml(metric.value)}</div><div class="${trendClass(metric.changeValue || 0)}">${escapeHtml(metric.change)}</div>${statusMarkup(null, overview)}</div>`; }).join("");
       }
 
       function renderReport() {
