@@ -101,8 +101,8 @@ html = r"""﻿<!doctype html>
         --line: rgba(100, 116, 139, 0.34);
         --line-strong: rgba(103, 232, 249, 0.34);
         --text: #e8f3f7;
-        --muted: #8293a1;
-        --muted-2: #526475;
+        --muted: #a8bac3;
+        --muted-2: #7f98a3;
         --cyan: #67e8f9;
         --cyan-strong: #22d3ee;
         --green: #6ee7b7;
